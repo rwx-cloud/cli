@@ -7,7 +7,7 @@ on:
         ref: ${{ event.git.ref }}
 
 concurrency-pools:
-  - id: rwx-research/mint-cli:ci-${{ init.ref }}
+  - id: rwx-cloud/cli:ci-${{ init.ref }}
     capacity: 1
     on-overflow: cancel-running
 
@@ -20,9 +20,9 @@ tasks:
     call: mint/git-clone 1.6.4
     with:
       preserve-git-dir: true
-      repository: https://github.com/rwx-research/mint-cli.git
+      repository: https://github.com/rwx-cloud/cli.git
       ref: ${{ init.commit-sha }}
-      github-access-token: ${{ github.token }}
+      github-access-token: ${{ github['rwx-cloud'].token }}
 
   - key: tool-versions
     use: code
@@ -81,9 +81,9 @@ tasks:
     call: mint/git-clone 1.6.4
     with:
       path: ./mint-testing
-      repository: https://github.com/rwx-research/mint-testing.git
+      repository: https://github.com/rwx-cloud/mint-testing.git
       ref: main
-      github-access-token: ${{ github.token }}
+      github-access-token: ${{ github['rwx-cloud'].token }}
 
   - key: jq
     run: |

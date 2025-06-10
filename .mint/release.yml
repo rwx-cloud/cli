@@ -1,6 +1,6 @@
 on:
   dispatch:
-    - key: release-mint-cli
+    - key: release-cli
       title: "Release Mint CLI ${{ init.version }} (${{ init.kind }})"
       params:
         - key: version
@@ -16,7 +16,7 @@ on:
         version: ${{ event.dispatch.params.version }}
 
 concurrency-pools:
-  - id: rwx-research/mint-cli::release-${{ init.kind }}
+  - id: rwx-cloud/cli::release-${{ init.kind }}
     capacity: 1
     on-overflow: cancel-waiting
 
@@ -80,9 +80,9 @@ tasks:
     after: verify-inputs
     with:
       preserve-git-dir: true
-      repository: https://github.com/rwx-research/mint-cli.git
+      repository: https://github.com/rwx-cloud/cli.git
       ref: ${{ init.commit }}
-      github-access-token: ${{ vaults.default.github-apps.rwx-bot.token }}
+      github-access-token: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: go-deps
     use: [go, code]
@@ -111,8 +111,8 @@ tasks:
         exit 1
       fi
     env:
-      GITHUB_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
-      GH_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
+      GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
+      GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: draft-full-version-release
     use: [gh-cli, code]
@@ -129,8 +129,8 @@ tasks:
         --generate-notes \
         --title "Mint CLI ${full_version}"
     env:
-      GITHUB_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
-      GH_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
+      GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
+      GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: codesigning
     run: |
@@ -226,8 +226,8 @@ tasks:
       mv "mint$extension" "$github_asset_name"
       gh release upload ${{ tasks.extract-version-details.values.full-version }} "${github_asset_name}" --clobber
     env:
-      GITHUB_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
-      GH_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
+      GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
+      GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       CODESIGN_VERSION: 0.22.0
       RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT: "${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_CERTIFICATE }}${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_PRIVATE_KEY }}"
       RWX_APPLE_APP_STORE_CONNECT_API_KEY: ${{ secrets.RWX_APPLE_APP_STORE_CONNECT_API_KEY }}
@@ -241,8 +241,8 @@ tasks:
         --draft=false \
         --latest
     env:
-      GITHUB_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
-      GH_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
+      GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
+      GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: update-aliased-version-release
     use: [gh-cli, code]
@@ -269,5 +269,5 @@ tasks:
       gh release download ${{ tasks.extract-version-details.values.full-version }}
       gh release upload "${aliased_version}" mint-* --clobber
     env:
-      GITHUB_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
-      GH_TOKEN: ${{ vaults.default.github-apps.rwx-bot.token }}
+      GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
+      GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}

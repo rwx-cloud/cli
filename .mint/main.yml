@@ -7,7 +7,7 @@ on:
         ref: ${{ event.git.ref }}
 
 concurrency-pools:
-  - id: rwx-research/mint-cli:main
+  - id: rwx-cloud/cli:main
     capacity: 1
     on-overflow: cancel-waiting
 
