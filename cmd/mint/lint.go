@@ -13,7 +13,7 @@ import (
 var (
 	LintFailure = errors.Wrap(HandledError, "lint failure")
 
-	LintMintDirectory    string
+	LintRwxDirectory     string
 	LintWarningsAsErrors bool
 	LintOutputFormat     string
 
@@ -29,7 +29,7 @@ var (
 
 			lintConfig, err := cli.NewLintConfig(
 				targetedFiles,
-				LintMintDirectory,
+				LintRwxDirectory,
 				LintOutputFormat,
 			)
 			if err != nil {
@@ -63,6 +63,6 @@ var (
 
 func init() {
 	lintCmd.Flags().BoolVar(&LintWarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
-	lintCmd.Flags().StringVarP(&LintMintDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
+	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
 	lintCmd.Flags().StringVarP(&LintOutputFormat, "output", "o", "multiline", "output format: multiline, oneline, none")
 }

@@ -116,29 +116,29 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	var mintDirectory []MintDirectoryEntry
+	var rwxDirectory []RwxDirectoryEntry
 	runDefinitionPath := cfg.MintFilePath
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to find .mint directory")
 	}
 
 	// It's possible (when no directory is specified) that there is no .mint directory found during traversal
-	if mintDirectoryPath != "" {
-		mintDirectoryEntries, err := mintDirectoryEntries(mintDirectoryPath)
+	if rwxDirectoryPath != "" {
+		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 		if err != nil {
 			if errors.Is(err, errors.ErrFileNotExists) {
-				return nil, fmt.Errorf("You specified --dir %q, but %q could not be found", cfg.MintDirectory, cfg.MintDirectory)
+				return nil, fmt.Errorf("You specified --dir %q, but %q could not be found", cfg.RwxDirectory, cfg.RwxDirectory)
 			}
 
 			return nil, err
 		}
 
-		mintDirectory = mintDirectoryEntries
+		rwxDirectory = rwxDirectoryEntries
 	}
 
-	runDefinition, err := mintDirectoryEntriesFromPaths([]string{runDefinitionPath})
+	runDefinition, err := rwxDirectoryEntriesFromPaths([]string{runDefinitionPath})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read provided files")
 	}
@@ -149,17 +149,17 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 	// reloadRunDefinitions reloads run definitions after modifying the file.
 	reloadRunDefinitions := func() error {
-		runDefinition, err = mintDirectoryEntriesFromPaths([]string{runDefinitionPath})
+		runDefinition, err = rwxDirectoryEntriesFromPaths([]string{runDefinitionPath})
 		if err != nil {
 			return errors.Wrapf(err, "unable to reload %q", runDefinitionPath)
 		}
-		if mintDirectoryPath != "" {
-			mintDirectoryEntries, err := mintDirectoryEntries(mintDirectoryPath)
+		if rwxDirectoryPath != "" {
+			rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 			if err != nil && !errors.Is(err, errors.ErrFileNotExists) {
-				return errors.Wrapf(err, "unable to reload mint directory %q", mintDirectoryPath)
+				return errors.Wrapf(err, "unable to reload mint directory %q", rwxDirectoryPath)
 			}
 
-			mintDirectory = mintDirectoryEntries
+			rwxDirectory = rwxDirectoryEntries
 		}
 		return nil
 	}
@@ -213,7 +213,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	runResult, err := s.APIClient.InitiateRun(api.InitiateRunConfig{
 		InitializationParameters: initializationParameters,
 		TaskDefinitions:          runDefinition,
-		MintDirectory:            mintDirectory,
+		RwxDirectory:             rwxDirectory,
 		TargetedTaskKeys:         cfg.TargetedTasks,
 		Title:                    cfg.Title,
 		UseCache:                 !cfg.NoCache,
@@ -284,59 +284,59 @@ func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	targetedEntries, err := mintDirectoryEntriesFromPaths(cfg.MintFilePaths)
+	targetedEntries, err := rwxDirectoryEntriesFromPaths(cfg.MintFilePaths)
 	if err != nil {
 		return nil, err
 	}
 	targetedEntries = filterYAMLFiles(targetedEntries)
-	targetedEntries = removeDuplicates(targetedEntries, func(entry MintDirectoryEntry) string {
+	targetedEntries = removeDuplicates(targetedEntries, func(entry RwxDirectoryEntry) string {
 		return entry.Path
 	})
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	var mintDirEntries []MintDirectoryEntry
-	if mintDirectoryPath != "" {
-		mdEntries, err := mintDirectoryEntries(mintDirectoryPath)
+	var rwxDirEntries []RwxDirectoryEntry
+	if rwxDirectoryPath != "" {
+		mdEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 		if err != nil {
 			return nil, err
 		}
 
-		// Ensure both the provided paths and everything in the MintDirectory is loaded.
+		// Ensure both the provided paths and everything in the RwxDirectory is loaded.
 		mdEntries = filterYAMLFiles(mdEntries)
-		mdEntries = removeDuplicates(mdEntries, func(entry MintDirectoryEntry) string {
+		mdEntries = removeDuplicates(mdEntries, func(entry RwxDirectoryEntry) string {
 			return entry.Path
 		})
 
 		for _, entry := range mdEntries {
 			// Don't duplicate targeted files that are also in .mint
-			if slices.ContainsFunc(targetedEntries, func(te MintDirectoryEntry) bool {
+			if slices.ContainsFunc(targetedEntries, func(te RwxDirectoryEntry) bool {
 				return te.Path == entry.Path
 			}) {
 				continue
 			}
-			mintDirEntries = append(mintDirEntries, entry)
+			rwxDirEntries = append(rwxDirEntries, entry)
 		}
 	}
 
-	definitionEntries := append(targetedEntries, mintDirEntries...)
+	definitionEntries := append(targetedEntries, rwxDirEntries...)
 
 	// When no files are targeted, lint all .mint files
-	if len(cfg.MintFilePaths) == 0 && len(mintDirEntries) > 0 {
-		targetedEntries = mintDirEntries
+	if len(cfg.MintFilePaths) == 0 && len(rwxDirEntries) > 0 {
+		targetedEntries = rwxDirEntries
 	}
 
-	taskDefinitions := Map(definitionEntries, func(entry MintDirectoryEntry) TaskDefinition {
+	taskDefinitions := Map(definitionEntries, func(entry RwxDirectoryEntry) TaskDefinition {
 		return TaskDefinition{
 			Path:         entry.Path,
 			FileContents: entry.FileContents,
 		}
 	})
 
-	targetedPaths := Map(targetedEntries, func(entry MintDirectoryEntry) string {
+	targetedPaths := Map(targetedEntries, func(entry RwxDirectoryEntry) string {
 		return entry.Path
 	})
 
@@ -589,18 +589,18 @@ func (s Service) ResolveLeaves(cfg ResolveLeavesConfig) (ResolveLeavesResult, er
 		return ResolveLeavesResult{}, errors.Wrap(err, "validation failed")
 	}
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return ResolveLeavesResult{}, errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, mintDirectoryPath)
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
 		return ResolveLeavesResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
-		return ResolveLeavesResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", mintDirectoryPath)
+		return ResolveLeavesResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
 	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
@@ -631,18 +631,18 @@ func (s Service) UpdateLeaves(cfg UpdateLeavesConfig) error {
 		return errors.Wrap(err, "validation failed")
 	}
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, mintDirectoryPath)
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
 		return err
 	}
 
 	if len(yamlFiles) == 0 {
-		return errors.New(fmt.Sprintf("no files provided, and no yaml files found in directory %s", mintDirectoryPath))
+		return errors.New(fmt.Sprintf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath))
 	}
 
 	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
@@ -773,18 +773,18 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 		return ResolveBaseResult{}, errors.Wrap(err, "validation failed")
 	}
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, mintDirectoryPath)
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
 		return ResolveBaseResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
-		return ResolveBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", mintDirectoryPath)
+		return ResolveBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
 	requestedSpec := BaseLayerSpec{
@@ -799,7 +799,7 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 	}
 
 	if len(yamlFiles) == 0 {
-		fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.MintDirectory)
+		fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
 	} else if !result.HasChanges() {
 		fmt.Fprintln(s.Stdout, "No run files were missing base.")
 	} else {
@@ -831,20 +831,20 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 		return ResolveBaseResult{}, errors.Wrap(err, "validation failed")
 	}
 
-	mintDirectoryPath, err := findAndValidateMintDirectoryPath(cfg.MintDirectory)
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, mintDirectoryPath)
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
 		return ResolveBaseResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
 		errmsg := "no files provided, and no yaml files found"
-		if mintDirectoryPath != "" {
-			errmsg = fmt.Sprintf("%s in directory %s", errmsg, mintDirectoryPath)
+		if rwxDirectoryPath != "" {
+			errmsg = fmt.Sprintf("%s in directory %s", errmsg, rwxDirectoryPath)
 		}
 
 		return ResolveBaseResult{}, errors.New(errmsg)
@@ -883,7 +883,7 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 	return result, nil
 }
 
-func (s Service) resolveOrUpdateBaseForFiles(mintFiles []MintDirectoryEntry, requestedSpec BaseLayerSpec, update bool) (ResolveBaseResult, error) {
+func (s Service) resolveOrUpdateBaseForFiles(mintFiles []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) (ResolveBaseResult, error) {
 	runFiles, err := s.getFilesForBaseResolveOrUpdate(mintFiles, requestedSpec, update)
 	if err != nil {
 		return ResolveBaseResult{}, err
@@ -923,7 +923,7 @@ func (s Service) resolveOrUpdateBaseForFiles(mintFiles []MintDirectoryEntry, req
 	}, nil
 }
 
-func (s Service) getFilesForBaseResolveOrUpdate(entries []MintDirectoryEntry, requestedSpec BaseLayerSpec, update bool) ([]BaseLayerRunFile, error) {
+func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) ([]BaseLayerRunFile, error) {
 	yamlFiles := filterYAMLFilesForModification(entries, func(doc *YAMLDoc) bool {
 		if !doc.HasTasks() {
 			return false
