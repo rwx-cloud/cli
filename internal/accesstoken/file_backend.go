@@ -13,26 +13,68 @@ import (
 )
 
 type FileBackend struct {
-	Dir string
+	PrimaryDirectory    string
+	FallbackDirectories []string
 }
 
-func NewFileBackend(dir string) (*FileBackend, error) {
-	dir, err := expandTilde(dir)
+func NewFileBackend(dirs []string) (*FileBackend, error) {
+	if len(dirs) < 1 {
+		return nil, fmt.Errorf("at least one directory must be provided")
+	}
+
+	primaryDirectory, err := expandTilde(dirs[0])
 	if err != nil {
 		return nil, err
 	}
 
-	return &FileBackend{Dir: dir}, nil
+	fallbackDirectories := make([]string, len(dirs)-1)
+	for i, dir := range dirs[1:] {
+		fallbackDir, err := expandTilde(dir)
+		if err != nil {
+			return nil, err
+		}
+		fallbackDirectories[i] = fallbackDir
+	}
+
+	return &FileBackend{
+		PrimaryDirectory:    primaryDirectory,
+		FallbackDirectories: fallbackDirectories,
+	}, nil
 }
 
 func (f FileBackend) Get() (string, error) {
-	path := filepath.Join(f.Dir, "accesstoken")
-	fd, err := os.Open(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return "", nil
+	token, err := f.getFrom(f.PrimaryDirectory)
+
+	if err != nil && errors.Is(err, fs.ErrNotExist) {
+		for _, dir := range f.FallbackDirectories {
+			token, err = f.getFrom(dir)
+
+			if err != nil && errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+
+			if err != nil {
+				return token, err
+			}
+
+			if err := f.Set(token); err != nil {
+				return "", errors.Wrapf(err, "unable to migrate access token from %q to %q", dir, f.PrimaryDirectory)
+			}
+
+			return token, nil
 		}
 
+		// if no fallbacks were used, indicate no token was found
+		return "", nil
+	}
+
+	return token, err
+}
+
+func (f FileBackend) getFrom(dir string) (string, error) {
+	path := filepath.Join(dir, "accesstoken")
+	fd, err := os.Open(path)
+	if err != nil {
 		return "", errors.Wrapf(err, "unable to open %q", path)
 	}
 	defer fd.Close()
@@ -46,12 +88,12 @@ func (f FileBackend) Get() (string, error) {
 }
 
 func (f FileBackend) Set(value string) error {
-	err := os.MkdirAll(f.Dir, os.ModePerm)
+	err := os.MkdirAll(f.PrimaryDirectory, os.ModePerm)
 	if err != nil {
-		return errors.Wrapf(err, "unable to create %q", f.Dir)
+		return errors.Wrapf(err, "unable to create %q", f.PrimaryDirectory)
 	}
 
-	path := filepath.Join(f.Dir, "accesstoken")
+	path := filepath.Join(f.PrimaryDirectory, "accesstoken")
 	fd, err := os.Create(path)
 	if err != nil {
 		return errors.Wrapf(err, "unable to create %q", path)
