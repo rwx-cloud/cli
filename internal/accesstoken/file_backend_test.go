@@ -145,6 +145,7 @@ var _ = Describe("FileBackend", func() {
 
 					file, err := os.Open(path.Join(primaryTmpDir, "accesstoken"))
 					Expect(err).NotTo(HaveOccurred())
+					defer file.Close()
 					bytes, err := io.ReadAll(file)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(string(bytes)).To(Equal("the-token"))
