@@ -496,6 +496,98 @@ var _ = Describe("CLI Service", func() {
 						Expect(resolveBaseLayerCalled).To(BeFalse())
 					})
 				})
+
+				Context("when the directory includes a test-suites directory inside it", func() {
+					var originalSpecifiedFileContent string
+					var originalRwxDirFileContent string
+					var receivedSpecifiedFileContent string
+					var receivedRwxDir []api.RwxDirectoryEntry
+
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						originalRwxDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
+
+						var err error
+
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
+
+						rwxDir := filepath.Join(tmp, "some", "path", "to", ".rwx")
+						err = os.MkdirAll(rwxDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.yml"), []byte(originalRwxDirFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						testSuitesDir := filepath.Join(rwxDir, "test-suites")
+						err = os.MkdirAll(testSuitesDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(testSuitesDir, "config.yaml"), []byte("some yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						nestedDir := filepath.Join(rwxDir, "some", "nested", "path")
+						err = os.MkdirAll(nestedDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte("some nested yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(7))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".rwx/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".rwx/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".rwx/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							receivedRwxDir = cfg.RwxDirectory
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".rwx/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("does not include the test-suites directory or its children", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+						Expect(receivedRwxDir).NotTo(BeNil())
+						Expect(len(receivedRwxDir)).To(Equal(7))
+						Expect(receivedRwxDir[0].Path).To(Equal(".rwx"))
+						Expect(receivedRwxDir[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
+						Expect(receivedRwxDir[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
+						Expect(receivedRwxDir[3].Path).To(Equal(".rwx/some"))
+						Expect(receivedRwxDir[4].Path).To(Equal(".rwx/some/nested"))
+						Expect(receivedRwxDir[5].Path).To(Equal(".rwx/some/nested/path"))
+						Expect(receivedRwxDir[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+					})
+				})
 			})
 
 			Context("when base is missing", func() {

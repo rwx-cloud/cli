@@ -124,6 +124,10 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 				return suberr
 			}
 
+			if entry.Path == ".rwx/test-suites" && entry.IsDir() {
+				return filepath.SkipDir // Skip the test-suites directory
+			}
+
 			totalSize += entrySize
 			entries = append(entries, entry)
 			return nil
