@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/rwx-research/mint-cli/cmd/mint/config"
 	"github.com/rwx-research/mint-cli/internal/accesstoken"
@@ -31,7 +31,11 @@ var (
 		Version:       config.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			accessTokenBackend, err = accesstoken.NewFileBackend(fmt.Sprintf("~%v.mint", string(os.PathSeparator)))
+
+			accessTokenBackend, err = accesstoken.NewFileBackend([]string{
+				filepath.Join("~", ".config", "rwx"),
+				filepath.Join("~", ".mint"),
+			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize access token backend")
 			}
