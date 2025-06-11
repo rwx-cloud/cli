@@ -116,199 +116,484 @@ var _ = Describe("CLI Service", func() {
 		})
 
 		Context("with a specific mint file and no specific directory", func() {
-			Context("when a directory with files is found", func() {
-				var originalSpecifiedFileContent string
-				var originalMintDirFileContent string
-				var receivedSpecifiedFileContent string
-				var receivedMintDir []api.MintDirectoryEntry
+			Describe("with a .mint directory", func() {
+				Context("when a directory with files is found", func() {
+					var originalSpecifiedFileContent string
+					var originalRwxDirFileContent string
+					var receivedSpecifiedFileContent string
+					var receivedRwxDir []api.RwxDirectoryEntry
 
-				BeforeEach(func() {
-					originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
-					originalMintDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
-					receivedSpecifiedFileContent = ""
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						originalRwxDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
 
-					var err error
+						var err error
 
-					workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
-					err = os.MkdirAll(workingDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.Chdir(workingDir)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
 
-					mintDir := filepath.Join(tmp, "some", "path", "to", ".mint")
-					err = os.MkdirAll(mintDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						mintDir := filepath.Join(tmp, "some", "path", "to", ".mint")
+						err = os.MkdirAll(mintDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.yml"), []byte(originalMintDirFileContent), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.yml"), []byte(originalRwxDirFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					nestedDir := filepath.Join(mintDir, "some", "nested", "path")
-					err = os.MkdirAll(nestedDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						nestedDir := filepath.Join(mintDir, "some", "nested", "path")
+						err = os.MkdirAll(nestedDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte("some nested yaml"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte("some nested yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = ""
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
 
-					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
-						Expect(cfg.TaskDefinitions).To(HaveLen(1))
-						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(7))
-						Expect(cfg.MintDirectory[0].Path).To(Equal(".mint"))
-						Expect(cfg.MintDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-						Expect(cfg.MintDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
-						Expect(cfg.MintDirectory[3].Path).To(Equal(".mint/some"))
-						Expect(cfg.MintDirectory[4].Path).To(Equal(".mint/some/nested"))
-						Expect(cfg.MintDirectory[5].Path).To(Equal(".mint/some/nested/path"))
-						Expect(cfg.MintDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
-						Expect(cfg.UseCache).To(BeTrue())
-						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						receivedMintDir = cfg.MintDirectory
-						return &api.InitiateRunResult{
-							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							TargetedTaskKeys: []string{},
-							DefinitionPath:   ".mint/mint.yml",
-						}, nil
-					}
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(7))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							receivedRwxDir = cfg.RwxDirectory
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".mint/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+						Expect(receivedRwxDir).NotTo(BeNil())
+						Expect(receivedRwxDir[0].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[1].FileContents).To(Equal("some json"))
+						Expect(receivedRwxDir[2].FileContents).To(Equal(originalRwxDirFileContent))
+						Expect(receivedRwxDir[3].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[4].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[5].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[6].FileContents).To(Equal("some nested yaml"))
+					})
 				})
 
-				JustBeforeEach(func() {
-					_, err := service.InitiateRun(runConfig)
-					Expect(err).ToNot(HaveOccurred())
+				Context("when an empty directory is found", func() {
+					var originalSpecifiedFileContent string
+					var receivedSpecifiedFileContent string
+
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
+
+						var err error
+
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
+
+						mintDir := filepath.Join(tmp, "some", "path", "to", ".mint")
+						err = os.MkdirAll(mintDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(1))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".mint/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+					})
 				})
 
-				It("sends the file contents to cloud", func() {
-					Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
-					Expect(receivedMintDir).NotTo(BeNil())
-					Expect(receivedMintDir[0].FileContents).To(Equal(""))
-					Expect(receivedMintDir[1].FileContents).To(Equal("some json"))
-					Expect(receivedMintDir[2].FileContents).To(Equal(originalMintDirFileContent))
-					Expect(receivedMintDir[3].FileContents).To(Equal(""))
-					Expect(receivedMintDir[4].FileContents).To(Equal(""))
-					Expect(receivedMintDir[5].FileContents).To(Equal(""))
-					Expect(receivedMintDir[6].FileContents).To(Equal("some nested yaml"))
+				Context("when a directory is not found", func() {
+					var originalSpecifiedFileContent string
+					var receivedSpecifiedFileContent string
+
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
+
+						var err error
+
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(0))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".mint/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+					})
+
+					It("doesn't call the API to resolve the current base layer", func() {
+						Expect(resolveBaseLayerCalled).To(BeFalse())
+					})
 				})
 			})
 
-			Context("when an empty directory is found", func() {
-				var originalSpecifiedFileContent string
-				var receivedSpecifiedFileContent string
+			Describe("with a .rwx directory", func() {
+				Context("when a directory with files is found", func() {
+					var originalSpecifiedFileContent string
+					var originalRwxDirFileContent string
+					var receivedSpecifiedFileContent string
+					var receivedRwxDir []api.RwxDirectoryEntry
 
-				BeforeEach(func() {
-					originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
-					receivedSpecifiedFileContent = ""
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						originalRwxDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
 
-					var err error
+						var err error
 
-					workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
-					err = os.MkdirAll(workingDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.Chdir(workingDir)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
 
-					mintDir := filepath.Join(tmp, "some", "path", "to", ".mint")
-					err = os.MkdirAll(mintDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						rwxDir := filepath.Join(tmp, "some", "path", "to", ".rwx")
+						err = os.MkdirAll(rwxDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = ""
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.yml"), []byte(originalRwxDirFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
-						Expect(cfg.TaskDefinitions).To(HaveLen(1))
-						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(1))
-						Expect(cfg.MintDirectory[0].Path).To(Equal(".mint"))
-						Expect(cfg.UseCache).To(BeTrue())
-						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						return &api.InitiateRunResult{
-							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							TargetedTaskKeys: []string{},
-							DefinitionPath:   ".mint/mint.yml",
-						}, nil
-					}
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						nestedDir := filepath.Join(rwxDir, "some", "nested", "path")
+						err = os.MkdirAll(nestedDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte("some nested yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(7))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".rwx/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".rwx/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".rwx/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							receivedRwxDir = cfg.RwxDirectory
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".rwx/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+						Expect(receivedRwxDir).NotTo(BeNil())
+						Expect(receivedRwxDir[0].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[1].FileContents).To(Equal("some json"))
+						Expect(receivedRwxDir[2].FileContents).To(Equal(originalRwxDirFileContent))
+						Expect(receivedRwxDir[3].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[4].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[5].FileContents).To(Equal(""))
+						Expect(receivedRwxDir[6].FileContents).To(Equal("some nested yaml"))
+					})
 				})
 
-				JustBeforeEach(func() {
-					_, err := service.InitiateRun(runConfig)
-					Expect(err).ToNot(HaveOccurred())
+				Context("when an empty directory is found", func() {
+					var originalSpecifiedFileContent string
+					var receivedSpecifiedFileContent string
+
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
+
+						var err error
+
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
+
+						rwxDir := filepath.Join(tmp, "some", "path", "to", ".rwx")
+						err = os.MkdirAll(rwxDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(1))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".rwx/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+					})
 				})
 
-				It("sends the file contents to cloud", func() {
-					Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+				Context("when a directory is not found", func() {
+					var originalSpecifiedFileContent string
+					var receivedSpecifiedFileContent string
+
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
+
+						var err error
+
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(0))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".rwx/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("sends the file contents to cloud", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+					})
+
+					It("doesn't call the API to resolve the current base layer", func() {
+						Expect(resolveBaseLayerCalled).To(BeFalse())
+					})
 				})
-			})
 
-			Context("when a directory is not found", func() {
-				var originalSpecifiedFileContent string
-				var receivedSpecifiedFileContent string
+				Context("when the directory includes a test-suites directory inside it", func() {
+					var originalSpecifiedFileContent string
+					var originalRwxDirFileContent string
+					var receivedSpecifiedFileContent string
+					var receivedRwxDir []api.RwxDirectoryEntry
 
-				BeforeEach(func() {
-					originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
-					receivedSpecifiedFileContent = ""
+					BeforeEach(func() {
+						originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+						originalRwxDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
+						receivedSpecifiedFileContent = ""
 
-					var err error
+						var err error
 
-					workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
-					err = os.MkdirAll(workingDir, 0o755)
-					Expect(err).NotTo(HaveOccurred())
+						workingDir := filepath.Join(tmp, "some", "path", "to", "working", "directory")
+						err = os.MkdirAll(workingDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.Chdir(workingDir)
-					Expect(err).NotTo(HaveOccurred())
+						err = os.Chdir(workingDir)
+						Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
-					Expect(err).NotTo(HaveOccurred())
+						rwxDir := filepath.Join(tmp, "some", "path", "to", ".rwx")
+						err = os.MkdirAll(rwxDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = ""
+						err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
-						Expect(cfg.TaskDefinitions).To(HaveLen(1))
-						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(0))
-						Expect(cfg.UseCache).To(BeTrue())
-						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						return &api.InitiateRunResult{
-							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
-							TargetedTaskKeys: []string{},
-							DefinitionPath:   ".mint/mint.yml",
-						}, nil
-					}
-				})
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.yml"), []byte(originalRwxDirFileContent), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-				JustBeforeEach(func() {
-					_, err := service.InitiateRun(runConfig)
-					Expect(err).ToNot(HaveOccurred())
-				})
+						err = os.WriteFile(filepath.Join(rwxDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
 
-				It("sends the file contents to cloud", func() {
-					Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
-				})
+						testSuitesDir := filepath.Join(rwxDir, "test-suites")
+						err = os.MkdirAll(testSuitesDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
 
-				It("doesn't call the API to resolve the current base layer", func() {
-					Expect(resolveBaseLayerCalled).To(BeFalse())
+						err = os.WriteFile(filepath.Join(testSuitesDir, "config.yaml"), []byte("some yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						nestedDir := filepath.Join(rwxDir, "some", "nested", "path")
+						err = os.MkdirAll(nestedDir, 0o755)
+						Expect(err).NotTo(HaveOccurred())
+
+						err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte("some nested yaml"), 0o644)
+						Expect(err).NotTo(HaveOccurred())
+
+						runConfig.MintFilePath = "mint.yml"
+						runConfig.RwxDirectory = ""
+
+						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+							Expect(cfg.TaskDefinitions).To(HaveLen(1))
+							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
+							Expect(cfg.RwxDirectory).To(HaveLen(7))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".rwx/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".rwx/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".rwx/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+							Expect(cfg.UseCache).To(BeTrue())
+							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
+							receivedRwxDir = cfg.RwxDirectory
+							return &api.InitiateRunResult{
+								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+								TargetedTaskKeys: []string{},
+								DefinitionPath:   ".rwx/mint.yml",
+							}, nil
+						}
+					})
+
+					JustBeforeEach(func() {
+						_, err := service.InitiateRun(runConfig)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("does not include the test-suites directory or its children", func() {
+						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
+						Expect(receivedRwxDir).NotTo(BeNil())
+						Expect(len(receivedRwxDir)).To(Equal(7))
+						Expect(receivedRwxDir[0].Path).To(Equal(".rwx"))
+						Expect(receivedRwxDir[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
+						Expect(receivedRwxDir[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
+						Expect(receivedRwxDir[3].Path).To(Equal(".rwx/some"))
+						Expect(receivedRwxDir[4].Path).To(Equal(".rwx/some/nested"))
+						Expect(receivedRwxDir[5].Path).To(Equal(".rwx/some/nested/path"))
+						Expect(receivedRwxDir[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+					})
 				})
 			})
 
 			Context("when base is missing", func() {
 				var originalSpecifiedFileContent string
 				var receivedSpecifiedFileContent string
-				var receivedMintDirectoryFileContent string
+				var receivedRwxDirectoryFileContent string
 
 				BeforeEach(func() {
 					originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n"
@@ -323,15 +608,15 @@ var _ = Describe("CLI Service", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = ".mint/foo.yml"
-					runConfig.MintDirectory = ".mint"
+					runConfig.RwxDirectory = ".mint"
 
 					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(2))
+						Expect(cfg.RwxDirectory).To(HaveLen(2))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						receivedMintDirectoryFileContent = cfg.MintDirectory[1].FileContents
+						receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
 						return &api.InitiateRunResult{
 							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -356,7 +641,7 @@ var _ = Describe("CLI Service", func() {
 				})
 
 				It("passes the updated file content in the mint directory artifact", func() {
-					Expect(receivedMintDirectoryFileContent).To(Equal(fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent)))
+					Expect(receivedRwxDirectoryFileContent).To(Equal(fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent)))
 				})
 
 				It("prints a warning", func() {
@@ -367,7 +652,7 @@ var _ = Describe("CLI Service", func() {
 			Context("when leaf is missing version", func() {
 				var originalSpecifiedFileContent string
 				var receivedSpecifiedFileContent string
-				var receivedMintDirectoryFileContent string
+				var receivedRwxDirectoryFileContent string
 
 				BeforeEach(func() {
 					originalSpecifiedFileContent = baseSpec + "tasks:\n  - key: foo\n    call: mint/setup-node\n"
@@ -382,17 +667,17 @@ var _ = Describe("CLI Service", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = ".mint/foo.yml"
-					runConfig.MintDirectory = ".mint"
+					runConfig.RwxDirectory = ".mint"
 
 					majorLeafVersions["mint/setup-node"] = "1.2.3"
 
 					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(2))
+						Expect(cfg.RwxDirectory).To(HaveLen(2))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						receivedMintDirectoryFileContent = cfg.MintDirectory[1].FileContents
+						receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
 						return &api.InitiateRunResult{
 							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -417,7 +702,7 @@ var _ = Describe("CLI Service", func() {
 				})
 
 				It("passes the updated file content in the mint directory artifact", func() {
-					Expect(receivedMintDirectoryFileContent).To(Equal(baseSpec + "tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n"))
+					Expect(receivedRwxDirectoryFileContent).To(Equal(baseSpec + "tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n"))
 				})
 
 				It("prints a warning", func() {
@@ -429,7 +714,7 @@ var _ = Describe("CLI Service", func() {
 		Context("with no specific mint file and no specific directory", func() {
 			BeforeEach(func() {
 				runConfig.MintFilePath = ""
-				runConfig.MintDirectory = ""
+				runConfig.RwxDirectory = ""
 			})
 
 			It("returns an error", func() {
@@ -442,13 +727,13 @@ var _ = Describe("CLI Service", func() {
 		Context("with a specific mint file and a specific directory", func() {
 			Context("when a directory with files is found", func() {
 				var originalSpecifiedFileContent string
-				var originalMintDirFileContent string
+				var originalRwxDirFileContent string
 				var receivedSpecifiedFileContent string
-				var receivedMintDir []api.MintDirectoryEntry
+				var receivedRwxDir []api.RwxDirectoryEntry
 
 				BeforeEach(func() {
 					originalSpecifiedFileContent = "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
-					originalMintDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
+					originalRwxDirFileContent = "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
 					receivedSpecifiedFileContent = ""
 
 					var err error
@@ -468,25 +753,25 @@ var _ = Describe("CLI Service", func() {
 					err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
 					Expect(err).NotTo(HaveOccurred())
 
-					err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.yml"), []byte(originalMintDirFileContent), 0o644)
+					err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.yml"), []byte(originalRwxDirFileContent), 0o644)
 					Expect(err).NotTo(HaveOccurred())
 
 					err = os.WriteFile(filepath.Join(mintDir, "mintdir-tasks.json"), []byte("some json"), 0o644)
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = mintDir
+					runConfig.RwxDirectory = mintDir
 
 					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(3))
-						Expect(cfg.MintDirectory[0].Path).To(Equal(".mint"))
-						Expect(cfg.MintDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-						Expect(cfg.MintDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+						Expect(cfg.RwxDirectory).To(HaveLen(3))
+						Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+						Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
+						Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
-						receivedMintDir = cfg.MintDirectory
+						receivedRwxDir = cfg.RwxDirectory
 						return &api.InitiateRunResult{
 							RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 							RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -503,10 +788,10 @@ var _ = Describe("CLI Service", func() {
 
 				It("sends the file contents to cloud", func() {
 					Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
-					Expect(receivedMintDir).NotTo(BeNil())
-					Expect(receivedMintDir[0].FileContents).To(Equal(""))
-					Expect(receivedMintDir[1].FileContents).To(Equal("some json"))
-					Expect(receivedMintDir[2].FileContents).To(Equal(originalMintDirFileContent))
+					Expect(receivedRwxDir).NotTo(BeNil())
+					Expect(receivedRwxDir[0].FileContents).To(Equal(""))
+					Expect(receivedRwxDir[1].FileContents).To(Equal("some json"))
+					Expect(receivedRwxDir[2].FileContents).To(Equal(originalRwxDirFileContent))
 				})
 			})
 
@@ -536,13 +821,13 @@ var _ = Describe("CLI Service", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = mintDir
+					runConfig.RwxDirectory = mintDir
 
 					mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-						Expect(cfg.MintDirectory).To(HaveLen(1))
-						Expect(cfg.MintDirectory[0].Path).To(Equal(".mint"))
+						Expect(cfg.RwxDirectory).To(HaveLen(1))
+						Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 						return &api.InitiateRunResult{
@@ -583,7 +868,7 @@ var _ = Describe("CLI Service", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = mintDir
+					runConfig.RwxDirectory = mintDir
 				})
 
 				It("emits an error", func() {
@@ -615,7 +900,7 @@ var _ = Describe("CLI Service", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					runConfig.MintFilePath = "mint.yml"
-					runConfig.MintDirectory = mintDir
+					runConfig.RwxDirectory = mintDir
 				})
 
 				It("returns an error", func() {
@@ -629,7 +914,7 @@ var _ = Describe("CLI Service", func() {
 		Context("with no specific mint file and a specific directory", func() {
 			BeforeEach(func() {
 				runConfig.MintFilePath = ""
-				runConfig.MintDirectory = "some-dir"
+				runConfig.RwxDirectory = "some-dir"
 			})
 
 			It("returns an error", func() {
@@ -1420,7 +1705,7 @@ AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 				It("returns an error", func() {
 					err := service.UpdateLeaves(cli.UpdateLeavesConfig{
 						Files:                    []string{},
-						MintDirectory:            mintDir,
+						RwxDirectory:             mintDir,
 						ReplacementVersionPicker: cli.PickLatestMajorVersion,
 					})
 
@@ -1479,7 +1764,7 @@ tasks:
 
 					err = service.UpdateLeaves(cli.UpdateLeavesConfig{
 						Files:                    []string{},
-						MintDirectory:            mintDir,
+						RwxDirectory:             mintDir,
 						ReplacementVersionPicker: cli.PickLatestMajorVersion,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -1946,7 +2231,7 @@ tasks:
 
 				It("returns an error", func() {
 					_, err := service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       mintDir,
+						RwxDirectory:        mintDir,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 
@@ -2004,7 +2289,7 @@ tasks:
 					var err error
 
 					_, err = service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       mintDir,
+						RwxDirectory:        mintDir,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -2054,7 +2339,7 @@ tasks:
 
 				It("returns an error", func() {
 					_, err := service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       tmp,
+						RwxDirectory:        tmp,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 
@@ -2079,7 +2364,7 @@ tasks:
 					var err error
 
 					_, err = service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       tmp,
+						RwxDirectory:        tmp,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -2095,7 +2380,7 @@ tasks:
 
 				It("indicates no leaves were resolved", func() {
 					_, err := service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       tmp,
+						RwxDirectory:        tmp,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 
@@ -2140,7 +2425,7 @@ tasks:
 					var err error
 
 					_, err = service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       tmp,
+						RwxDirectory:        tmp,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -2168,7 +2453,7 @@ tasks:
 
 				It("indicates leaves were resolved", func() {
 					_, err := service.ResolveLeaves(cli.ResolveLeavesConfig{
-						MintDirectory:       tmp,
+						RwxDirectory:        tmp,
 						LatestVersionPicker: cli.PickLatestMajorVersion,
 					})
 
@@ -2184,7 +2469,7 @@ tasks:
 						var err error
 
 						_, err = service.ResolveLeaves(cli.ResolveLeavesConfig{
-							MintDirectory:       tmp,
+							RwxDirectory:        tmp,
 							Files:               []string{filepath.Join(tmp, "bar.yaml")},
 							LatestVersionPicker: cli.PickLatestMajorVersion,
 						})

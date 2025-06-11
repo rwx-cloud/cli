@@ -19,7 +19,7 @@ const flagInit = "init"
 var (
 	InitParameters []string
 	Json           bool
-	MintDirectory  string
+	RwxDirectory   string
 	MintFilePath   string
 	NoCache        bool
 	Open           bool
@@ -61,7 +61,7 @@ var (
 			runResult, err := service.InitiateRun(cli.InitiateRunConfig{
 				InitParameters: initParams,
 				Json:           Json,
-				MintDirectory:  MintDirectory,
+				RwxDirectory:   RwxDirectory,
 				MintFilePath:   MintFilePath,
 				NoCache:        NoCache,
 				TargetedTasks:  targetedTasks,
@@ -131,7 +131,7 @@ func init() {
 	runCmd.Flags().BoolVar(&NoCache, "no-cache", false, "do not read or write to the cache")
 	runCmd.Flags().StringArrayVar(&InitParameters, flagInit, []string{}, "initialization parameters for the run, available in the `init` context. Can be specified multiple times")
 	runCmd.Flags().StringVarP(&MintFilePath, "file", "f", "", "a Mint config file to use for sourcing task definitions (required)")
-	addMintDirFlag(runCmd)
+	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the Mint run")

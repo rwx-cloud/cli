@@ -55,8 +55,8 @@ var (
 	}
 )
 
-func addMintDirFlag(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&MintDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
+func addRwxDirFlag(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
 }
 
 func init() {

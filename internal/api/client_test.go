@@ -45,7 +45,7 @@ var _ = Describe("API Client", func() {
 
 			initRunConfig := api.InitiateRunConfig{
 				InitializationParameters: []api.InitializationParameter{},
-				TaskDefinitions: []api.MintDirectoryEntry{
+				TaskDefinitions: []api.RwxDirectoryEntry{
 					{Path: "foo", FileContents: "echo 'bar'", Permissions: 0o644, Type: "file"},
 				},
 				TargetedTaskKeys: []string{},
@@ -88,7 +88,7 @@ var _ = Describe("API Client", func() {
 
 			initRunConfig := api.InitiateRunConfig{
 				InitializationParameters: []api.InitializationParameter{},
-				TaskDefinitions: []api.MintDirectoryEntry{
+				TaskDefinitions: []api.RwxDirectoryEntry{
 					{Path: "foo", FileContents: "echo 'bar'", Permissions: 0o644, Type: "file"},
 				},
 				TargetedTaskKeys: []string{},

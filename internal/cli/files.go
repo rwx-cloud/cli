@@ -12,30 +12,30 @@ import (
 	"github.com/rwx-research/mint-cli/internal/fs"
 )
 
-type MintDirectoryEntry = api.MintDirectoryEntry
+type RwxDirectoryEntry = api.RwxDirectoryEntry
 type TaskDefinition = api.TaskDefinition
 
 type MintYAMLFile struct {
-	Entry MintDirectoryEntry
+	Entry RwxDirectoryEntry
 	Doc   *YAMLDoc
 }
 
-// findMintDirectoryPath returns a configured directory, if it exists, or walks up
+// findRwxDirectoryPath returns a configured directory, if it exists, or walks up
 // from the working directory to find a .mint directory. If the found path is not
 // a directory or is not readable, an error is returned.
-func findAndValidateMintDirectoryPath(configuredDirectory string) (string, error) {
-	foundPath, err := findMintDirectoryPath(configuredDirectory)
+func findAndValidateRwxDirectoryPath(configuredDirectory string) (string, error) {
+	foundPath, err := findRwxDirectoryPath(configuredDirectory)
 	if err != nil {
 		return "", err
 	}
 
 	if foundPath != "" {
-		mintDirInfo, err := os.Stat(foundPath)
+		rwxDirInfo, err := os.Stat(foundPath)
 		if err != nil {
 			return foundPath, fmt.Errorf("unable to read the .mint directory at %q", foundPath)
 		}
 
-		if !mintDirInfo.IsDir() {
+		if !rwxDirInfo.IsDir() {
 			return foundPath, fmt.Errorf(".mint directory at %q is not a directory", foundPath)
 		}
 	}
@@ -43,9 +43,9 @@ func findAndValidateMintDirectoryPath(configuredDirectory string) (string, error
 	return foundPath, nil
 }
 
-// findMintDirectoryPath returns a configured directory, if it exists, or walks up
+// findRwxDirectoryPath returns a configured directory, if it exists, or walks up
 // from the working directory to find a .mint directory.
-func findMintDirectoryPath(configuredDirectory string) (string, error) {
+func findRwxDirectoryPath(configuredDirectory string) (string, error) {
 	if configuredDirectory != "" {
 		return configuredDirectory, nil
 	}
@@ -57,6 +57,15 @@ func findMintDirectoryPath(configuredDirectory string) (string, error) {
 
 	// otherwise, walk up the working directory looking at each basename
 	for {
+		workingDirHasRwxDir, err := fs.Exists(filepath.Join(workingDirectory, ".rwx"))
+		if err != nil {
+			return "", errors.Wrapf(err, "unable to determine if .rwx exists in %q", workingDirectory)
+		}
+
+		if workingDirHasRwxDir {
+			return filepath.Join(workingDirectory, ".rwx"), nil
+		}
+
 		workingDirHasMintDir, err := fs.Exists(filepath.Join(workingDirectory, ".mint"))
 		if err != nil {
 			return "", errors.Wrapf(err, "unable to determine if .mint exists in %q", workingDirectory)
@@ -75,44 +84,48 @@ func findMintDirectoryPath(configuredDirectory string) (string, error) {
 	}
 }
 
-// getFileOrDirectoryYAMLEntries gets a MintDirectoryEntry for every given YAML file, or all YAML files in mintDir when no files are provided.
-func getFileOrDirectoryYAMLEntries(files []string, mintDir string) ([]MintDirectoryEntry, error) {
-	entries, err := getFileOrDirectoryEntries(files, mintDir)
+// getFileOrDirectoryYAMLEntries gets a RwxDirectoryEntry for every given YAML file, or all YAML files in rwxDir when no files are provided.
+func getFileOrDirectoryYAMLEntries(files []string, rwxDir string) ([]RwxDirectoryEntry, error) {
+	entries, err := getFileOrDirectoryEntries(files, rwxDir)
 	if err != nil {
 		return nil, err
 	}
 	return filterYAMLFiles(entries), nil
 }
 
-// getFileOrDirectoryEntries gets a MintDirectoryEntry for every given file, or all files in mintDir when no files are provided.
-func getFileOrDirectoryEntries(files []string, mintDir string) ([]MintDirectoryEntry, error) {
+// getFileOrDirectoryEntries gets a RwxDirectoryEntry for every given file, or all files in rwxDir when no files are provided.
+func getFileOrDirectoryEntries(files []string, rwxDir string) ([]RwxDirectoryEntry, error) {
 	if len(files) != 0 {
-		return mintDirectoryEntriesFromPaths(files)
-	} else if mintDir != "" {
-		return mintDirectoryEntries(mintDir)
+		return rwxDirectoryEntriesFromPaths(files)
+	} else if rwxDir != "" {
+		return rwxDirectoryEntries(rwxDir)
 	}
-	return make([]MintDirectoryEntry, 0), nil
+	return make([]RwxDirectoryEntry, 0), nil
 }
 
-// mintDirectoryEntriesFromPaths loads all the files in paths relative to the current working directory.
-func mintDirectoryEntriesFromPaths(paths []string) ([]MintDirectoryEntry, error) {
-	return readMintDirectoryEntries(paths, "")
+// rwxDirectoryEntriesFromPaths loads all the files in paths relative to the current working directory.
+func rwxDirectoryEntriesFromPaths(paths []string) ([]RwxDirectoryEntry, error) {
+	return readRwxDirectoryEntries(paths, "")
 }
 
-// mintDirectoryEntries loads all the files in the given dotMintPath relative to the parent of dotMintPath.
-func mintDirectoryEntries(dotMintPath string) ([]MintDirectoryEntry, error) {
-	return readMintDirectoryEntries([]string{dotMintPath}, dotMintPath)
+// rwxDirectoryEntries loads all the files in the given dir relative to the parent of dir.
+func rwxDirectoryEntries(dir string) ([]RwxDirectoryEntry, error) {
+	return readRwxDirectoryEntries([]string{dir}, dir)
 }
 
-func readMintDirectoryEntries(paths []string, relativeTo string) ([]MintDirectoryEntry, error) {
-	entries := make([]MintDirectoryEntry, 0)
+func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryEntry, error) {
+	entries := make([]RwxDirectoryEntry, 0)
 	var totalSize int
 
 	for _, path := range paths {
 		err := filepath.WalkDir(path, func(subpath string, de os.DirEntry, err error) error {
-			entry, entrySize, suberr := mintDirectoryEntry(subpath, de, relativeTo)
+			entry, entrySize, suberr := rwxDirectoryEntry(subpath, de, relativeTo)
 			if suberr != nil {
 				return suberr
+			}
+
+			if entry.Path == ".rwx/test-suites" && entry.IsDir() {
+				return filepath.SkipDir // Skip the test-suites directory
 			}
 
 			totalSize += entrySize
@@ -131,15 +144,15 @@ func readMintDirectoryEntries(paths []string, relativeTo string) ([]MintDirector
 	return entries, nil
 }
 
-// mintDirectoryEntry finds the file at path and converts it to a MintDirectoryEntry.
-func mintDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) (MintDirectoryEntry, int, error) {
+// rwxDirectoryEntry finds the file at path and converts it to a RwxDirectoryEntry.
+func rwxDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) (RwxDirectoryEntry, int, error) {
 	if de == nil {
-		return MintDirectoryEntry{}, 0, os.ErrNotExist
+		return RwxDirectoryEntry{}, 0, os.ErrNotExist
 	}
 
 	info, err := de.Info()
 	if err != nil {
-		return MintDirectoryEntry{}, 0, err
+		return RwxDirectoryEntry{}, 0, err
 	}
 
 	mode := info.Mode()
@@ -174,7 +187,7 @@ func mintDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) 
 	if entryType == "file" {
 		contents, err := os.ReadFile(path)
 		if err != nil {
-			return MintDirectoryEntry{}, contentLength, fmt.Errorf("unable to read file %q: %w", path, err)
+			return RwxDirectoryEntry{}, contentLength, fmt.Errorf("unable to read file %q: %w", path, err)
 		}
 
 		contentLength = len(contents)
@@ -183,14 +196,15 @@ func mintDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) 
 
 	relPath := path
 	if makePathRelativeTo != "" {
+		dirName := filepath.Base(makePathRelativeTo) // to support `.mint` and `.rwx`
 		rel, err := filepath.Rel(makePathRelativeTo, path)
 		if err != nil {
-			return MintDirectoryEntry{}, contentLength, fmt.Errorf("unable to determine relative path of %q: %w", path, err)
+			return RwxDirectoryEntry{}, contentLength, fmt.Errorf("unable to determine relative path of %q: %w", path, err)
 		}
-		relPath = filepath.ToSlash(filepath.Join(".mint", rel)) // Mint only supports unix-style path separators
+		relPath = filepath.ToSlash(filepath.Join(dirName, rel)) // Mint only supports unix-style path separators
 	}
 
-	return MintDirectoryEntry{
+	return RwxDirectoryEntry{
 		Type:         entryType,
 		OriginalPath: path,
 		Path:         relPath,
@@ -200,8 +214,8 @@ func mintDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) 
 }
 
 // filterYAMLFiles finds any *.yml and *.yaml files in the given entries.
-func filterYAMLFiles(entries []MintDirectoryEntry) []MintDirectoryEntry {
-	yamlFiles := make([]MintDirectoryEntry, 0)
+func filterYAMLFiles(entries []RwxDirectoryEntry) []RwxDirectoryEntry {
+	yamlFiles := make([]RwxDirectoryEntry, 0)
 
 	for _, entry := range entries {
 		if !isYAMLFile(entry) {
@@ -215,8 +229,8 @@ func filterYAMLFiles(entries []MintDirectoryEntry) []MintDirectoryEntry {
 }
 
 // filterFiles finds only files in the given entries.
-func filterFiles(entries []MintDirectoryEntry) []MintDirectoryEntry {
-	files := make([]MintDirectoryEntry, 0)
+func filterFiles(entries []RwxDirectoryEntry) []RwxDirectoryEntry {
+	files := make([]RwxDirectoryEntry, 0)
 
 	for _, entry := range entries {
 		if !entry.IsFile() {
@@ -232,7 +246,7 @@ func filterFiles(entries []MintDirectoryEntry) []MintDirectoryEntry {
 // filterYAMLFilesForModification finds any *.yml and *.yaml files in the given entries
 // and reads and parses them. Entries that cannot be modified, such as JSON files
 // masquerading as YAML, will not be included.
-func filterYAMLFilesForModification(entries []MintDirectoryEntry, filter func(doc *YAMLDoc) bool) []*MintYAMLFile {
+func filterYAMLFilesForModification(entries []RwxDirectoryEntry, filter func(doc *YAMLDoc) bool) []*MintYAMLFile {
 	yamlFiles := make([]*MintYAMLFile, 0)
 
 	for _, entry := range entries {
@@ -249,7 +263,7 @@ func filterYAMLFilesForModification(entries []MintDirectoryEntry, filter func(do
 
 // validateYAMLFileForModification reads and parses the given file entry. If it cannot
 // be modified, this method will return nil.
-func validateYAMLFileForModification(entry MintDirectoryEntry, filter func(doc *YAMLDoc) bool) *MintYAMLFile {
+func validateYAMLFileForModification(entry RwxDirectoryEntry, filter func(doc *YAMLDoc) bool) *MintYAMLFile {
 	if !isYAMLFile(entry) {
 		return nil
 	}
@@ -284,7 +298,7 @@ func isJSON(content []byte) bool {
 	return len(content) > 0 && content[0] == '{' && json.Unmarshal(content, &jsonContent) == nil
 }
 
-func isYAMLFile(entry MintDirectoryEntry) bool {
+func isYAMLFile(entry RwxDirectoryEntry) bool {
 	return entry.IsFile() && (strings.HasSuffix(entry.OriginalPath, ".yml") || strings.HasSuffix(entry.OriginalPath, ".yaml"))
 }
 

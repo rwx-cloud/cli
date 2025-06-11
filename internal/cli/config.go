@@ -50,13 +50,13 @@ func (c DebugTaskConfig) Validate() error {
 }
 
 type InitiateRunConfig struct {
-	InitParameters map[string]string
-	Json           bool
-	MintDirectory  string
-	MintFilePath   string
-	NoCache        bool
-	TargetedTasks  []string
-	Title          string
+	InitParameters    map[string]string
+	Json              bool
+	RwxDirectory      string
+	MintFilePath string
+	NoCache           bool
+	TargetedTasks     []string
+	Title             string
 }
 
 func (c InitiateRunConfig) Validate() error {
@@ -101,7 +101,7 @@ const (
 )
 
 type LintConfig struct {
-	MintDirectory string
+	RwxDirectory  string
 	MintFilePaths []string
 	OutputFormat  LintOutputFormat
 }
@@ -110,7 +110,7 @@ func (c LintConfig) Validate() error {
 	return nil
 }
 
-func NewLintConfig(filePaths []string, mintDir string, formatString string) (LintConfig, error) {
+func NewLintConfig(filePaths []string, rwxDir string, formatString string) (LintConfig, error) {
 	var format LintOutputFormat
 
 	switch formatString {
@@ -125,7 +125,7 @@ func NewLintConfig(filePaths []string, mintDir string, formatString string) (Lin
 	}
 
 	return LintConfig{
-		MintDirectory: mintDir,
+		RwxDirectory:  rwxDir,
 		MintFilePaths: filePaths,
 		OutputFormat:  format,
 	}, nil
@@ -172,8 +172,8 @@ func (c SetSecretsInVaultConfig) Validate() error {
 }
 
 type UpdateBaseConfig struct {
-	MintDirectory string
-	Files         []string
+	RwxDirectory string
+	Files        []string
 }
 
 func (c UpdateBaseConfig) Validate() error {
@@ -181,7 +181,7 @@ func (c UpdateBaseConfig) Validate() error {
 }
 
 type UpdateLeavesConfig struct {
-	MintDirectory            string
+	RwxDirectory             string
 	Files                    []string
 	ReplacementVersionPicker func(versions api.LeafVersionsResult, leaf string, major string) (string, error)
 }
@@ -195,11 +195,11 @@ func (c UpdateLeavesConfig) Validate() error {
 }
 
 type ResolveBaseConfig struct {
-	MintDirectory string
-	Files         []string
-	Os            string
-	Tag           string
-	Arch          string
+	RwxDirectory string
+	Files        []string
+	Os           string
+	Tag          string
+	Arch         string
 }
 
 func (c ResolveBaseConfig) Validate() error {
@@ -289,7 +289,7 @@ func (r ResolveBaseResult) HasChanges() bool {
 }
 
 type ResolveLeavesConfig struct {
-	MintDirectory       string
+	RwxDirectory        string
 	Files               []string
 	LatestVersionPicker func(versions api.LeafVersionsResult, leaf string, _ string) (string, error)
 }

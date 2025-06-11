@@ -52,8 +52,8 @@ var (
 
 func updateBase(files []string) error {
 	_, err := service.UpdateBase(cli.UpdateBaseConfig{
-		Files:         files,
-		MintDirectory: MintDirectory,
+		Files:        files,
+		RwxDirectory: RwxDirectory,
 	})
 	return err
 }
@@ -66,19 +66,19 @@ func updateLeaves(files []string) error {
 
 	return service.UpdateLeaves(cli.UpdateLeavesConfig{
 		Files:                    files,
-		MintDirectory:            MintDirectory,
+		RwxDirectory:             RwxDirectory,
 		ReplacementVersionPicker: replacementVersionPicker,
 	})
 }
 
 func init() {
-	addMintDirFlag(updateBaseCmd)
+	addRwxDirFlag(updateBaseCmd)
 
 	updateLeavesCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update leaves to the latest major version")
-	addMintDirFlag(updateLeavesCmd)
+	addRwxDirFlag(updateLeavesCmd)
 
 	updateCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update to the latest major version")
 	updateCmd.AddCommand(updateBaseCmd)
 	updateCmd.AddCommand(updateLeavesCmd)
-	addMintDirFlag(updateCmd)
+	addRwxDirFlag(updateCmd)
 }

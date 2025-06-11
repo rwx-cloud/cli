@@ -1,6 +1,6 @@
 package api
 
-type MintDirectoryEntry struct {
+type RwxDirectoryEntry struct {
 	OriginalPath string `json:"-"`
 	Path         string `json:"path"`
 	Type         string `json:"type"`
@@ -8,10 +8,10 @@ type MintDirectoryEntry struct {
 	FileContents string `json:"file_contents"`
 }
 
-func (e MintDirectoryEntry) IsDir() bool {
+func (e RwxDirectoryEntry) IsDir() bool {
 	return e.Type == "dir"
 }
 
-func (e MintDirectoryEntry) IsFile() bool {
+func (e RwxDirectoryEntry) IsFile() bool {
 	return e.Type == "file"
 }
