@@ -355,13 +355,13 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(7))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
-							Expect(cfg.RwxDirectory[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
-							Expect(cfg.RwxDirectory[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
-							Expect(cfg.RwxDirectory[3].Path).To(Equal(".rwx/some"))
-							Expect(cfg.RwxDirectory[4].Path).To(Equal(".rwx/some/nested"))
-							Expect(cfg.RwxDirectory[5].Path).To(Equal(".rwx/some/nested/path"))
-							Expect(cfg.RwxDirectory[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							receivedRwxDir = cfg.RwxDirectory
@@ -369,7 +369,7 @@ var _ = Describe("CLI Service", func() {
 								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								TargetedTaskKeys: []string{},
-								DefinitionPath:   ".rwx/mint.yml",
+								DefinitionPath:   ".mint/mint.yml",
 							}, nil
 						}
 					})
@@ -423,14 +423,14 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(1))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							return &api.InitiateRunResult{
 								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								TargetedTaskKeys: []string{},
-								DefinitionPath:   ".rwx/mint.yml",
+								DefinitionPath:   ".mint/mint.yml",
 							}, nil
 						}
 					})
@@ -478,7 +478,7 @@ var _ = Describe("CLI Service", func() {
 								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								TargetedTaskKeys: []string{},
-								DefinitionPath:   ".rwx/mint.yml",
+								DefinitionPath:   ".mint/mint.yml",
 							}, nil
 						}
 					})
@@ -550,14 +550,16 @@ var _ = Describe("CLI Service", func() {
 						mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
-							Expect(cfg.RwxDirectory).To(HaveLen(7))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".rwx"))
-							Expect(cfg.RwxDirectory[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
-							Expect(cfg.RwxDirectory[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
-							Expect(cfg.RwxDirectory[3].Path).To(Equal(".rwx/some"))
-							Expect(cfg.RwxDirectory[4].Path).To(Equal(".rwx/some/nested"))
-							Expect(cfg.RwxDirectory[5].Path).To(Equal(".rwx/some/nested/path"))
-							Expect(cfg.RwxDirectory[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory).To(HaveLen(9))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory[7].Path).To(Equal(".mint/test-suites"))
+							Expect(cfg.RwxDirectory[8].Path).To(Equal(".mint/test-suites/config.yaml"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							receivedRwxDir = cfg.RwxDirectory
@@ -565,7 +567,7 @@ var _ = Describe("CLI Service", func() {
 								RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 								TargetedTaskKeys: []string{},
-								DefinitionPath:   ".rwx/mint.yml",
+								DefinitionPath:   ".mint/mint.yml",
 							}, nil
 						}
 					})
@@ -578,14 +580,16 @@ var _ = Describe("CLI Service", func() {
 					It("does not include the test-suites directory or its children", func() {
 						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
 						Expect(receivedRwxDir).NotTo(BeNil())
-						Expect(len(receivedRwxDir)).To(Equal(7))
-						Expect(receivedRwxDir[0].Path).To(Equal(".rwx"))
-						Expect(receivedRwxDir[1].Path).To(Equal(".rwx/mintdir-tasks.json"))
-						Expect(receivedRwxDir[2].Path).To(Equal(".rwx/mintdir-tasks.yml"))
-						Expect(receivedRwxDir[3].Path).To(Equal(".rwx/some"))
-						Expect(receivedRwxDir[4].Path).To(Equal(".rwx/some/nested"))
-						Expect(receivedRwxDir[5].Path).To(Equal(".rwx/some/nested/path"))
-						Expect(receivedRwxDir[6].Path).To(Equal(".rwx/some/nested/path/tasks.yaml"))
+						Expect(len(receivedRwxDir)).To(Equal(9))
+						Expect(receivedRwxDir[0].Path).To(Equal(".mint"))
+						Expect(receivedRwxDir[1].Path).To(Equal(".mint/mintdir-tasks.json"))
+						Expect(receivedRwxDir[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+						Expect(receivedRwxDir[3].Path).To(Equal(".mint/some"))
+						Expect(receivedRwxDir[4].Path).To(Equal(".mint/some/nested"))
+						Expect(receivedRwxDir[5].Path).To(Equal(".mint/some/nested/path"))
+						Expect(receivedRwxDir[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
+						Expect(receivedRwxDir[7].Path).To(Equal(".mint/test-suites"))
+						Expect(receivedRwxDir[8].Path).To(Equal(".mint/test-suites/config.yaml"))
 					})
 				})
 			})
