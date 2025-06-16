@@ -22,13 +22,7 @@ var (
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var targetedFiles []string
-			if len(args) >= 0 {
-				targetedFiles = args
-			}
-
 			lintConfig, err := cli.NewLintConfig(
-				targetedFiles,
 				LintRwxDirectory,
 				LintOutputFormat,
 			)
@@ -56,7 +50,7 @@ var (
 			return nil
 		},
 		Short:  "Lint Mint configuration files",
-		Use:    "lint [flags] [files...]",
+		Use:    "lint [flags]",
 		Hidden: true,
 	}
 )

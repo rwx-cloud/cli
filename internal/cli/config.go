@@ -50,13 +50,13 @@ func (c DebugTaskConfig) Validate() error {
 }
 
 type InitiateRunConfig struct {
-	InitParameters    map[string]string
-	Json              bool
-	RwxDirectory      string
-	MintFilePath string
-	NoCache           bool
-	TargetedTasks     []string
-	Title             string
+	InitParameters map[string]string
+	Json           bool
+	RwxDirectory   string
+	MintFilePath   string
+	NoCache        bool
+	TargetedTasks  []string
+	Title          string
 }
 
 func (c InitiateRunConfig) Validate() error {
@@ -101,16 +101,15 @@ const (
 )
 
 type LintConfig struct {
-	RwxDirectory  string
-	MintFilePaths []string
-	OutputFormat  LintOutputFormat
+	RwxDirectory string
+	OutputFormat LintOutputFormat
 }
 
 func (c LintConfig) Validate() error {
 	return nil
 }
 
-func NewLintConfig(filePaths []string, rwxDir string, formatString string) (LintConfig, error) {
+func NewLintConfig(rwxDir string, formatString string) (LintConfig, error) {
 	var format LintOutputFormat
 
 	switch formatString {
@@ -125,9 +124,8 @@ func NewLintConfig(filePaths []string, rwxDir string, formatString string) (Lint
 	}
 
 	return LintConfig{
-		RwxDirectory:  rwxDir,
-		MintFilePaths: filePaths,
-		OutputFormat:  format,
+		RwxDirectory: rwxDir,
+		OutputFormat: format,
 	}, nil
 }
 

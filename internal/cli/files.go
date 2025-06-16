@@ -200,7 +200,7 @@ func rwxDirectoryEntry(path string, de os.DirEntry, makePathRelativeTo string) (
 		if err != nil {
 			return RwxDirectoryEntry{}, contentLength, fmt.Errorf("unable to determine relative path of %q: %w", path, err)
 		}
-		relPath = filepath.ToSlash(filepath.Join(".mint", rel)) // Mint only supports unix-style path separators
+		relPath = filepath.ToSlash(rel) // Mint only supports unix-style path separators
 	}
 
 	return RwxDirectoryEntry{

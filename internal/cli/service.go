@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -284,71 +285,42 @@ func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	targetedEntries, err := rwxDirectoryEntriesFromPaths(cfg.MintFilePaths)
-	if err != nil {
-		return nil, err
-	}
-	targetedEntries = filterYAMLFiles(targetedEntries)
-	targetedEntries = removeDuplicates(targetedEntries, func(entry RwxDirectoryEntry) string {
-		return entry.Path
-	})
-
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to find .mint directory")
 	}
 
-	var rwxDirEntries []RwxDirectoryEntry
-	if rwxDirectoryPath != "" {
-		mdEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
-		if err != nil {
-			return nil, err
-		}
+	rwxDirEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
+	if err != nil {
+		return nil, err
+	}
+	rwxDirEntries = filterYAMLFiles(rwxDirEntries)
+	rwxDirEntries = removeDuplicates(rwxDirEntries, func(entry RwxDirectoryEntry) string {
+		return entry.Path
+	})
 
-		// Ensure both the provided paths and everything in the RwxDirectory is loaded.
-		mdEntries = filterYAMLFiles(mdEntries)
-		mdEntries = removeDuplicates(mdEntries, func(entry RwxDirectoryEntry) string {
-			return entry.Path
-		})
-
-		for _, entry := range mdEntries {
-			// Don't duplicate targeted files that are also in .mint
-			if slices.ContainsFunc(targetedEntries, func(te RwxDirectoryEntry) bool {
-				return te.Path == entry.Path
-			}) {
-				continue
-			}
-			rwxDirEntries = append(rwxDirEntries, entry)
-		}
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get current working directory")
 	}
 
-	definitionEntries := append(targetedEntries, rwxDirEntries...)
-
-	// When no files are targeted, lint all .mint files
-	if len(cfg.MintFilePaths) == 0 && len(rwxDirEntries) > 0 {
-		targetedEntries = rwxDirEntries
+	relativeRwxDirectoryPath, err := filepath.Rel(wd, rwxDirectoryPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get relative path for .mint directory")
 	}
 
-	taskDefinitions := Map(definitionEntries, func(entry RwxDirectoryEntry) TaskDefinition {
+	taskDefinitions := Map(rwxDirEntries, func(entry RwxDirectoryEntry) TaskDefinition {
 		return TaskDefinition{
-			Path:         entry.Path,
+			Path:         filepath.Join(relativeRwxDirectoryPath, entry.Path),
 			FileContents: entry.FileContents,
 		}
 	})
 
-	targetedPaths := Map(targetedEntries, func(entry RwxDirectoryEntry) string {
-		return entry.Path
+	targetedPaths := Map(rwxDirEntries, func(entry RwxDirectoryEntry) string {
+		return filepath.Join(relativeRwxDirectoryPath, entry.Path)
 	})
-
-	if len(cfg.MintFilePaths) > 0 {
-		_, snippetFileNames := findSnippets(targetedPaths)
-		if len(snippetFileNames) > 0 {
-			return nil, fmt.Errorf("You cannot target snippets for linting, but you targeted the following snippets: %s\n\nTo lint snippets, include them from a Mint run definition and lint the run definition.", strings.Join(snippetFileNames, ", "))
-		}
-	} else {
-		nonSnippetFileNames, _ := findSnippets(targetedPaths)
-		targetedPaths = nonSnippetFileNames
-	}
+	nonSnippetFileNames, _ := findSnippets(targetedPaths)
+	targetedPaths = nonSnippetFileNames
 
 	lintResult, err := s.APIClient.Lint(api.LintConfig{
 		TaskDefinitions: taskDefinitions,

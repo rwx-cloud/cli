@@ -164,13 +164,13 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(7))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
-							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
-							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
-							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
-							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
-							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal("mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal("mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal("some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal("some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal("some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal("some/nested/path/tasks.yaml"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							receivedRwxDir = cfg.RwxDirectory
@@ -232,7 +232,7 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(1))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							return &api.InitiateRunResult{
@@ -355,13 +355,13 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(7))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
-							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
-							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
-							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
-							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
-							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal("mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal("mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal("some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal("some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal("some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal("some/nested/path/tasks.yaml"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							receivedRwxDir = cfg.RwxDirectory
@@ -423,7 +423,7 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(1))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							return &api.InitiateRunResult{
@@ -551,15 +551,15 @@ var _ = Describe("CLI Service", func() {
 							Expect(cfg.TaskDefinitions).To(HaveLen(1))
 							Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 							Expect(cfg.RwxDirectory).To(HaveLen(9))
-							Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
-							Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-							Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
-							Expect(cfg.RwxDirectory[3].Path).To(Equal(".mint/some"))
-							Expect(cfg.RwxDirectory[4].Path).To(Equal(".mint/some/nested"))
-							Expect(cfg.RwxDirectory[5].Path).To(Equal(".mint/some/nested/path"))
-							Expect(cfg.RwxDirectory[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
-							Expect(cfg.RwxDirectory[7].Path).To(Equal(".mint/test-suites"))
-							Expect(cfg.RwxDirectory[8].Path).To(Equal(".mint/test-suites/config.yaml"))
+							Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
+							Expect(cfg.RwxDirectory[1].Path).To(Equal("mintdir-tasks.json"))
+							Expect(cfg.RwxDirectory[2].Path).To(Equal("mintdir-tasks.yml"))
+							Expect(cfg.RwxDirectory[3].Path).To(Equal("some"))
+							Expect(cfg.RwxDirectory[4].Path).To(Equal("some/nested"))
+							Expect(cfg.RwxDirectory[5].Path).To(Equal("some/nested/path"))
+							Expect(cfg.RwxDirectory[6].Path).To(Equal("some/nested/path/tasks.yaml"))
+							Expect(cfg.RwxDirectory[7].Path).To(Equal("test-suites"))
+							Expect(cfg.RwxDirectory[8].Path).To(Equal("test-suites/config.yaml"))
 							Expect(cfg.UseCache).To(BeTrue())
 							receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 							receivedRwxDir = cfg.RwxDirectory
@@ -581,15 +581,15 @@ var _ = Describe("CLI Service", func() {
 						Expect(receivedSpecifiedFileContent).To(Equal(originalSpecifiedFileContent))
 						Expect(receivedRwxDir).NotTo(BeNil())
 						Expect(len(receivedRwxDir)).To(Equal(9))
-						Expect(receivedRwxDir[0].Path).To(Equal(".mint"))
-						Expect(receivedRwxDir[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-						Expect(receivedRwxDir[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
-						Expect(receivedRwxDir[3].Path).To(Equal(".mint/some"))
-						Expect(receivedRwxDir[4].Path).To(Equal(".mint/some/nested"))
-						Expect(receivedRwxDir[5].Path).To(Equal(".mint/some/nested/path"))
-						Expect(receivedRwxDir[6].Path).To(Equal(".mint/some/nested/path/tasks.yaml"))
-						Expect(receivedRwxDir[7].Path).To(Equal(".mint/test-suites"))
-						Expect(receivedRwxDir[8].Path).To(Equal(".mint/test-suites/config.yaml"))
+						Expect(receivedRwxDir[0].Path).To(Equal("."))
+						Expect(receivedRwxDir[1].Path).To(Equal("mintdir-tasks.json"))
+						Expect(receivedRwxDir[2].Path).To(Equal("mintdir-tasks.yml"))
+						Expect(receivedRwxDir[3].Path).To(Equal("some"))
+						Expect(receivedRwxDir[4].Path).To(Equal("some/nested"))
+						Expect(receivedRwxDir[5].Path).To(Equal("some/nested/path"))
+						Expect(receivedRwxDir[6].Path).To(Equal("some/nested/path/tasks.yaml"))
+						Expect(receivedRwxDir[7].Path).To(Equal("test-suites"))
+						Expect(receivedRwxDir[8].Path).To(Equal("test-suites/config.yaml"))
 					})
 				})
 			})
@@ -770,9 +770,9 @@ var _ = Describe("CLI Service", func() {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 						Expect(cfg.RwxDirectory).To(HaveLen(3))
-						Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
-						Expect(cfg.RwxDirectory[1].Path).To(Equal(".mint/mintdir-tasks.json"))
-						Expect(cfg.RwxDirectory[2].Path).To(Equal(".mint/mintdir-tasks.yml"))
+						Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
+						Expect(cfg.RwxDirectory[1].Path).To(Equal("mintdir-tasks.json"))
+						Expect(cfg.RwxDirectory[2].Path).To(Equal("mintdir-tasks.yml"))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 						receivedRwxDir = cfg.RwxDirectory
@@ -831,7 +831,7 @@ var _ = Describe("CLI Service", func() {
 						Expect(cfg.TaskDefinitions).To(HaveLen(1))
 						Expect(cfg.TaskDefinitions[0].Path).To(Equal(runConfig.MintFilePath))
 						Expect(cfg.RwxDirectory).To(HaveLen(1))
-						Expect(cfg.RwxDirectory[0].Path).To(Equal(".mint"))
+						Expect(cfg.RwxDirectory[0].Path).To(Equal("."))
 						Expect(cfg.UseCache).To(BeTrue())
 						receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 						return &api.InitiateRunResult{
@@ -3518,20 +3518,17 @@ tasks:
 
 		Context("with multiple errors", func() {
 			BeforeEach(func() {
-				Expect(os.WriteFile("mint1.yml", []byte("mint1 contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.yml", []byte(".mint/base.yml contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.json", []byte(".mint/base.json contents"), 0o644)).NotTo(HaveOccurred())
 
-				lintConfig.MintFilePaths = []string{"mint1.yml", ".mint/base.yml"}
-
 				mockAPI.MockLint = func(cfg api.LintConfig) (*api.LintResult, error) {
-					Expect(cfg.TaskDefinitions).To(HaveLen(2))
+					Expect(cfg.TaskDefinitions).To(HaveLen(1))
 					return &api.LintResult{
 						Problems: []api.LintProblem{
-							{Severity: "error", Message: "message 1\nmessage 1a", FileName: "mint1.yml", Line: api.NewNullInt(11), Column: api.NewNullInt(22), Advice: "advice 1\nadvice 1a"},
-							{Severity: "error", Message: "message 2\nmessage 2a", FileName: "mint1.yml", Line: api.NewNullInt(15), Column: api.NewNullInt(4)},
-							{Severity: "warning", Message: "message 3", FileName: "mint1.yml", Line: api.NewNullInt(2), Column: api.NewNullInt(6), Advice: "advice 3\nadvice 3a"},
-							{Severity: "warning", Message: "message 4", FileName: "mint1.yml", Line: api.NullInt{IsNull: true}, Column: api.NullInt{IsNull: true}},
+							{Severity: "error", Message: "message 1\nmessage 1a", FileName: ".mint/base.yml", Line: api.NewNullInt(11), Column: api.NewNullInt(22), Advice: "advice 1\nadvice 1a"},
+							{Severity: "error", Message: "message 2\nmessage 2a", FileName: ".mint/base.yml", Line: api.NewNullInt(15), Column: api.NewNullInt(4)},
+							{Severity: "warning", Message: "message 3", FileName: ".mint/base.yml", Line: api.NewNullInt(2), Column: api.NewNullInt(6), Advice: "advice 3\nadvice 3a"},
+							{Severity: "warning", Message: "message 4", FileName: ".mint/base.yml", Line: api.NullInt{IsNull: true}, Column: api.NullInt{IsNull: true}},
 						},
 					}, nil
 				}
@@ -3545,10 +3542,10 @@ tasks:
 				It("lists only files", func() {
 					_, err := service.Lint(lintConfig)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(mockStdout.String()).To(Equal(`error   mint1.yml:11:22 - message 1 message 1a
-error   mint1.yml:15:4 - message 2 message 2a
-warning mint1.yml:2:6 - message 3
-warning mint1.yml - message 4
+					Expect(mockStdout.String()).To(Equal(`error   .mint/base.yml:11:22 - message 1 message 1a
+error   .mint/base.yml:15:4 - message 2 message 2a
+warning .mint/base.yml:2:6 - message 3
+warning .mint/base.yml - message 4
 `))
 				})
 			})
@@ -3562,25 +3559,25 @@ warning mint1.yml - message 4
 					_, err := service.Lint(lintConfig)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(mockStdout.String()).To(Equal(`
-mint1.yml:11:22  [error]
+.mint/base.yml:11:22  [error]
 message 1
 message 1a
 advice 1
 advice 1a
 
-mint1.yml:15:4  [error]
+.mint/base.yml:15:4  [error]
 message 2
 message 2a
 
-mint1.yml:2:6  [warning]
+.mint/base.yml:2:6  [warning]
 message 3
 advice 3
 advice 3a
 
-mint1.yml  [warning]
+.mint/base.yml  [warning]
 message 4
 
-Checked 2 files and found 4 problems.
+Checked 1 file and found 4 problems.
 `))
 				})
 			})
@@ -3600,14 +3597,11 @@ Checked 2 files and found 4 problems.
 
 		Context("with multiple errors including stack traces", func() {
 			BeforeEach(func() {
-				Expect(os.WriteFile("mint1.yml", []byte("mint1 contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.yml", []byte(".mint/base.yml contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.json", []byte(".mint/base.json contents"), 0o644)).NotTo(HaveOccurred())
 
-				lintConfig.MintFilePaths = []string{"mint1.yml", ".mint/base.yml"}
-
 				mockAPI.MockLint = func(cfg api.LintConfig) (*api.LintResult, error) {
-					Expect(cfg.TaskDefinitions).To(HaveLen(2))
+					Expect(cfg.TaskDefinitions).To(HaveLen(1))
 					return &api.LintResult{
 						Problems: []api.LintProblem{
 							{
@@ -3615,7 +3609,7 @@ Checked 2 files and found 4 problems.
 								Message:  "message 1\nmessage 1a",
 								StackTrace: []messages.StackEntry{
 									{
-										FileName: "mint1.yml",
+										FileName: ".mint/base.yml",
 										Line:     11,
 										Column:   22,
 									},
@@ -3628,13 +3622,13 @@ Checked 2 files and found 4 problems.
 								Message:  "message 2\nmessage 2a",
 								StackTrace: []messages.StackEntry{
 									{
-										FileName: "mint1.yml",
+										FileName: ".mint/base.yml",
 										Line:     22,
 										Column:   11,
 										Name:     "*alias",
 									},
 									{
-										FileName: "mint1.yml",
+										FileName: ".mint/base.yml",
 										Line:     5,
 										Column:   22,
 									},
@@ -3645,7 +3639,7 @@ Checked 2 files and found 4 problems.
 								Message:  "message 3",
 								StackTrace: []messages.StackEntry{
 									{
-										FileName: "mint1.yml",
+										FileName: ".mint/base.yml",
 										Line:     2,
 										Column:   6,
 									},
@@ -3657,7 +3651,7 @@ Checked 2 files and found 4 problems.
 								Message:  "message 4",
 								StackTrace: []messages.StackEntry{
 									{
-										FileName: "mint1.yml",
+										FileName: ".mint/base.yml",
 										Line:     7,
 										Column:   9,
 									},
@@ -3676,10 +3670,10 @@ Checked 2 files and found 4 problems.
 				It("lists only files", func() {
 					_, err := service.Lint(lintConfig)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(mockStdout.String()).To(Equal(`error   mint1.yml:11:22 - message 1 message 1a
-error   mint1.yml:5:22 - message 2 message 2a
-warning mint1.yml:2:6 - message 3
-warning mint1.yml:7:9 - message 4
+					Expect(mockStdout.String()).To(Equal(`error   .mint/base.yml:11:22 - message 1 message 1a
+error   .mint/base.yml:5:22 - message 2 message 2a
+warning .mint/base.yml:2:6 - message 3
+warning .mint/base.yml:7:9 - message 4
 `))
 				})
 			})
@@ -3700,24 +3694,24 @@ message 1a
     |     ^
   6 |     env:
   7 |       A:
-  at mint1.yml:11:22
+  at .mint/base.yml:11:22
 advice 1
 advice 1a
 
 [error] message 2
 message 2a
-  at mint1.yml:5:22
-  at *alias (mint1.yml:22:11)
+  at .mint/base.yml:5:22
+  at *alias (.mint/base.yml:22:11)
 
 [warning] message 3
-  at mint1.yml:2:6
+  at .mint/base.yml:2:6
 advice 3
 advice 3a
 
 [warning] message 4
-  at mint1.yml:7:9
+  at .mint/base.yml:7:9
 
-Checked 2 files and found 4 problems.
+Checked 1 file and found 4 problems.
 `))
 				})
 			})
@@ -3737,14 +3731,11 @@ Checked 2 files and found 4 problems.
 
 		Context("with no errors", func() {
 			BeforeEach(func() {
-				Expect(os.WriteFile("mint1.yml", []byte("mint1 contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.yml", []byte(".mint/base.yml contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.json", []byte(".mint/base.json contents"), 0o644)).NotTo(HaveOccurred())
 
-				lintConfig.MintFilePaths = []string{"mint1.yml", ".mint/base.yml"}
-
 				mockAPI.MockLint = func(cfg api.LintConfig) (*api.LintResult, error) {
-					Expect(cfg.TaskDefinitions).To(HaveLen(2))
+					Expect(cfg.TaskDefinitions).To(HaveLen(1))
 					return &api.LintResult{}, nil
 				}
 			})
@@ -3769,7 +3760,7 @@ Checked 2 files and found 4 problems.
 				It("outputs check counts", func() {
 					_, err := service.Lint(lintConfig)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(mockStdout.String()).To(Equal("\nChecked 2 files and found 0 problems.\n"))
+					Expect(mockStdout.String()).To(Equal("\nChecked 1 file and found 0 problems.\n"))
 				})
 			})
 
@@ -3812,22 +3803,12 @@ Checked 2 files and found 4 problems.
 					Expect(err).NotTo(HaveOccurred())
 				})
 			})
-
-			Context("with targeting", func() {
-				It("doesn't allow you target the snippets", func() {
-					lintConfig.MintFilePaths = []string{".mint/_snippet1.yml", ".mint/_snippet2.yml"}
-
-					_, err := service.Lint(lintConfig)
-					Expect(err).To(MatchError("You cannot target snippets for linting, but you targeted the following snippets: .mint/_snippet1.yml, .mint/_snippet2.yml\n\nTo lint snippets, include them from a Mint run definition and lint the run definition."))
-				})
-			})
 		})
 
 		Context("when specific files are not targeted", func() {
 			var lintedDefinitions []api.TaskDefinition
 
 			BeforeEach(func() {
-				Expect(os.WriteFile("mint1.yml", []byte("mint1 contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.yml", []byte(".mint/base.yml contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.WriteFile(".mint/base.json", []byte(".mint/base.json contents"), 0o644)).NotTo(HaveOccurred())
 				Expect(os.MkdirAll(".mint/some/nested/dir", 0o755)).NotTo(HaveOccurred())
