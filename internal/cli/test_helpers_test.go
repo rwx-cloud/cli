@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testSetup contains common test setup data
 type testSetup struct {
 	config     cli.Config
 	service    cli.Service
@@ -23,26 +22,20 @@ type testSetup struct {
 	originalWd string
 }
 
-// setupTest creates a common test environment and returns cleanup function
 func setupTest(t *testing.T) *testSetup {
 	setup := &testSetup{}
 
-	// Create temp directory
 	var err error
 	setup.tmp, err = os.MkdirTemp(os.TempDir(), "cli-service")
 	require.NoError(t, err)
 
 	setup.tmp, err = filepath.EvalSymlinks(setup.tmp)
 	require.NoError(t, err)
-
-	// Save and change working directory
 	setup.originalWd, err = os.Getwd()
 	require.NoError(t, err)
 
 	err = os.Chdir(setup.tmp)
 	require.NoError(t, err)
-
-	// Create mocks
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
 	setup.mockStdout = &strings.Builder{}
@@ -54,12 +47,8 @@ func setupTest(t *testing.T) *testSetup {
 		Stdout:    setup.mockStdout,
 		Stderr:    setup.mockStderr,
 	}
-
-	// Create service
 	setup.service, err = cli.NewService(setup.config)
 	require.NoError(t, err)
-
-	// Register cleanup
 	t.Cleanup(func() {
 		err := os.Chdir(setup.originalWd)
 		require.NoError(t, err)

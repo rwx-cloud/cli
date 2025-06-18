@@ -15,10 +15,8 @@ func TestService_InitiatingRun(t *testing.T) {
 	t.Run("with a specific mint file and no specific directory", func(t *testing.T) {
 		t.Run("with a .mint directory", func(t *testing.T) {
 			t.Run("when a directory with files is found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 				resolveBaseLayerCalled := false
@@ -101,11 +99,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.NotNil(t, receivedRwxDir)
 				require.Equal(t, "", receivedRwxDir[0].FileContents)
@@ -116,16 +112,13 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, "", receivedRwxDir[5].FileContents)
 				require.Equal(t, "some nested yaml", receivedRwxDir[6].FileContents)
 
-				// Variables to silence unused warnings
 				_ = resolveBaseLayerCalled
 				_ = getLeafVersionsCalled
 			})
 
 			t.Run("when an empty directory is found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -179,19 +172,15 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 			})
 
 			t.Run("when a directory is not found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 				resolveBaseLayerCalled := false
@@ -242,11 +231,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.False(t, resolveBaseLayerCalled)
 			})
@@ -254,10 +241,8 @@ func TestService_InitiatingRun(t *testing.T) {
 
 		t.Run("with a .rwx directory", func(t *testing.T) {
 			t.Run("when a directory with files is found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -333,11 +318,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.NotNil(t, receivedRwxDir)
 				require.Equal(t, "", receivedRwxDir[0].FileContents)
@@ -350,10 +333,8 @@ func TestService_InitiatingRun(t *testing.T) {
 			})
 
 			t.Run("when an empty directory is found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -407,19 +388,15 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 			})
 
 			t.Run("when a directory is not found", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 				resolveBaseLayerCalled := false
@@ -470,20 +447,16 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.False(t, resolveBaseLayerCalled)
 			})
 
 			t.Run("when the directory includes a test-suites directory inside it", func(t *testing.T) {
-				// Setup
 				s := setupTest(t)
 
-				// Test specific setup
 				runConfig := cli.InitiateRunConfig{}
 				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -568,11 +541,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				// Execute
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
 
-				// Verify
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.NotNil(t, receivedRwxDir)
 				require.Equal(t, 9, len(receivedRwxDir))
@@ -589,10 +560,8 @@ func TestService_InitiatingRun(t *testing.T) {
 		})
 
 		t.Run("when base is missing", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 			resolveBaseLayerCalled := false
@@ -643,11 +612,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			// Verify
 			require.True(t, resolveBaseLayerCalled)
 			require.Equal(t, fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent), receivedSpecifiedFileContent)
 			require.Equal(t, fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent), receivedRwxDirectoryFileContent)
@@ -655,10 +622,8 @@ func TestService_InitiatingRun(t *testing.T) {
 		})
 
 		t.Run("when leaf is missing version", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -712,11 +677,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			// Verify
 			require.True(t, getLeafVersionsCalled)
 			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedSpecifiedFileContent)
 			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedRwxDirectoryFileContent)
@@ -725,29 +688,23 @@ func TestService_InitiatingRun(t *testing.T) {
 	})
 
 	t.Run("with no specific mint file and no specific directory", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
-		// Test specific setup
 		runConfig := cli.InitiateRunConfig{
 			MintFilePath: "",
 			RwxDirectory: "",
 		}
 
-		// Execute
 		_, err := s.service.InitiateRun(runConfig)
 
-		// Verify
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "the path to a mint-file must be provided")
 	})
 
 	t.Run("with a specific mint file and a specific directory", func(t *testing.T) {
 		t.Run("when a directory with files is found", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -778,7 +735,6 @@ func TestService_InitiatingRun(t *testing.T) {
 			err = os.Chdir(workingDir)
 			require.NoError(t, err)
 
-			// note this is not in the hierarchy of the mint file or the working directory
 			mintDir := filepath.Join(s.tmp, "other", "path", "to", ".mint")
 			err = os.MkdirAll(mintDir, 0o755)
 			require.NoError(t, err)
@@ -813,11 +769,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			// Verify
 			require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 			require.NotNil(t, receivedRwxDir)
 			require.Equal(t, "", receivedRwxDir[0].FileContents)
@@ -826,10 +780,8 @@ func TestService_InitiatingRun(t *testing.T) {
 		})
 
 		t.Run("when an empty directory is found", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -858,7 +810,6 @@ func TestService_InitiatingRun(t *testing.T) {
 			err = os.Chdir(workingDir)
 			require.NoError(t, err)
 
-			// note this is not in the hierarchy of the mint file or the working directory
 			mintDir := filepath.Join(s.tmp, "other", "path", "to", ".mint")
 			err = os.MkdirAll(mintDir, 0o755)
 			require.NoError(t, err)
@@ -884,19 +835,15 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			// Verify
 			require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 		})
 
 		t.Run("when the 'directory' is actually a file", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 
 			workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -916,19 +863,15 @@ func TestService_InitiatingRun(t *testing.T) {
 			runConfig.MintFilePath = "mint.yml"
 			runConfig.RwxDirectory = mintDir
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 
-			// Verify
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "is not a directory")
 		})
 
 		t.Run("when the directory is not found", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
-			// Test specific setup
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
@@ -941,7 +884,6 @@ func TestService_InitiatingRun(t *testing.T) {
 			err = os.Chdir(workingDir)
 			require.NoError(t, err)
 
-			// note this is not in the hierarchy of the mint file or the working directory
 			mintDir := filepath.Join(s.tmp, "other", "path", "to", ".mint")
 
 			err = os.WriteFile(filepath.Join(workingDir, "mint.yml"), []byte(originalSpecifiedFileContent), 0o644)
@@ -950,29 +892,23 @@ func TestService_InitiatingRun(t *testing.T) {
 			runConfig.MintFilePath = "mint.yml"
 			runConfig.RwxDirectory = mintDir
 
-			// Execute
 			_, err = s.service.InitiateRun(runConfig)
 
-			// Verify
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "unable to find .mint directory")
 		})
 	})
 
 	t.Run("with no specific mint file and a specific directory", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
-		// Test specific setup
 		runConfig := cli.InitiateRunConfig{
 			MintFilePath: "",
 			RwxDirectory: "some-dir",
 		}
 
-		// Execute
 		_, err := s.service.InitiateRun(runConfig)
 
-		// Verify
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "the path to a mint-file must be provided")
 	})

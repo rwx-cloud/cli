@@ -16,9 +16,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `go run ./tools/mage -l` - List all available Mage targets
 
 ### Testing
-- `ginkgo -p ./internal/... ./cmd/...` - Run unit tests with Ginkgo (parallel)
 - `go test ./internal/... ./cmd/...` - Run unit tests with standard Go testing
-- Integration tests require building first: `go run ./tools/mage build && ginkgo -p ./test/...`
+- `go test -v ./internal/... ./cmd/...` - Run unit tests with verbose output
+- `go test -run TestName ./path/to/package` - Run a specific test
+- Integration tests require building first: `go run ./tools/mage build && go test ./test/...`
 
 ### Environment Variables for Development
 - `MINT_HOST` - Override API host (defaults to `cloud.rwx.com`)
@@ -45,7 +46,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Error Handling**: Uses `github.com/pkg/errors` for error wrapping. `cli.HandledError` indicates errors already reported to user.
 - **Configuration**: YAML-based configuration files parsed via `github.com/goccy/go-yaml`
 - **SSH Operations**: `internal/ssh/client.go` handles secure connections to Mint infrastructure
-- **Testing**: Uses Ginkgo/Gomega BDD framework with separate unit and integration test suites
+- **Testing**: Uses standard Go testing with testify/require for assertions. Separate unit and integration test suites
 
 ### Project Structure
 - `cmd/mint/` - CLI commands and main entry point

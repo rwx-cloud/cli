@@ -14,7 +14,6 @@ import (
 
 func TestService_SettingSecrets(t *testing.T) {
 	t.Run("when unable to set secrets", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		s.mockAPI.MockSetSecretsInVault = func(ssivc api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error) {
@@ -24,7 +23,6 @@ func TestService_SettingSecrets(t *testing.T) {
 			return nil, errors.New("error setting secret")
 		}
 
-		// returns an error
 		err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{"ABC=123"},
@@ -35,7 +33,6 @@ func TestService_SettingSecrets(t *testing.T) {
 	})
 
 	t.Run("with secrets set", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		s.mockAPI.MockSetSecretsInVault = func(ssivc api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error) {
@@ -49,7 +46,6 @@ func TestService_SettingSecrets(t *testing.T) {
 			}, nil
 		}
 
-		// is successful
 		err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{"ABC=123", `DEF="xyz"`},
@@ -60,7 +56,6 @@ func TestService_SettingSecrets(t *testing.T) {
 	})
 
 	t.Run("when reading secrets from a file", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		s.mockAPI.MockSetSecretsInVault = func(ssivc api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error) {
@@ -85,7 +80,6 @@ func TestService_SettingSecrets(t *testing.T) {
 		err := os.WriteFile(secretsFile, []byte("A=123\nB=\"xyz\"\nC='q\\nqq'\nD=\"a multiline\nstring\nspanning lines\""), 0o644)
 		require.NoError(t, err)
 
-		// is successful
 		err = s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{},

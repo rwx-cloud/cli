@@ -15,7 +15,6 @@ import (
 func TestService_UpdatingLeaves(t *testing.T) {
 	t.Run("when no files provided", func(t *testing.T) {
 		t.Run("when no yaml files found in the default directory", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			mintDir := s.tmp
@@ -26,7 +25,6 @@ func TestService_UpdatingLeaves(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.json"), []byte("some json"), 0o644)
 			require.NoError(t, err)
 
-			// returns an error
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{},
 				RwxDirectory:             mintDir,
@@ -38,7 +36,6 @@ func TestService_UpdatingLeaves(t *testing.T) {
 		})
 
 		t.Run("when yaml files are found in the specified directory", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			mintDir := s.tmp
@@ -77,7 +74,6 @@ tasks:
 				}, nil
 			}
 
-			// uses the default directory
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{},
 				RwxDirectory:             mintDir,
@@ -103,7 +99,6 @@ tasks:
 
 	t.Run("with files", func(t *testing.T) {
 		t.Run("when the leaf versions cannot be retrieved", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -113,7 +108,6 @@ tasks:
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(""), 0o644)
 			require.NoError(t, err)
 
-			// returns an error
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -124,7 +118,6 @@ tasks:
 		})
 
 		t.Run("when all leaves are already up-to-date", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -140,7 +133,6 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			// does not change the file content
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -155,12 +147,10 @@ tasks:
     call: mint/setup-node 1.2.3
 `, string(contents))
 
-			// indicates no leaves were updated
 			require.Contains(t, s.mockStdout.String(), "No leaves to update.")
 		})
 
 		t.Run("when there are leaves to update across multiple files", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			majorLeafVersions := map[string]string{
@@ -203,7 +193,6 @@ tasks:
 			require.NoError(t, err)
 
 			t.Run("with major version updates", func(t *testing.T) {
-				// updates all files
 				err := s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml"), filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -230,7 +219,6 @@ tasks:
     call: mint/setup-ruby 1.0.1
 `, string(contents))
 
-				// indicates leaves were updated
 				require.Contains(t, s.mockStdout.String(), "Updated the following leaves:")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
@@ -239,13 +227,11 @@ tasks:
 			})
 
 			t.Run("with minor version updates only", func(t *testing.T) {
-				// Reset files
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 				require.NoError(t, err)
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				// updates all files
 				err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml"), filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
@@ -272,7 +258,6 @@ tasks:
     call: mint/setup-ruby 1.0.1
 `, string(contents))
 
-				// indicates leaves were updated
 				require.Contains(t, s.mockStdout.String(), "Updated the following leaves:")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
@@ -281,13 +266,11 @@ tasks:
 			})
 
 			t.Run("when a single file is targeted", func(t *testing.T) {
-				// Reset files
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 				require.NoError(t, err)
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				// updates only the targeted file
 				err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -310,7 +293,6 @@ tasks:
 		})
 
 		t.Run("updates snippet files", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -370,7 +352,6 @@ tasks:
 		})
 
 		t.Run("when a leaf cannot be found", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -386,7 +367,6 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			// does not modify the file
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -401,12 +381,10 @@ tasks:
     call: mint/setup-node 1.0.1
 `, string(contents))
 
-			// indicates a leaf could not be found
 			require.Contains(t, s.mockStderr.String(), `Unable to find the leaf "mint/setup-node"; skipping it.`)
 		})
 
 		t.Run("when a leaf reference is a later version than the latest major", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -422,7 +400,6 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			// updates the leaf
 			err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -438,7 +415,6 @@ tasks:
 		})
 
 		t.Run("when a leaf reference is a major version behind the latest", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			majorLeafVersions := map[string]string{"mint/setup-node": "2.0.3"}
@@ -464,14 +440,12 @@ tasks:
 `), 0o644)
 				require.NoError(t, err)
 
-				// Execute test
 				err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
 				})
 				require.NoError(t, err)
 
-				// does not modify the file
 				contents, err := os.ReadFile(filepath.Join(s.tmp, "foo.yaml"))
 				require.NoError(t, err)
 				require.Equal(t, `
@@ -480,7 +454,6 @@ tasks:
     call: mint/setup-node 1.1.1
 `, string(contents))
 
-				// indicates no leaves were updated
 				require.Contains(t, s.mockStdout.String(), "No leaves to update.")
 			})
 
@@ -492,14 +465,12 @@ tasks:
 `), 0o644)
 				require.NoError(t, err)
 
-				// Execute test
 				err = s.service.UpdateLeaves(cli.UpdateLeavesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
 				})
 				require.NoError(t, err)
 
-				// updates the file
 				contents, err := os.ReadFile(filepath.Join(s.tmp, "foo.yaml"))
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
@@ -507,7 +478,6 @@ tasks:
     call: mint/setup-node 1.1.1
 `, string(contents))
 
-				// indicates that a leaf was updated
 				require.Contains(t, s.mockStdout.String(), "Updated the following leaves:")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.9 → 1.1.1")
 			})

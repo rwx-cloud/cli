@@ -53,7 +53,6 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "123", result.RunId)
 
-		// This works as long as this is the only test we're setting the latest version header.
 		require.Equal(t, "1000000.0.0", versions.GetCliLatestVersion().String())
 		require.True(t, versions.NewVersionAvailable())
 	})

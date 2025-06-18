@@ -20,7 +20,6 @@ func TestService_LoggingIn(t *testing.T) {
 	}
 
 	t.Run("when unable to obtain an auth code", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 		beforeEachSetup(t)
 
@@ -29,7 +28,6 @@ func TestService_LoggingIn(t *testing.T) {
 			return nil, errors.New("error in obtain auth code")
 		}
 
-		// returns an error
 		err := s.service.Login(cli.LoginConfig{
 			DeviceName:         "some-device",
 			AccessTokenBackend: tokenBackend,
@@ -45,8 +43,7 @@ func TestService_LoggingIn(t *testing.T) {
 
 	t.Run("with an auth code created", func(t *testing.T) {
 		t.Run("when polling results in authorized", func(t *testing.T) {
-			// Setup
-			s := setupTest(t)
+				s := setupTest(t)
 			beforeEachSetup(t)
 
 			s.mockAPI.MockObtainAuthCode = func(oacc api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
@@ -131,8 +128,7 @@ func TestService_LoggingIn(t *testing.T) {
 		})
 
 		t.Run("when polling results in consumed", func(t *testing.T) {
-			// Setup
-			s := setupTest(t)
+				s := setupTest(t)
 			beforeEachSetup(t)
 
 			s.mockAPI.MockObtainAuthCode = func(oacc api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
@@ -203,8 +199,7 @@ func TestService_LoggingIn(t *testing.T) {
 		})
 
 		t.Run("when polling results in expired", func(t *testing.T) {
-			// Setup
-			s := setupTest(t)
+				s := setupTest(t)
 			beforeEachSetup(t)
 
 			s.mockAPI.MockObtainAuthCode = func(oacc api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
@@ -275,8 +270,7 @@ func TestService_LoggingIn(t *testing.T) {
 		})
 
 		t.Run("when polling results in something else", func(t *testing.T) {
-			// Setup
-			s := setupTest(t)
+				s := setupTest(t)
 			beforeEachSetup(t)
 
 			s.mockAPI.MockObtainAuthCode = func(oacc api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {

@@ -13,7 +13,6 @@ import (
 )
 
 func TestService_ResolvingBaseLayers(t *testing.T) {
-	// Common setup for base layer tests
 	type baseLayerSetup struct {
 		s            *testSetup
 		apiOs        string
@@ -82,7 +81,6 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 		err := os.WriteFile(filepath.Join(bl.mintDir, "bar.json"), []byte("some json"), 0o644)
 		require.NoError(t, err)
 
-		// returns an error
 		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 
 		require.Error(t, err)
@@ -100,7 +98,6 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 }`), 0o644)
 		require.NoError(t, err)
 
-		// ignores the file
 		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 
 		require.NoError(t, err)
@@ -153,7 +150,6 @@ tasks:
 				"\t../.mint/bar.yaml → gentoo 99, tag 1.2",
 			), bl.s.mockStdout.String())
 
-			// yaml file without tasks key is unaffected
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "baz.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `
@@ -164,10 +160,8 @@ not-my-key:
 		})
 
 		t.Run("adds base to only a targeted file", func(t *testing.T) {
-			// Reset stdout
 			bl.s.mockStdout.Reset()
 
-			// Reset files
 			err := os.WriteFile(filepath.Join(bl.mintDir, "bar.yaml"), []byte(`
 tasks:
   - key: a
@@ -239,7 +233,6 @@ tasks:
 `), 0o644)
 		require.NoError(t, err)
 
-		// adds tag to base
 		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 		require.NoError(t, err)
 
@@ -281,7 +274,6 @@ tasks:
 `), 0o644)
 		require.NoError(t, err)
 
-		// adds tag to base
 		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 		require.NoError(t, err)
 
@@ -322,7 +314,6 @@ base:
   os: gentoo 99`), 0o644)
 		require.NoError(t, err)
 
-		// adds tag to base without moving base before tasks
 		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 		require.NoError(t, err)
 
@@ -421,10 +412,8 @@ tasks:
 		})
 
 		t.Run("when an API request fails", func(t *testing.T) {
-			// Reset API call count
 			bl.apiCallCount = 0
 
-			// Reset files
 			err := os.WriteFile(filepath.Join(bl.mintDir, "one.yaml"), []byte(`tasks:
   - key: a
   - key: b
@@ -460,7 +449,6 @@ tasks:
 				return nil
 			}
 
-			// doesn't update any files
 			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "API request failed")

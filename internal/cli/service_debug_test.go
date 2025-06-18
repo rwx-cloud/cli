@@ -14,7 +14,6 @@ import (
 
 func TestService_DebuggingTask(t *testing.T) {
 	const (
-		// The CLI will validate key material before connecting over SSH, hence we need some "real" keys here
 		privateTestKey = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 QyNTUxOQAAACDiyT6ht8Z2XBEJpLR4/xmNouq5KDdn5G++cUcTH4EhzwAAAJhIWxlBSFsZ
@@ -26,7 +25,6 @@ AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 	)
 
 	t.Run("when the task is debuggable", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		agentAddress := fmt.Sprintf("%d.example.org:1234", 123456)
@@ -42,7 +40,6 @@ AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 		s.mockAPI.MockGetDebugConnectionInfo = func(runId string) (api.DebugConnectionInfo, error) {
 			require.Equal(t, runID, runId)
 			fetchedConnectionInfo = true
-			// Note: This is returning a matching private & public key. The real API returns different ones
 			return api.DebugConnectionInfo{
 				Debuggable:     true,
 				PrivateUserKey: privateTestKey,
@@ -62,22 +59,17 @@ AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 			return nil
 		}
 
-		// Execute test
 		err := s.service.DebugTask(debugConfig)
 		require.NoError(t, err)
 
-		// fetches the connection info from the API
 		require.True(t, fetchedConnectionInfo)
 
-		// connects to the agent over SSH
 		require.True(t, connectedViaSSH)
 
-		// starts an interactive SSH session
 		require.True(t, interactiveSSHSessionStarted)
 	})
 
 	t.Run("when the task isn't debuggable yet", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		runID := fmt.Sprintf("run-%d", 123456)
@@ -90,10 +82,8 @@ AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 			return api.DebugConnectionInfo{Debuggable: false}, nil
 		}
 
-		// Execute test
 		err := s.service.DebugTask(debugConfig)
 
-		// returns a 'Retry' error
 		require.True(t, errors.Is(err, internalErrors.ErrRetry))
 	})
 }

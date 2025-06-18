@@ -12,7 +12,6 @@ import (
 
 func TestService_InitiatingDispatch(t *testing.T) {
 	t.Run("with valid dispatch parameters", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		originalParams := map[string]string{"key1": "value1", "key2": "value2"}
@@ -44,7 +43,6 @@ func TestService_InitiatingDispatch(t *testing.T) {
 			}, nil
 		}
 
-		// calls the API and returns the dispatch ID
 		dispatchResult, err := s.service.InitiateDispatch(dispatchConfig)
 		require.NoError(t, err)
 		require.Equal(t, originalParams, receivedParams)
@@ -52,14 +50,12 @@ func TestService_InitiatingDispatch(t *testing.T) {
 	})
 
 	t.Run("with missing dispatch key", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		dispatchConfig := cli.InitiateDispatchConfig{
 			DispatchKey: "",
 		}
 
-		// returns a validation error
 		_, err := s.service.InitiateDispatch(dispatchConfig)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "a dispatch key must be provided")
@@ -68,7 +64,6 @@ func TestService_InitiatingDispatch(t *testing.T) {
 
 func TestService_GettingDispatch(t *testing.T) {
 	t.Run("when the dispatch result is not ready", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		dispatchConfig := cli.GetDispatchConfig{
@@ -79,14 +74,12 @@ func TestService_GettingDispatch(t *testing.T) {
 			return &api.GetDispatchResult{Status: "not_ready"}, nil
 		}
 
-		// returns a retry error
 		_, err := s.service.GetDispatch(dispatchConfig)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, internalErrors.ErrRetry))
 	})
 
 	t.Run("when the dispatch result contains an error", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		dispatchConfig := cli.GetDispatchConfig{
@@ -97,14 +90,12 @@ func TestService_GettingDispatch(t *testing.T) {
 			return &api.GetDispatchResult{Status: "error", Error: "dispatch failed"}, nil
 		}
 
-		// returns the error
 		_, err := s.service.GetDispatch(dispatchConfig)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "dispatch failed")
 	})
 
 	t.Run("when the dispatch result succeeds", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		dispatchConfig := cli.GetDispatchConfig{
@@ -120,7 +111,6 @@ func TestService_GettingDispatch(t *testing.T) {
 			}, nil
 		}
 
-		// returns the runs
 		runs, err := s.service.GetDispatch(dispatchConfig)
 		require.NoError(t, err)
 		require.Equal(t, "runid", runs[0].RunId)
@@ -128,7 +118,6 @@ func TestService_GettingDispatch(t *testing.T) {
 	})
 
 	t.Run("when no runs are created", func(t *testing.T) {
-		// Setup
 		s := setupTest(t)
 
 		dispatchConfig := cli.GetDispatchConfig{
@@ -139,7 +128,6 @@ func TestService_GettingDispatch(t *testing.T) {
 			return &api.GetDispatchResult{Status: "ready", Runs: []api.GetDispatchRun{}}, nil
 		}
 
-		// errors
 		_, err := s.service.GetDispatch(dispatchConfig)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "No runs were created as a result of this dispatch")

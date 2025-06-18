@@ -13,7 +13,6 @@ import (
 )
 
 func TestService_UpdatingBaseLayers(t *testing.T) {
-	// Common setup for base layer tests
 	type baseLayerSetup struct {
 		s            *testSetup
 		apiOs        string
@@ -87,7 +86,6 @@ func TestService_UpdatingBaseLayers(t *testing.T) {
 		err = os.WriteFile(filepath.Join(bl.mintDir, "bar.json"), []byte("some json"), 0o644)
 		require.NoError(t, err)
 
-		// returns an error
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{})
 
 		require.Error(t, err)
@@ -107,7 +105,6 @@ func TestService_UpdatingBaseLayers(t *testing.T) {
 }`), 0o644)
 		require.NoError(t, err)
 
-		// returns an error
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{})
 
 		require.Error(t, err)
@@ -156,7 +153,6 @@ tasks:
 				"\t../.mint/bar.yaml → tag 1.5",
 			), bl.s.mockStdout.String())
 
-			// yaml file without tasks key is unaffected
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "baz.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `
@@ -167,10 +163,8 @@ not-my-key:
 		})
 
 		t.Run("adds base to only a targeted file", func(t *testing.T) {
-			// Reset stdout
 			bl.s.mockStdout.Reset()
 
-			// Reset files
 			err := os.WriteFile(filepath.Join(bl.mintDir, "bar.yaml"), []byte(`
 tasks:
   - key: a
@@ -261,7 +255,6 @@ tasks:
 				"\t../.mint/bar.yaml tag 1.1 → tag 1.5",
 			), bl.s.mockStdout.String())
 
-			// yaml file without tasks key is unaffected
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "baz.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `
@@ -272,10 +265,8 @@ not-my-key:
 		})
 
 		t.Run("updates base for only a targeted file", func(t *testing.T) {
-			// Reset stdout
 			bl.s.mockStdout.Reset()
 
-			// Reset files
 			err := os.WriteFile(filepath.Join(bl.mintDir, "bar.yaml"), []byte(`
 base:
   os: gentoo 99
@@ -340,7 +331,6 @@ tasks:
 		err := os.WriteFile(filepath.Join(bl.workingDir, "ci.yaml"), []byte(originalContents), 0o644)
 		require.NoError(t, err)
 
-		// errors without changing file
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{
 			Files: []string{"ci.yaml"},
 		})
@@ -371,7 +361,6 @@ tasks:
 `), 0o644)
 		require.NoError(t, err)
 
-		// adds tag to base
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{})
 		require.NoError(t, err)
 
@@ -412,7 +401,6 @@ base:
   os: gentoo 99`), 0o644)
 		require.NoError(t, err)
 
-		// adds tag to base without moving base before tasks
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{})
 		require.NoError(t, err)
 
@@ -465,7 +453,6 @@ tasks:
 `), 0o644)
 		require.NoError(t, err)
 
-		// updates all files
 		_, err = bl.s.service.UpdateBase(cli.UpdateBaseConfig{})
 		require.NoError(t, err)
 

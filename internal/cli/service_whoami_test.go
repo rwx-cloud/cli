@@ -12,14 +12,12 @@ import (
 func TestService_Whoami(t *testing.T) {
 	t.Run("when outputting json", func(t *testing.T) {
 		t.Run("when the request fails", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
 				return nil, errors.New("uh oh can't figure out who you are")
 			}
 
-			// returns an error
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
@@ -30,7 +28,6 @@ func TestService_Whoami(t *testing.T) {
 		})
 
 		t.Run("when there is an email", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
@@ -42,7 +39,6 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			// writes the token kind, organization, and user
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
@@ -54,7 +50,6 @@ func TestService_Whoami(t *testing.T) {
 		})
 
 		t.Run("when there is not an email", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
@@ -64,7 +59,6 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			// writes the token kind and organization
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
@@ -78,14 +72,12 @@ func TestService_Whoami(t *testing.T) {
 
 	t.Run("when outputting plaintext", func(t *testing.T) {
 		t.Run("when the request fails", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
 				return nil, errors.New("uh oh can't figure out who you are")
 			}
 
-			// returns an error
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})
@@ -96,7 +88,6 @@ func TestService_Whoami(t *testing.T) {
 		})
 
 		t.Run("when there is an email", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
@@ -108,7 +99,6 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			// writes the token kind, organization, and user
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})
@@ -120,7 +110,6 @@ func TestService_Whoami(t *testing.T) {
 		})
 
 		t.Run("when there is not an email", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
@@ -130,7 +119,6 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			// writes the token kind and organization
 			err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})

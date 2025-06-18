@@ -15,7 +15,6 @@ import (
 func TestService_ResolvingLeaves(t *testing.T) {
 	t.Run("when no files provided", func(t *testing.T) {
 		t.Run("when no yaml files found in the default directory", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			mintDir := s.tmp
@@ -26,7 +25,6 @@ func TestService_ResolvingLeaves(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.json"), []byte("some json"), 0o644)
 			require.NoError(t, err)
 
-			// returns an error
 			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
 				RwxDirectory:        mintDir,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
@@ -37,7 +35,6 @@ func TestService_ResolvingLeaves(t *testing.T) {
 		})
 
 		t.Run("when yaml files are found in the specified directory", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			mintDir := s.tmp
@@ -76,7 +73,6 @@ tasks:
 				}, nil
 			}
 
-			// uses the default directory
 			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
 				RwxDirectory:        mintDir,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
@@ -101,7 +97,6 @@ tasks:
 
 	t.Run("with files", func(t *testing.T) {
 		t.Run("when the leaf versions cannot be retrieved", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -111,7 +106,6 @@ tasks:
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(""), 0o644)
 			require.NoError(t, err)
 
-			// returns an error
 			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
 				RwxDirectory:        s.tmp,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
@@ -122,7 +116,6 @@ tasks:
 		})
 
 		t.Run("when all leaves have a version", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -138,7 +131,6 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			// does not change the file content
 			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
 				RwxDirectory:        s.tmp,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
@@ -153,12 +145,10 @@ tasks:
     call: mint/setup-node 1.2.3
 `, string(contents))
 
-			// indicates no leaves were resolved
 			require.Contains(t, s.mockStdout.String(), "No leaves to resolve.")
 		})
 
 		t.Run("when there are leaves to resolve across multiple files", func(t *testing.T) {
-			// Setup
 			s := setupTest(t)
 
 			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
@@ -220,7 +210,6 @@ tasks:
 			})
 
 			t.Run("indicates leaves were resolved", func(t *testing.T) {
-				// Reset files
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 				require.NoError(t, err)
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
@@ -239,13 +228,11 @@ tasks:
 			})
 
 			t.Run("when a single file is targeted", func(t *testing.T) {
-				// Reset files
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 				require.NoError(t, err)
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				// resolves only the targeted file
 				_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
 					RwxDirectory:        s.tmp,
 					Files:               []string{filepath.Join(s.tmp, "bar.yaml")},

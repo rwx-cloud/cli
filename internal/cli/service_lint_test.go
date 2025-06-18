@@ -48,7 +48,6 @@ func TestService_Linting(t *testing.T) {
 		t.Run("using oneline output", func(t *testing.T) {
 			lintConfig.OutputFormat = cli.LintOutputOneLine
 
-			// lists only files
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, `error   .mint/base.yml:11:22 - message 1 message 1a
@@ -62,7 +61,6 @@ warning .mint/base.yml - message 4
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputMultiLine
 
-			// lists all the data from the problem
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, `
@@ -92,7 +90,6 @@ Checked 1 file and found 4 problems.
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputNone
 
-			// doesn't output
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, "", s.mockStdout.String())
@@ -171,7 +168,6 @@ Checked 1 file and found 4 problems.
 		t.Run("using oneline output", func(t *testing.T) {
 			lintConfig.OutputFormat = cli.LintOutputOneLine
 
-			// lists only files
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, `error   .mint/base.yml:11:22 - message 1 message 1a
@@ -185,7 +181,6 @@ warning .mint/base.yml:7:9 - message 4
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputMultiLine
 
-			// lists all the data from the problem
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, `
@@ -221,7 +216,6 @@ Checked 1 file and found 4 problems.
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputNone
 
-			// doesn't output
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, "", s.mockStdout.String())
@@ -244,7 +238,6 @@ Checked 1 file and found 4 problems.
 		t.Run("using oneline output", func(t *testing.T) {
 			lintConfig.OutputFormat = cli.LintOutputOneLine
 
-			// doesn't output
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, "", s.mockStdout.String())
@@ -254,7 +247,6 @@ Checked 1 file and found 4 problems.
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputMultiLine
 
-			// outputs check counts
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, "\nChecked 1 file and found 0 problems.\n", s.mockStdout.String())
@@ -264,7 +256,6 @@ Checked 1 file and found 4 problems.
 			s.mockStdout.Reset()
 			lintConfig.OutputFormat = cli.LintOutputNone
 
-			// doesn't output
 			_, err := s.service.Lint(lintConfig)
 			require.NoError(t, err)
 			require.Equal(t, "", s.mockStdout.String())
@@ -286,7 +277,6 @@ Checked 1 file and found 4 problems.
 		lintConfig.OutputFormat = cli.LintOutputOneLine
 
 		t.Run("without targeting", func(t *testing.T) {
-			// doesn't target the snippets
 			s.mockAPI.MockLint = func(cfg api.LintConfig) (*api.LintResult, error) {
 				runDefinitionPaths := make([]string, len(cfg.TaskDefinitions))
 				for i, runDefinitionPath := range cfg.TaskDefinitions {
