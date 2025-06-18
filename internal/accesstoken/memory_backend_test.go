@@ -1,29 +1,26 @@
 package accesstoken_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 
 	"github.com/rwx-research/mint-cli/internal/accesstoken"
+	"github.com/stretchr/testify/require"
 )
 
-var _ = Describe("MemoryBackend", func() {
-	Describe("Get/Set", func() {
-		It("sets and gets tokens", func() {
-			backend, err := accesstoken.NewMemoryBackend()
-			Expect(err).NotTo(HaveOccurred())
+func TestMemoryBackend_GetSet(t *testing.T) {
+	t.Run("sets and gets tokens", func(t *testing.T) {
+		backend, err := accesstoken.NewMemoryBackend()
+		require.NoError(t, err)
 
-			token, err := backend.Get()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal(""))
+		token, err := backend.Get()
+		require.NoError(t, err)
+		require.Equal(t, "", token)
 
-			err = backend.Set("the-token")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal(""))
+		err = backend.Set("the-token")
+		require.NoError(t, err)
 
-			token, err = backend.Get()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal("the-token"))
-		})
+		token, err = backend.Get()
+		require.NoError(t, err)
+		require.Equal(t, "the-token", token)
 	})
-})
+}

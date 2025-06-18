@@ -1,50 +1,48 @@
 package accesstoken_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 
 	"github.com/rwx-research/mint-cli/internal/accesstoken"
+	"github.com/stretchr/testify/require"
 )
 
-var _ = Describe("Main", func() {
-	Describe("Get", func() {
-		It("prefers the provided access token", func() {
-			backend, err := accesstoken.NewMemoryBackend()
-			Expect(err).NotTo(HaveOccurred())
+func TestGet(t *testing.T) {
+	t.Run("prefers the provided access token", func(t *testing.T) {
+		backend, err := accesstoken.NewMemoryBackend()
+		require.NoError(t, err)
 
-			err = backend.Set("other-token")
-			Expect(err).NotTo(HaveOccurred())
+		err = backend.Set("other-token")
+		require.NoError(t, err)
 
-			token, err := accesstoken.Get(backend, "provided-token")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal("provided-token"))
-		})
-
-		It("falls back to the stored access token", func() {
-			backend, err := accesstoken.NewMemoryBackend()
-			Expect(err).NotTo(HaveOccurred())
-
-			err = backend.Set("other-token")
-			Expect(err).NotTo(HaveOccurred())
-
-			token, err := accesstoken.Get(backend, "")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal("other-token"))
-		})
+		token, err := accesstoken.Get(backend, "provided-token")
+		require.NoError(t, err)
+		require.Equal(t, "provided-token", token)
 	})
 
-	Describe("Set", func() {
-		It("stores the token in the backend", func() {
-			backend, err := accesstoken.NewMemoryBackend()
-			Expect(err).NotTo(HaveOccurred())
+	t.Run("falls back to the stored access token", func(t *testing.T) {
+		backend, err := accesstoken.NewMemoryBackend()
+		require.NoError(t, err)
 
-			err = accesstoken.Set(backend, "some-token")
-			Expect(err).NotTo(HaveOccurred())
+		err = backend.Set("other-token")
+		require.NoError(t, err)
 
-			token, err := backend.Get()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).To(Equal("some-token"))
-		})
+		token, err := accesstoken.Get(backend, "")
+		require.NoError(t, err)
+		require.Equal(t, "other-token", token)
 	})
-})
+}
+
+func TestSet(t *testing.T) {
+	t.Run("stores the token in the backend", func(t *testing.T) {
+		backend, err := accesstoken.NewMemoryBackend()
+		require.NoError(t, err)
+
+		err = accesstoken.Set(backend, "some-token")
+		require.NoError(t, err)
+
+		token, err := backend.Get()
+		require.NoError(t, err)
+		require.Equal(t, "some-token", token)
+	})
+}
