@@ -1,28 +1,28 @@
 package main_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 
 	mint "github.com/rwx-research/mint-cli/cmd/mint"
+	"github.com/stretchr/testify/require"
 )
 
-var _ = Describe("ParseInitParameters", func() {
-	It("should parse init parameters", func() {
+func TestParseInitParameters(t *testing.T) {
+	t.Run("should parse init parameters", func(t *testing.T) {
 		parsed, err := mint.ParseInitParameters([]string{"a=b", "c=d"})
-		Expect(err).To(BeNil())
-		Expect(parsed).To(Equal(map[string]string{"a": "b", "c": "d"}))
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{"a": "b", "c": "d"}, parsed)
 	})
 
-	It("should parse init parameter with equals signs", func() {
+	t.Run("should parse init parameter with equals signs", func(t *testing.T) {
 		parsed, err := mint.ParseInitParameters([]string{"a=b=c=d"})
-		Expect(err).To(BeNil())
-		Expect(parsed).To(Equal(map[string]string{"a": "b=c=d"}))
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{"a": "b=c=d"}, parsed)
 	})
 
-	It("should error if init parameter is not equals-delimited", func() {
+	t.Run("should error if init parameter is not equals-delimited", func(t *testing.T) {
 		parsed, err := mint.ParseInitParameters([]string{"a"})
-		Expect(parsed).To(BeNil())
-		Expect(err).To(MatchError("unable to parse \"a\""))
+		require.Nil(t, parsed)
+		require.EqualError(t, err, "unable to parse \"a\"")
 	})
-})
+}

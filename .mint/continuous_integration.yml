@@ -30,10 +30,14 @@ tasks:
     filter:
       - .tool-versions
 
-  - key: go
+  - key: go-installation
     call: mint/install-go 1.1.1
     with:
       go-version: ${{ tasks.tool-versions.values.golang }}
+
+  - key: go
+    use: go-installation
+    run: echo "$(go env GOPATH)/bin" > "${MINT_ENV}/PATH"
 
   - key: golangci-lint
     use: go
@@ -47,12 +51,22 @@ tasks:
       - go.mod
       - go.sum
 
+  - key: gotestsum
+    use: go
+    run: go install gotest.tools/gotestsum@latest
+
   - key: unit-tests
-    use: go-deps
+    use: [go-deps, mint-cli, gotestsum]
     run: |
-      CGO_ENABLED=0 \
-      LDFLAGS="-w -s -X github.com/rwx-research/mint-cli/cmd/mint/config.Version=testing-${{ init.commit-sha }}" \
-      go run ./tools/mage test
+      gotestsum \
+        --jsonfile tmp/go-test.json \
+        -- \
+        -ldflags "-w -s -X github.com/rwx-research/mint-cli/cmd/mint/config.Version=testing-${{ init.commit-sha }}" \
+        -parallel 4 \
+        ./internal/... ./cmd/... ./test/...
+    outputs:
+      test-results:
+        - path: tmp/go-test.json
 
   - key: mint-cli
     use: go-deps

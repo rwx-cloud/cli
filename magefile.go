@@ -78,9 +78,7 @@ func LintFix(ctx context.Context) error {
 }
 
 func UnitTest(ctx context.Context) error {
-	// `ginkgo ./...` or `go test ./...`  work out of the box
-	// but `ginkgo ./...` includes ~ confusing empty test output for integration tests
-	// so `mage test` explicitly doesn't call ginkgo against the `/test/` directory
+	// Run unit tests with standard go test
 	return (makeTestTask("./internal/...", "./cmd/..."))(ctx)
 }
 
@@ -101,18 +99,21 @@ func makeTestTask(args ...string) func(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		args = append([]string{"-ldflags", ldflags}, args...)
+
+		testArgs := []string{"test", "-ldflags", ldflags}
+
+		// Add parallel execution by default
+		testArgs = append(testArgs, "-parallel", "4")
 
 		if report := os.Getenv("REPORT"); report != "" {
-			return sh.RunV("ginkgo", append([]string{"-p", "--junit-report=report.xml"}, args...)...)
+			// For JUnit reports, we might need to add a test reporter
+			// For now, just run tests with verbose output
+			testArgs = append(testArgs, "-v")
 		}
 
-		cmd := exec.Command("command", "-v", "ginkgo")
-		if err := cmd.Run(); err != nil {
-			return sh.RunV("go", append([]string{"test"}, args...)...)
-		}
+		testArgs = append(testArgs, args...)
 
-		return sh.RunV("ginkgo", append([]string{"-p"}, args...)...)
+		return sh.RunV("go", testArgs...)
 	}
 }
 

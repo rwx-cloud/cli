@@ -5,252 +5,261 @@ import (
 	"io/fs"
 	"os"
 	"path"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 
 	"github.com/rwx-research/mint-cli/internal/accesstoken"
+	"github.com/stretchr/testify/require"
 )
 
-var _ = Describe("FileBackend", func() {
-	var primaryTmpDir string
-	var fallbackTmpDir string
+func TestFileBackend_Get(t *testing.T) {
+	t.Run("when there is only a single directory", func(t *testing.T) {
+		t.Run("when the access token file does not exist", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-	BeforeEach(func() {
-		var err error
-		primaryTmpDir, err = os.MkdirTemp(os.TempDir(), "file-backend-primary")
-		Expect(err).NotTo(HaveOccurred())
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+			require.NoError(t, err)
 
-		fallbackTmpDir, err = os.MkdirTemp(os.TempDir(), "file-backend-fallback")
-		Expect(err).NotTo(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		var err error
-
-		err = os.RemoveAll(primaryTmpDir)
-		Expect(err).NotTo(HaveOccurred())
-
-		err = os.RemoveAll(fallbackTmpDir)
-		Expect(err).NotTo(HaveOccurred())
-	})
-
-	Describe("Get", func() {
-		Describe("when there is only a single directory", func() {
-			Context("when the access token file does not exist", func() {
-				It("returns an empty token", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal(""))
-				})
-			})
-
-			Context("when the access token file is otherwise unable to be opened", func() {
-				BeforeEach(func() {
-					Expect(os.Chmod(primaryTmpDir, 0o000)).NotTo(HaveOccurred())
-				})
-
-				It("returns an error", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unable to open"))
-					Expect(err).To(MatchError(fs.ErrPermission))
-					Expect(token).To(Equal(""))
-				})
-			})
-
-			Context("when the access token file is present and has contents", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("the-token"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
-
-				It("returns the token", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
-				})
-			})
-
-			Context("when the access token file includes leading or trailing whitespace", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
-
-				It("returns the token with surrounding whitespace trimmed", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
-				})
-			})
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "", token)
 		})
 
-		Describe("when there are multiple directories", func() {
-			Context("when the access token file does not exist in either directory", func() {
-				It("returns an empty token", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
+		t.Run("when the access token file is otherwise unable to be opened", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal(""))
-				})
-			})
+			require.NoError(t, os.Chmod(primaryTmpDir, 0o000))
 
-			Context("when the access token file exists in the primary but not the fallback", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("the-token"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+			require.NoError(t, err)
 
-				It("returns the token and does not write one to the fallback", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
+			token, err := backend.Get()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unable to open")
+			require.ErrorIs(t, err, fs.ErrPermission)
+			require.Equal(t, "", token)
+		})
 
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
+		t.Run("when the access token file is present and has contents", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-					_, err = os.Stat(path.Join(fallbackTmpDir, "accesstoken"))
-					Expect(os.IsNotExist(err)).To(BeTrue())
-				})
-			})
+			err = os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("the-token"), 0o644)
+			require.NoError(t, err)
 
-			Context("when the access token file exists in the fallback but not the primary", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(fallbackTmpDir, "accesstoken"), []byte("the-token"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+			require.NoError(t, err)
 
-				It("returns the token and writes it to the primary", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
+		})
 
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
+		t.Run("when the access token file includes leading or trailing whitespace", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-					file, err := os.Open(path.Join(primaryTmpDir, "accesstoken"))
-					Expect(err).NotTo(HaveOccurred())
-					defer file.Close()
-					bytes, err := io.ReadAll(file)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(string(bytes)).To(Equal("the-token"))
-				})
-			})
+			err = os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
+			require.NoError(t, err)
 
-			Context("when the access token file in the primary dir is otherwise unable to be opened", func() {
-				BeforeEach(func() {
-					Expect(os.Chmod(primaryTmpDir, 0o000)).NotTo(HaveOccurred())
-				})
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+			require.NoError(t, err)
 
-				It("returns an error", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unable to open"))
-					Expect(err).To(MatchError(fs.ErrPermission))
-					Expect(token).To(Equal(""))
-				})
-			})
-
-			Context("when the access token file in the primary dir includes leading or trailing whitespace", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
-
-				It("returns the token with surrounding whitespace trimmed", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
-				})
-			})
-
-			Context("when the access token file in the fallback dir is otherwise unable to be opened", func() {
-				BeforeEach(func() {
-					Expect(os.Chmod(fallbackTmpDir, 0o000)).NotTo(HaveOccurred())
-				})
-
-				It("returns an error", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unable to open"))
-					Expect(err).To(MatchError(fs.ErrPermission))
-					Expect(token).To(Equal(""))
-				})
-			})
-
-			Context("when the access token file in the fallback dir includes leading or trailing whitespace", func() {
-				BeforeEach(func() {
-					err := os.WriteFile(path.Join(fallbackTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
-					Expect(err).NotTo(HaveOccurred())
-				})
-
-				It("returns the token with surrounding whitespace trimmed", func() {
-					backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
-					Expect(err).NotTo(HaveOccurred())
-
-					token, err := backend.Get()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(token).To(Equal("the-token"))
-				})
-			})
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
 		})
 	})
 
-	Describe("Set", func() {
-		Context("when creating the file errors", func() {
-			BeforeEach(func() {
-				Expect(os.Chmod(primaryTmpDir, 0o400)).NotTo(HaveOccurred())
-			})
+	t.Run("when there are multiple directories", func(t *testing.T) {
+		t.Run("when the access token file does not exist in either directory", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-			It("returns an error", func() {
-				backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-				Expect(err).NotTo(HaveOccurred())
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
 
-				err = backend.Set("the-token")
-				Expect(err.Error()).To(ContainSubstring("permission denied"))
-				Expect(err).To(MatchError(fs.ErrPermission))
-			})
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "", token)
 		})
 
-		Context("when the file is created", func() {
-			It("writes the token to the file", func() {
-				backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
-				Expect(err).NotTo(HaveOccurred())
+		t.Run("when the access token file exists in the primary but not the fallback", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
 
-				err = backend.Set("the-token")
-				Expect(err).NotTo(HaveOccurred())
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
 
-				file, err := os.Open(path.Join(primaryTmpDir, "accesstoken"))
-				Expect(err).NotTo(HaveOccurred())
+			err = os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("the-token"), 0o644)
+			require.NoError(t, err)
 
-				bytes, err := io.ReadAll(file)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(bytes)).To(Equal("the-token"))
-			})
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
+
+			_, err = os.Stat(path.Join(fallbackTmpDir, "accesstoken"))
+			require.True(t, os.IsNotExist(err))
+		})
+
+		t.Run("when the access token file exists in the fallback but not the primary", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
+
+			err = os.WriteFile(path.Join(fallbackTmpDir, "accesstoken"), []byte("the-token"), 0o644)
+			require.NoError(t, err)
+
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
+
+			file, err := os.Open(path.Join(primaryTmpDir, "accesstoken"))
+			require.NoError(t, err)
+			defer file.Close()
+			bytes, err := io.ReadAll(file)
+			require.NoError(t, err)
+			require.Equal(t, "the-token", string(bytes))
+		})
+
+		t.Run("when the access token file in the primary dir is otherwise unable to be opened", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
+
+			require.NoError(t, os.Chmod(primaryTmpDir, 0o000))
+
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unable to open")
+			require.ErrorIs(t, err, fs.ErrPermission)
+			require.Equal(t, "", token)
+		})
+
+		t.Run("when the access token file in the primary dir includes leading or trailing whitespace", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
+
+			err = os.WriteFile(path.Join(primaryTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
+			require.NoError(t, err)
+
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
+		})
+
+		t.Run("when the access token file in the fallback dir is otherwise unable to be opened", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
+
+			require.NoError(t, os.Chmod(fallbackTmpDir, 0o000))
+
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unable to open")
+			require.ErrorIs(t, err, fs.ErrPermission)
+			require.Equal(t, "", token)
+		})
+
+		t.Run("when the access token file in the fallback dir includes leading or trailing whitespace", func(t *testing.T) {
+			primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+			fallbackTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-fallback")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(fallbackTmpDir) })
+
+			err = os.WriteFile(path.Join(fallbackTmpDir, "accesstoken"), []byte("\n  \t  the-token\t  \n \n"), 0o644)
+			require.NoError(t, err)
+
+			backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir, fallbackTmpDir})
+			require.NoError(t, err)
+
+			token, err := backend.Get()
+			require.NoError(t, err)
+			require.Equal(t, "the-token", token)
 		})
 	})
-})
+}
+
+func TestFileBackend_Set(t *testing.T) {
+	t.Run("when creating the file errors", func(t *testing.T) {
+		primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+		require.NoError(t, os.Chmod(primaryTmpDir, 0o400))
+
+		backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+		require.NoError(t, err)
+
+		err = backend.Set("the-token")
+		require.Contains(t, err.Error(), "permission denied")
+		require.ErrorIs(t, err, fs.ErrPermission)
+	})
+
+	t.Run("when the file is created", func(t *testing.T) {
+		primaryTmpDir, err := os.MkdirTemp(os.TempDir(), "file-backend-primary")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(primaryTmpDir) })
+
+		backend, err := accesstoken.NewFileBackend([]string{primaryTmpDir})
+		require.NoError(t, err)
+
+		err = backend.Set("the-token")
+		require.NoError(t, err)
+
+		file, err := os.Open(path.Join(primaryTmpDir, "accesstoken"))
+		require.NoError(t, err)
+
+		bytes, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.Equal(t, "the-token", string(bytes))
+	})
+}

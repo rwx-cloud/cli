@@ -1,16 +1,17 @@
 package messages_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	messages "github.com/rwx-research/mint-cli/internal/messages"
+	"testing"
+
+	"github.com/rwx-research/mint-cli/internal/messages"
+	"github.com/stretchr/testify/require"
 )
 
-var _ = Describe("FormatUserMessage", func() {
-	It("builds a string based on the available data", func() {
-		Expect(messages.FormatUserMessage("message", "", []messages.StackEntry{}, "")).To(Equal("message"))
-		Expect(messages.FormatUserMessage("message", "frame", []messages.StackEntry{}, "")).To(Equal("message\nframe"))
-		Expect(messages.FormatUserMessage("message", "frame", []messages.StackEntry{}, "advice")).To(Equal("message\nframe\nadvice"))
+func TestFormatUserMessage(t *testing.T) {
+	t.Run("builds a string based on the available data", func(t *testing.T) {
+		require.Equal(t, "message", messages.FormatUserMessage("message", "", []messages.StackEntry{}, ""))
+		require.Equal(t, "message\nframe", messages.FormatUserMessage("message", "frame", []messages.StackEntry{}, ""))
+		require.Equal(t, "message\nframe\nadvice", messages.FormatUserMessage("message", "frame", []messages.StackEntry{}, "advice"))
 
 		stackTrace := []messages.StackEntry{
 			{
@@ -25,10 +26,10 @@ var _ = Describe("FormatUserMessage", func() {
 				Column:   22,
 			},
 		}
-		Expect(messages.FormatUserMessage("message", "frame", stackTrace, "advice")).To(Equal(`message
+		require.Equal(t, `message
 frame
   at mint1.yml:5:22
   at *alias (mint1.yml:22:11)
-advice`))
+advice`, messages.FormatUserMessage("message", "frame", stackTrace, "advice"))
 	})
-})
+}
