@@ -1,4 +1,12 @@
 on:
+  cron:
+    - key: notary-list
+      branch: dan/notary-list
+      schedule: "*/5 * * * *"
+      target: [notary-list]
+      init:
+        kind: testing
+        notary-list: true
   dispatch:
     - key: release-cli
       title: "Release RWX CLI ${{ init.version }} (${{ init.kind }})"
@@ -134,8 +142,19 @@ tasks:
 
   - key: codesigning
     run: |
-      curl -fsSLO https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.22.0/apple-codesign-0.22.0-x86_64-unknown-linux-musl.tar.gz
-      tar xzvf apple-codesign-0.22.0-x86_64-unknown-linux-musl.tar.gz --strip-components=1
+      curl -fsSLO https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.29.0/apple-codesign-0.29.0-x86_64-unknown-linux-musl.tar.gz
+      tar xzvf apple-codesign-0.29.0-x86_64-unknown-linux-musl.tar.gz --strip-components=1
+
+  - key: notary-list
+    use: codesigning
+    if: ${{ init.notary-list }}
+    run: |
+       echo "$RWX_APPLE_APP_STORE_CONNECT_API_KEY" > rwx-apple-app-store-connect-api-key.json
+      ./rcodesign notary-list --api-key-path rwx-apple-app-store-connect-api-key.json | tee the-list.txt
+      grep 'in progress' the-list.txt
+    env:
+      RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT: "${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_CERTIFICATE }}${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_PRIVATE_KEY }}"
+      RWX_APPLE_APP_STORE_CONNECT_API_KEY: ${{ secrets.RWX_APPLE_APP_STORE_CONNECT_API_KEY }}
 
   - key: zip
     run: |
@@ -228,7 +247,6 @@ tasks:
     env:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
-      CODESIGN_VERSION: 0.22.0
       RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT: "${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_CERTIFICATE }}${{ secrets.RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT_PRIVATE_KEY }}"
       RWX_APPLE_APP_STORE_CONNECT_API_KEY: ${{ secrets.RWX_APPLE_APP_STORE_CONNECT_API_KEY }}
 
