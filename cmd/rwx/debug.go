@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/cli"
 
 	"github.com/spf13/cobra"
 )

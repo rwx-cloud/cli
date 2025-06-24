@@ -10,7 +10,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
-	"github.com/rwx-research/mint-cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/errors"
 )
 
 type YAMLDoc struct {

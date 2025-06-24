@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/rwx-research/mint-cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/api"
 
 	"golang.org/x/crypto/ssh"
 )

@@ -3,9 +3,9 @@ package main
 import (
 	"slices"
 
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/cli"
-	"github.com/rwx-research/mint-cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/errors"
 
 	"github.com/spf13/cobra"
 )
@@ -57,6 +57,6 @@ var (
 
 func init() {
 	lintCmd.Flags().BoolVar(&LintWarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
-	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
+	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 	lintCmd.Flags().StringVarP(&LintOutputFormat, "output", "o", "multiline", "output format: multiline, oneline, none")
 }

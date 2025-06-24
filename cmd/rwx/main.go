@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/cli"
 )
 
 // A HandledError has already been handled in the called function,

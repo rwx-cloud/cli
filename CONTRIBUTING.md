@@ -8,7 +8,7 @@ developers interested in test automation.
 When opening a new GitHub issue, make sure to include any relevant information,
 such as:
 
-* What version of Mint are you using (see `mint --version`)?
+* What version of the RWX CLI are you using (see `rwx --version`)?
 * What system / CI environment are you running the CLI on?
 * What did you do?
 * What did you expect to see?

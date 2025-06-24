@@ -3,7 +3,7 @@ package messages_test
 import (
 	"testing"
 
-	"github.com/rwx-research/mint-cli/internal/messages"
+	"github.com/rwx-cloud/cli/internal/messages"
 	"github.com/stretchr/testify/require"
 )
 

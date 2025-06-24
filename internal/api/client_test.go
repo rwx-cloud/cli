@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/versions"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/versions"
 	"github.com/stretchr/testify/require"
 )
 

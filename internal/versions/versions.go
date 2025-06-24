@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	semver "github.com/Masterminds/semver/v3"
-	"github.com/rwx-research/mint-cli/cmd/mint/config"
+	"github.com/rwx-cloud/cli/cmd/rwx/config"
 )
 
 var versionHolder *lockedVersions

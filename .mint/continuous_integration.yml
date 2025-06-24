@@ -56,28 +56,28 @@ tasks:
     run: go install gotest.tools/gotestsum@latest
 
   - key: unit-tests
-    use: [go-deps, mint-cli, gotestsum]
+    use: [go-deps, rwx-cli, gotestsum]
     run: |
       gotestsum \
         --jsonfile tmp/go-test.json \
         -- \
-        -ldflags "-w -s -X github.com/rwx-research/mint-cli/cmd/mint/config.Version=testing-${{ init.commit-sha }}" \
+        -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
         -parallel 4 \
         ./internal/... ./cmd/... ./test/...
     outputs:
       test-results:
         - path: tmp/go-test.json
 
-  - key: mint-cli
+  - key: rwx-cli
     use: go-deps
     run: |
       CGO_ENABLED=0 \
-        LDFLAGS="-w -s -X github.com/rwx-research/mint-cli/cmd/mint/config.Version=testing-${{ init.commit-sha }}" \
+        LDFLAGS="-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
         go run ./tools/mage build
 
   - key: integration-tests
-    use: mint-cli
-    run: ./mint run --debug -f test/hello-world.mint.yaml
+    use: rwx-cli
+    run: ./rwx run --debug -f test/hello-world.mint.yaml
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
 
@@ -106,9 +106,9 @@ tasks:
       sudo apt-get clean
 
   - key: run-mint-testing-tests
-    use: [mint-testing-code, jq, mint-cli]
+    use: [mint-testing-code, jq, rwx-cli]
     run: |
-      initiate_run_result=$(./mint run --json --file ./mint-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
+      initiate_run_result=$(./rwx run --json --file ./mint-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
       echo "${initiate_run_result}"
       run_id=$(echo "${initiate_run_result}" | jq -r ".RunId")
 
@@ -159,5 +159,5 @@ tasks:
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
     filter:
-      - mint
+      - rwx
       - mint-testing/.mint/trigger-integration-test.yml

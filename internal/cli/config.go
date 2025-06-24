@@ -4,10 +4,10 @@ import (
 	"io"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/versions"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
@@ -61,7 +61,7 @@ type InitiateRunConfig struct {
 
 func (c InitiateRunConfig) Validate() error {
 	if c.MintFilePath == "" {
-		return errors.New("the path to a mint-file must be provided using the --file flag.")
+		return errors.New("the path to a run definition must be provided using the --file flag.")
 	}
 
 	return nil

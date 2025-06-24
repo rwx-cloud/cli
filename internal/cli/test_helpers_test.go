@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rwx-research/mint-cli/internal/cli"
-	"github.com/rwx-research/mint-cli/internal/mocks"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
 

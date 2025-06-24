@@ -7,8 +7,8 @@ import (
 
 	"github.com/skratchdot/open-golang/open"
 
-	"github.com/rwx-research/mint-cli/internal/cli"
-	"github.com/rwx-research/mint-cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/errors"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"

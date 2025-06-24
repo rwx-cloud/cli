@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/fs"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/fs"
 )
 
 type RwxDirectoryEntry = api.RwxDirectoryEntry
@@ -21,7 +21,7 @@ type MintYAMLFile struct {
 }
 
 // findRwxDirectoryPath returns a configured directory, if it exists, or walks up
-// from the working directory to find a .mint directory. If the found path is not
+// from the working directory to find a .rwx directory. If the found path is not
 // a directory or is not readable, an error is returned.
 func findAndValidateRwxDirectoryPath(configuredDirectory string) (string, error) {
 	foundPath, err := findRwxDirectoryPath(configuredDirectory)
@@ -32,11 +32,11 @@ func findAndValidateRwxDirectoryPath(configuredDirectory string) (string, error)
 	if foundPath != "" {
 		rwxDirInfo, err := os.Stat(foundPath)
 		if err != nil {
-			return foundPath, fmt.Errorf("unable to read the .mint directory at %q", foundPath)
+			return foundPath, fmt.Errorf("unable to read the .rwx directory at %q", foundPath)
 		}
 
 		if !rwxDirInfo.IsDir() {
-			return foundPath, fmt.Errorf(".mint directory at %q is not a directory", foundPath)
+			return foundPath, fmt.Errorf(".rwx directory at %q is not a directory", foundPath)
 		}
 	}
 
@@ -44,7 +44,7 @@ func findAndValidateRwxDirectoryPath(configuredDirectory string) (string, error)
 }
 
 // findRwxDirectoryPath returns a configured directory, if it exists, or walks up
-// from the working directory to find a .mint directory.
+// from the working directory to find a .rwx directory.
 func findRwxDirectoryPath(configuredDirectory string) (string, error) {
 	if configuredDirectory != "" {
 		return configuredDirectory, nil
@@ -133,7 +133,7 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 			return nil
 		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading mint directory entries at %s", path)
+			return nil, errors.Wrapf(err, "reading rwx directory entries at %s", path)
 		}
 	}
 

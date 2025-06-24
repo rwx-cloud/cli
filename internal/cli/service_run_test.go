@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -698,7 +698,7 @@ func TestService_InitiatingRun(t *testing.T) {
 		_, err := s.service.InitiateRun(runConfig)
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "the path to a mint-file must be provided")
+		require.Contains(t, err.Error(), "the path to a run definition must be provided")
 	})
 
 	t.Run("with a specific mint file and a specific directory", func(t *testing.T) {
@@ -895,7 +895,7 @@ func TestService_InitiatingRun(t *testing.T) {
 			_, err = s.service.InitiateRun(runConfig)
 
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "unable to find .mint directory")
+			require.Contains(t, err.Error(), "unable to find .rwx directory")
 		})
 	})
 
@@ -910,6 +910,6 @@ func TestService_InitiatingRun(t *testing.T) {
 		_, err := s.service.InitiateRun(runConfig)
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "the path to a mint-file must be provided")
+		require.Contains(t, err.Error(), "the path to a run definition must be provided")
 	})
 }

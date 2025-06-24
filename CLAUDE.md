@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Build and Development
-- `go run ./tools/mage build` - Build the Mint CLI binary (outputs to `./mint`)
+- `go run ./tools/mage build` - Build the Mint CLI binary (outputs to `./rwx`)
 - `go run ./tools/mage test` - Run full test suite (unit + integration tests)
 - `go run ./tools/mage unitTest` - Run unit tests only (`./internal/...` and `./cmd/...`)
 - `go run ./tools/mage integrationTest` - Run integration tests only (`./test/...`)
 - `go run ./tools/mage lint` - Run golangci-lint static analysis
 - `go run ./tools/mage lintFix` - Apply lint fixes and run `go mod tidy`
-- `go run ./tools/mage clean` - Remove build artifacts (`./mint` binary)
+- `go run ./tools/mage clean` - Remove build artifacts (`./rwx` binary)
 - `go run ./tools/mage all` - Clean, build, test, and lint
 - `go run ./tools/mage -l` - List all available Mage targets
 
@@ -31,7 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Core Components
 
-**CLI Entry Point**: `cmd/mint/main.go` serves as the entry point with Cobra command structure defined in `cmd/mint/root.go`. Commands are organized as separate files (e.g., `run.go`, `login.go`, `debug.go`).
+**CLI Entry Point**: `cmd/rwx/main.go` serves as the entry point with Cobra command structure defined in `cmd/rwx/root.go`. Commands are organized as separate files (e.g., `run.go`, `login.go`, `debug.go`).
 
 **Service Layer**: `internal/cli/service.go` contains the main business logic. The CLI follows a service-oriented architecture where commands delegate to the `cli.Service` which orchestrates API calls, file operations, and SSH connections.
 
@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Access Token Management**: `internal/accesstoken/` provides pluggable backends for storing access tokens. The file backend supports migration from `~/.mint` to `~/.config/rwx`.
 
-**Configuration Discovery**: The CLI looks for Mint configuration in `.mint` directories (or `.rwx` directories for legacy support), traversing up the directory tree until found.
+**Configuration Discovery**: The CLI looks for Mint configuration in `.rwx` directories (or `.mint` directories for legacy support), traversing up the directory tree until found.
 
 ### Key Patterns
 
@@ -49,7 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Testing**: Uses standard Go testing with testify/require for assertions. Separate unit and integration test suites
 
 ### Project Structure
-- `cmd/mint/` - CLI commands and main entry point
+- `cmd/rwx/` - CLI commands and main entry point
 - `internal/api/` - HTTP client and API communication
 - `internal/cli/` - Core business logic and service layer
 - `internal/accesstoken/` - Authentication token management

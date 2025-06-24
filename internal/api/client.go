@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/rwx-research/mint-cli/cmd/mint/config"
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/messages"
-	"github.com/rwx-research/mint-cli/internal/versions"
+	"github.com/rwx-cloud/cli/cmd/rwx/config"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/messages"
+	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -41,7 +41,7 @@ func NewClient(cfg Config) (Client, error) {
 		if req.URL.Host == "" {
 			req.URL.Host = cfg.Host
 		}
-		req.Header.Set("User-Agent", fmt.Sprintf("mint-cli/%s", config.Version))
+		req.Header.Set("User-Agent", fmt.Sprintf("rwx-cli/%s", config.Version))
 
 		token, err := accesstoken.Get(cfg.AccessTokenBackend, cfg.AccessToken)
 		if err != nil {

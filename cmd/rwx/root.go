@@ -4,12 +4,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rwx-research/mint-cli/cmd/mint/config"
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/cli"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/ssh"
+	"github.com/rwx-cloud/cli/cmd/rwx/config"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/ssh"
 
 	"github.com/spf13/cobra"
 )
@@ -18,13 +18,13 @@ var (
 	AccessToken string
 	Verbose     bool
 
-	mintHost           string
+	rwxHost            string
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
 
-	// rootCmd represents the main `mint` command
+	// rootCmd represents the main `rwx` command
 	rootCmd = &cobra.Command{
-		Use:           "mint",
+		Use:           "rwx",
 		Short:         "A CLI client from www.rwx.com/mint",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -40,7 +40,7 @@ var (
 				return errors.Wrap(err, "unable to initialize access token backend")
 			}
 
-			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: mintHost, AccessTokenBackend: accessTokenBackend})
+			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize API client")
 			}
@@ -56,14 +56,20 @@ var (
 )
 
 func addRwxDirFlag(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.mint`. By default, the CLI traverses up until it finds a `.mint` directory.")
+	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 }
 
 func init() {
 	// A different host can only be set over the environment
-	mintHost = os.Getenv("MINT_HOST")
-	if mintHost == "" {
-		mintHost = "cloud.rwx.com"
+	mintHostEnv := os.Getenv("MINT_HOST")
+	rwxHostEnv := os.Getenv("RWX_HOST")
+
+	if mintHostEnv == "" && rwxHostEnv == "" {
+		rwxHost = "cloud.rwx.com"
+	} else if mintHostEnv != "" {
+		rwxHost = mintHostEnv
+	} else {
+		rwxHost = rwxHostEnv
 	}
 
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", os.Getenv("RWX_ACCESS_TOKEN"), "the access token for Mint")

@@ -39,7 +39,7 @@ func All(ctx context.Context) error {
 
 // Build builds the Mint-CLI
 func Build(ctx context.Context) error {
-	args := []string{"./cmd/mint"}
+	args := []string{"./cmd/rwx"}
 
 	ldflags, err := getLdflags()
 	if err != nil {
@@ -127,5 +127,5 @@ func getLdflags() (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("-X github.com/rwx-research/mint-cli/cmd/mint/config.Version=git-%v", string(sha)), nil
+	return fmt.Sprintf("-X github.com/rwx-cloud/cli/cmd/rwx/config.Version=git-%v", string(sha)), nil
 }
