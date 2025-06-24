@@ -91,11 +91,11 @@ tasks:
       go mod tidy
       git diff --exit-code
 
-  - key: mint-testing-code
+  - key: rwx-testing-code
     call: mint/git-clone 1.6.4
     with:
-      path: ./mint-testing
-      repository: https://github.com/rwx-cloud/mint-testing.git
+      path: ./rwx-testing
+      repository: https://github.com/rwx-cloud/rwx-testing.git
       ref: main
       github-access-token: ${{ github['rwx-cloud'].token }}
 
@@ -105,10 +105,10 @@ tasks:
       sudo apt-get install jq
       sudo apt-get clean
 
-  - key: run-mint-testing-tests
-    use: [mint-testing-code, jq, rwx-cli]
+  - key: run-rwx-testing-tests
+    use: [rwx-testing-code, jq, rwx-cli]
     run: |
-      initiate_run_result=$(./rwx run --json --file ./mint-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
+      initiate_run_result=$(./rwx run --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
       echo "${initiate_run_result}"
       run_id=$(echo "${initiate_run_result}" | jq -r ".RunId")
 
@@ -160,4 +160,4 @@ tasks:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
     filter:
       - rwx
-      - mint-testing/.mint/trigger-integration-test.yml
+      - rwx-testing/.mint/trigger-integration-test.yml
