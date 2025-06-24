@@ -1,4 +1,4 @@
-module github.com/rwx-research/mint-cli
+module github.com/rwx-cloud/cli
 
 go 1.23.0
 

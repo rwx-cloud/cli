@@ -1,7 +1,7 @@
 package mocks
 
 import (
-	"github.com/rwx-research/mint-cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/errors"
 
 	"golang.org/x/crypto/ssh"
 )

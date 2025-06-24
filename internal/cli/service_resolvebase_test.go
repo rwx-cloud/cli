@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -213,7 +213,7 @@ tasks:
 				Arch:  "quantum",
 			})
 			require.Error(t, err)
-			require.Equal(t, "reading mint directory entries at does-not-exist.yaml: file does not exist", err.Error())
+			require.Equal(t, "reading rwx directory entries at does-not-exist.yaml: file does not exist", err.Error())
 		})
 	})
 

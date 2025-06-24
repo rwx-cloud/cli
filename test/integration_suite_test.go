@@ -21,11 +21,11 @@ type result struct {
 }
 
 func mintCmd(t *testing.T, input input) *exec.Cmd {
-	const mintPath = "../mint"
-	_, err := os.Stat(mintPath)
-	require.NoError(t, err, "integration tests depend on a built mint binary at %s", mintPath)
+	const rwxPath = "../rwx"
+	_, err := os.Stat(rwxPath)
+	require.NoError(t, err, "integration tests depend on a built rwx binary at %s", rwxPath)
 
-	cmd := exec.Command(mintPath, input.args...)
+	cmd := exec.Command(rwxPath, input.args...)
 
 	t.Logf("Executing command: %s\n with env %s\n", cmd.String(), cmd.Env)
 

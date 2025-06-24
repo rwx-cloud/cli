@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +39,7 @@ var (
 		},
 		Short: "Add a base layer to Mint run configurations that do not have one",
 		Long: "Add a base layer to Mint run configurations that do not have one.\n" +
-			"Updates all top-level YAML files in .mint that are missing a 'base' to include one.\n" +
+			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.\n" +
 			"Mint will find the best match based on the provided flags. If no flags are provided,\n" +
 			"it will use the current default base layer.",
 		Use: "base [flags] [files...]",
@@ -51,7 +51,7 @@ var (
 		},
 		Short: "Add the latest version to all leaf invocations that do not have one",
 		Long: "Add the latest version to all leaf invocations that do not have one.\n" +
-			"Updates all top-level YAML files in .mint that 'call' a leaf without a version\n" +
+			"Updates all top-level YAML files in .rwx that 'call' a leaf without a version\n" +
 			"to use the latest version.",
 		Use: "leaves [flags] [files...]",
 	}

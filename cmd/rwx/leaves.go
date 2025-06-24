@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rwx-research/mint-cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ var (
 		},
 		Short: "Update all leaves to their latest (minor) version",
 		Long: "Update all leaves to their latest (minor) version.\n" +
-			"Takes a list of files as arguments, or updates all toplevel YAML files in .mint if no files are given.",
+			"Takes a list of files as arguments, or updates all toplevel YAML files in .rwx if no files are given.",
 		Use: "update [flags] [file...]",
 	}
 )

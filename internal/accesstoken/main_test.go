@@ -3,7 +3,7 @@ package accesstoken_test
 import (
 	"testing"
 
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/stretchr/testify/require"
 )
 

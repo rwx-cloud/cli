@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/cli"
-	internalErrors "github.com/rwx-research/mint-cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
+	internalErrors "github.com/rwx-cloud/cli/internal/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )
@@ -21,7 +21,7 @@ QQAAAAtzc2gtZWQyNTUxOQAAACDiyT6ht8Z2XBEJpLR4/xmNouq5KDdn5G++cUcTH4Ehzw
 AAAEC6442PQKevgYgeT0SIu9zwlnEMl6MF59ZgM+i0ByMv4eLJPqG3xnZcEQmktHj/GY2i
 6rkoN2fkb75xRxMfgSHPAAAAEG1pbnQgQ0xJIHRlc3RpbmcBAgMEBQ==
 -----END OPENSSH PRIVATE KEY-----`
-		publicTestKey = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOLJPqG3xnZcEQmktHj/GY2i6rkoN2fkb75xRxMfgSHP mint CLI testing`
+		publicTestKey = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOLJPqG3xnZcEQmktHj/GY2i6rkoN2fkb75xRxMfgSHP rwx CLI testing`
 	)
 
 	t.Run("when the task is debuggable", func(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/messages"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/messages"
 )
 
 type Config struct {

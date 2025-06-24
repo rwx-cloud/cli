@@ -17,14 +17,14 @@ base:
 
 tasks:
   - key: ci
-    call: ${{ run.mint-dir }}/continuous_integration.yml
+    call: ${{ run.dir }}/continuous_integration.yml
     init:
       commit-sha: ${{ init.commit-sha }}
       ref: ${{ init.ref }}
 
   - key: release-unstable
     after: [ci]
-    call: ${{ run.mint-dir }}/release.yml
+    call: ${{ run.dir }}/release.yml
     init:
       kind: unstable
       commit: ${{ init.commit-sha }}

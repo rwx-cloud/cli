@@ -1,7 +1,7 @@
 on:
   dispatch:
     - key: release-cli
-      title: "Release Mint CLI ${{ init.version }} (${{ init.kind }})"
+      title: "Release RWX CLI ${{ init.version }} (${{ init.kind }})"
       params:
         - key: version
           description: "The version to release. If kind is production, this must be in the format vX.X.X"
@@ -127,7 +127,7 @@ tasks:
         --draft \
         --prerelease=${{ init.kind != 'production' }} \
         --generate-notes \
-        --title "Mint CLI ${full_version}"
+        --title "RWX CLI ${full_version}"
     env:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
@@ -196,7 +196,7 @@ tasks:
         extension=".exe"
       fi
 
-      ldflags="-w -s -X github.com/rwx-research/mint-cli/cmd/mint/config.Version=${{ tasks.extract-version-details.values.full-version }}"
+      ldflags="-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=${{ tasks.extract-version-details.values.full-version }}"
 
       if [[ "${{ parallel.link }}" == "static" ]]; then
         export CC=musl-gcc
@@ -205,25 +205,25 @@ tasks:
 
       GOOS=${{ parallel.os }} \
       GOARCH=${{ parallel.arch }} \
-      go build -ldflags "${ldflags}" -a ./cmd/mint
+      go build -ldflags "${ldflags}" -a ./cmd/rwx
 
       if [[ ${{ parallel.os }} == "darwin" ]]; then
         echo "$RWX_APPLE_DEVELOPER_ID_APPLICATION_CERT" > rwx-developer-id-application-cert.pem
 
         # first we sign the binary. This happens locally.
-        ./rcodesign sign --pem-source rwx-developer-id-application-cert.pem --code-signature-flags runtime "./mint"
+        ./rcodesign sign --pem-source rwx-developer-id-application-cert.pem --code-signature-flags runtime "./rwx"
 
         # notarizing requires certain container formats, that's why we zip
-        zip -r mint.zip "./mint"
+        zip -r rwx.zip "./rwx"
         echo "$RWX_APPLE_APP_STORE_CONNECT_API_KEY" > rwx-apple-app-store-connect-api-key.json
-        ./rcodesign notary-submit --wait --api-key-path rwx-apple-app-store-connect-api-key.json mint.zip
+        ./rcodesign notary-submit --wait --api-key-path rwx-apple-app-store-connect-api-key.json rwx.zip
       fi
       if [[ "${{ parallel.test-binary }}" != "false" ]]; then
-        ./mint --version | grep '^mint version ${{ tasks.extract-version-details.values.full-version }}'
+        ./rwx --version | grep '^rwx version ${{ tasks.extract-version-details.values.full-version }}'
       fi
 
-      github_asset_name=$(echo "mint-${{ parallel.os }}-${{ parallel.new-arch }}$extension" | tr '[:upper:]' '[:lower:]')
-      mv "mint$extension" "$github_asset_name"
+      github_asset_name=$(echo "rwx-${{ parallel.os }}-${{ parallel.new-arch }}$extension" | tr '[:upper:]' '[:lower:]')
+      mv "rwx$extension" "$github_asset_name"
       gh release upload ${{ tasks.extract-version-details.values.full-version }} "${github_asset_name}" --clobber
     env:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
@@ -262,12 +262,12 @@ tasks:
         --latest=false \
         --draft=${{ init.kind != 'production' && init.kind != 'unstable' }} \
         --prerelease=${{ init.kind != 'production' }} \
-        --notes="The Mint CLI ${aliased_version} release and tag exist to provide an easy way to download the latest ${aliased_version}.x.x release of the Mint CLI. For example, you can always download the latest Linux x86 ${aliased_version} release at this URL: https://github.com/rwx-research/mint-cli/releases/download/${aliased_version}/mint-linux-x86_64. (Look at the assets attached to this release to find the other available downloads.) This release and its assets are updated whenever a new ${aliased_version}.x.x version of the Mint CLI is released." \
-        --title "Mint CLI ${aliased_version}"
+        --notes="The RWX CLI ${aliased_version} release and tag exist to provide an easy way to download the latest ${aliased_version}.x.x release of the RWX CLI. For example, you can always download the latest Linux x86 ${aliased_version} release at this URL: https://github.com/rwx-cloud/cli/releases/download/${aliased_version}/mint-linux-x86_64. (Look at the assets attached to this release to find the other available downloads.) This release and its assets are updated whenever a new ${aliased_version}.x.x version of the RWX CLI is released." \
+        --title "RWX CLI ${aliased_version}"
 
       mkdir ./full_release && cd ./full_release
       gh release download ${{ tasks.extract-version-details.values.full-version }}
-      gh release upload "${aliased_version}" mint-* --clobber
+      gh release upload "${aliased_version}" rwx-* --clobber
     env:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}

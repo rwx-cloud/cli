@@ -17,12 +17,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rwx-research/mint-cli/internal/accesstoken"
-	"github.com/rwx-research/mint-cli/internal/api"
-	"github.com/rwx-research/mint-cli/internal/dotenv"
-	"github.com/rwx-research/mint-cli/internal/errors"
-	"github.com/rwx-research/mint-cli/internal/messages"
-	"github.com/rwx-research/mint-cli/internal/versions"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/dotenv"
+	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/messages"
+	"github.com/rwx-cloud/cli/internal/versions"
 
 	"github.com/briandowns/spinner"
 	"github.com/goccy/go-yaml/ast"
@@ -122,10 +122,10 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to find .mint directory")
+		return nil, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
-	// It's possible (when no directory is specified) that there is no .mint directory found during traversal
+	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
 	if rwxDirectoryPath != "" {
 		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 		if err != nil {
@@ -157,7 +157,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		if rwxDirectoryPath != "" {
 			rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 			if err != nil && !errors.Is(err, errors.ErrFileNotExists) {
-				return errors.Wrapf(err, "unable to reload mint directory %q", rwxDirectoryPath)
+				return errors.Wrapf(err, "unable to reload rwx directory %q", rwxDirectoryPath)
 			}
 
 			rwxDirectory = rwxDirectoryEntries
@@ -287,7 +287,7 @@ func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to find .mint directory")
+		return nil, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	rwxDirEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
@@ -306,7 +306,7 @@ func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 
 	relativeRwxDirectoryPath, err := filepath.Rel(wd, rwxDirectoryPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to get relative path for .mint directory")
+		return nil, errors.Wrap(err, "unable to get relative path for .rwx directory")
 	}
 
 	taskDefinitions := Map(rwxDirEntries, func(entry RwxDirectoryEntry) TaskDefinition {
@@ -563,7 +563,7 @@ func (s Service) ResolveLeaves(cfg ResolveLeavesConfig) (ResolveLeavesResult, er
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return ResolveLeavesResult{}, errors.Wrap(err, "unable to find .mint directory")
+		return ResolveLeavesResult{}, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
@@ -605,7 +605,7 @@ func (s Service) UpdateLeaves(cfg UpdateLeavesConfig) error {
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return errors.Wrap(err, "unable to find .mint directory")
+		return errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
@@ -690,7 +690,7 @@ func (s Service) resolveOrUpdateLeavesForFiles(mintFiles []*MintYAMLFile, update
 		err = file.Doc.ForEachNode(nodePath, func(node ast.Node) error {
 			leafVersion := s.parseLeafVersion(node.String())
 			if leafVersion.Name == "" {
-				// Leaves won't be found for eg. embedded runs, call: ${{ run.mint-dir }}/embed.yml
+				// Leaves won't be found for eg. embedded runs, call: ${{ run.dir }}/embed.yml
 				return nil
 			} else if !update && leafVersion.MajorVersion != "" {
 				return nil
@@ -747,7 +747,7 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .mint directory")
+		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
@@ -805,7 +805,7 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .mint directory")
+		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
@@ -1133,7 +1133,7 @@ func (s Service) outputLatestVersionMessage() {
 
 	if versions.InstalledWithHomebrew() {
 		fmt.Fprintln(w, "\nYou can update to the latest version with:")
-		fmt.Fprintln(w, "    brew upgrade rwx-research/tap/mint")
+		fmt.Fprintln(w, "    brew upgrade rwx-cloud/tap/rwx")
 	}
 
 	fmt.Fprintln(w, "========================================")
