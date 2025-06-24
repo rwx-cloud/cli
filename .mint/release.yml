@@ -1,12 +1,12 @@
 on:
-  cron:
-    - key: notary-list
-      branch: dan/notary-list
-      schedule: "*/5 * * * *"
-      target: [notary-list]
-      init:
-        kind: testing
-        notary-list: true
+  # cron:
+  #   - key: notary-list
+  #     branch: dan/notary-list
+  #     schedule: "*/5 * * * *"
+  #     target: [notary-list]
+  #     init:
+  #       kind: testing
+  #       notary-list: true
   dispatch:
     - key: release-cli
       title: "Release RWX CLI ${{ init.version }} (${{ init.kind }})"
@@ -148,8 +148,10 @@ tasks:
   - key: notary-list
     use: codesigning
     if: ${{ init.notary-list }}
+    cache: false
     run: |
-       echo "$RWX_APPLE_APP_STORE_CONNECT_API_KEY" > rwx-apple-app-store-connect-api-key.json
+      set -x
+      echo "$RWX_APPLE_APP_STORE_CONNECT_API_KEY" > rwx-apple-app-store-connect-api-key.json
       ./rcodesign notary-list --api-key-path rwx-apple-app-store-connect-api-key.json | tee the-list.txt
       grep 'in progress' the-list.txt
     env:
