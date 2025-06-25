@@ -16,7 +16,7 @@ type APIClient interface {
 	Lint(api.LintConfig) (*api.LintResult, error)
 	Whoami() (*api.WhoamiResult, error)
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
-	GetLeafVersions() (*api.LeafVersionsResult, error)
+	GetPackageVersions() (*api.PackageVersionsResult, error)
 	ResolveBaseLayer(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
 }
 

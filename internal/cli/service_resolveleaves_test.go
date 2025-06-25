@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_ResolvingLeaves(t *testing.T) {
+func TestService_ResolvingPackages(t *testing.T) {
 	t.Run("when no files provided", func(t *testing.T) {
 		t.Run("when no yaml files found in the default directory", func(t *testing.T) {
 			s := setupTest(t)
@@ -25,7 +25,7 @@ func TestService_ResolvingLeaves(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.json"), []byte("some json"), 0o644)
 			require.NoError(t, err)
 
-			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+			_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 				RwxDirectory:        mintDir,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -67,13 +67,13 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: map[string]string{"mint/setup-node": "1.3.0"},
 				}, nil
 			}
 
-			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+			_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 				RwxDirectory:        mintDir,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -96,30 +96,30 @@ tasks:
 	})
 
 	t.Run("with files", func(t *testing.T) {
-		t.Run("when the leaf versions cannot be retrieved", func(t *testing.T) {
+		t.Run("when the package versions cannot be retrieved", func(t *testing.T) {
 			s := setupTest(t)
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return nil, errors.New("cannot get leaf versions")
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return nil, errors.New("cannot get package versions")
 			}
 
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(""), 0o644)
 			require.NoError(t, err)
 
-			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+			_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 				RwxDirectory:        s.tmp,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
 			})
 
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "cannot get leaf versions")
+			require.Contains(t, err.Error(), "cannot get package versions")
 		})
 
-		t.Run("when all leaves have a version", func(t *testing.T) {
+		t.Run("when all packages have a version", func(t *testing.T) {
 			s := setupTest(t)
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: map[string]string{"mint/setup-node": "1.3.0"},
 				}, nil
 			}
@@ -131,7 +131,7 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+			_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 				RwxDirectory:        s.tmp,
 				LatestVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -145,14 +145,14 @@ tasks:
     call: mint/setup-node 1.2.3
 `, string(contents))
 
-			require.Contains(t, s.mockStdout.String(), "No leaves to resolve.")
+			require.Contains(t, s.mockStdout.String(), "No packages to resolve.")
 		})
 
-		t.Run("when there are leaves to resolve across multiple files", func(t *testing.T) {
+		t.Run("when there are packages to resolve across multiple files", func(t *testing.T) {
 			s := setupTest(t)
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: map[string]string{
 						"mint/setup-node": "1.2.3",
 						"mint/setup-ruby": "1.0.1",
@@ -182,7 +182,7 @@ tasks:
 			require.NoError(t, err)
 
 			t.Run("updates all files", func(t *testing.T) {
-				_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+				_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 					RwxDirectory:        s.tmp,
 					LatestVersionPicker: cli.PickLatestMajorVersion,
 				})
@@ -209,19 +209,19 @@ tasks:
 `, string(contents))
 			})
 
-			t.Run("indicates leaves were resolved", func(t *testing.T) {
+			t.Run("indicates packages were resolved", func(t *testing.T) {
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 				require.NoError(t, err)
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+				_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 					RwxDirectory:        s.tmp,
 					LatestVersionPicker: cli.PickLatestMajorVersion,
 				})
 
 				require.NoError(t, err)
-				require.Contains(t, s.mockStdout.String(), "Resolved the following leaves:")
+				require.Contains(t, s.mockStdout.String(), "Resolved the following packages:")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node → 1.2.3")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby → 1.0.1")
@@ -233,7 +233,7 @@ tasks:
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				_, err = s.service.ResolveLeaves(cli.ResolveLeavesConfig{
+				_, err = s.service.ResolvePackages(cli.ResolvePackagesConfig{
 					RwxDirectory:        s.tmp,
 					Files:               []string{filepath.Join(s.tmp, "bar.yaml")},
 					LatestVersionPicker: cli.PickLatestMajorVersion,

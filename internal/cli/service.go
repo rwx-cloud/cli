@@ -186,13 +186,13 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	mintFiles := filterYAMLFilesForModification(runDefinition, func(doc *YAMLDoc) bool {
 		return true
 	})
-	resolvedLeaves, err := s.resolveOrUpdateLeavesForFiles(mintFiles, false, PickLatestMajorVersion)
+	resolvedPackages, err := s.resolveOrUpdatePackagesForFiles(mintFiles, false, PickLatestMajorVersion)
 	if err != nil {
 		return nil, err
 	}
-	if len(resolvedLeaves) > 0 {
-		for leaf, version := range resolvedLeaves {
-			fmt.Fprintf(s.Stderr, "Configured leaf %s to use version %s\n", leaf, version)
+	if len(resolvedPackages) > 0 {
+		for rwxPackage, version := range resolvedPackages {
+			fmt.Fprintf(s.Stderr, "Configured package %s to use version %s\n", rwxPackage, version)
 		}
 		fmt.Fprintln(s.Stderr, "")
 
@@ -555,48 +555,48 @@ func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 	return nil
 }
 
-func (s Service) ResolveLeaves(cfg ResolveLeavesConfig) (ResolveLeavesResult, error) {
+func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResult, error) {
 	err := cfg.Validate()
 	if err != nil {
-		return ResolveLeavesResult{}, errors.Wrap(err, "validation failed")
+		return ResolvePackagesResult{}, errors.Wrap(err, "validation failed")
 	}
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return ResolveLeavesResult{}, errors.Wrap(err, "unable to find .rwx directory")
+		return ResolvePackagesResult{}, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
-		return ResolveLeavesResult{}, err
+		return ResolvePackagesResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
-		return ResolveLeavesResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
+		return ResolvePackagesResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
 	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
 		return true
 	})
 
-	replacements, err := s.resolveOrUpdateLeavesForFiles(mintFiles, false, cfg.LatestVersionPicker)
+	replacements, err := s.resolveOrUpdatePackagesForFiles(mintFiles, false, cfg.LatestVersionPicker)
 	if err != nil {
-		return ResolveLeavesResult{}, err
+		return ResolvePackagesResult{}, err
 	}
 
 	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "No leaves to resolve.")
+		fmt.Fprintln(s.Stdout, "No packages to resolve.")
 	} else {
-		fmt.Fprintln(s.Stdout, "Resolved the following leaves:")
-		for leaf, version := range replacements {
-			fmt.Fprintf(s.Stdout, "\t%s → %s\n", leaf, version)
+		fmt.Fprintln(s.Stdout, "Resolved the following packages:")
+		for rwxPackage, version := range replacements {
+			fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
 		}
 	}
 
-	return ResolveLeavesResult{ResolvedLeaves: replacements}, nil
+	return ResolvePackagesResult{ResolvedPackages: replacements}, nil
 }
 
-func (s Service) UpdateLeaves(cfg UpdateLeavesConfig) error {
+func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
@@ -621,15 +621,15 @@ func (s Service) UpdateLeaves(cfg UpdateLeavesConfig) error {
 		return true
 	})
 
-	replacements, err := s.resolveOrUpdateLeavesForFiles(mintFiles, true, cfg.ReplacementVersionPicker)
+	replacements, err := s.resolveOrUpdatePackagesForFiles(mintFiles, true, cfg.ReplacementVersionPicker)
 	if err != nil {
 		return err
 	}
 
 	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "No leaves to update.")
+		fmt.Fprintln(s.Stdout, "No packages to update.")
 	} else {
-		fmt.Fprintln(s.Stdout, "Updated the following leaves:")
+		fmt.Fprintln(s.Stdout, "Updated the following packages:")
 		for original, replacement := range replacements {
 			replacementParts := strings.Split(replacement, " ")
 			if len(replacementParts) == 2 {
@@ -643,22 +643,22 @@ func (s Service) UpdateLeaves(cfg UpdateLeavesConfig) error {
 	return nil
 }
 
-var reLeafVersion = regexp.MustCompile(`([a-z0-9-]+\/[a-z0-9-]+)(?:\s+(([0-9]+)\.[0-9]+\.[0-9]+))?`)
+var rePackageVersion = regexp.MustCompile(`([a-z0-9-]+\/[a-z0-9-]+)(?:\s+(([0-9]+)\.[0-9]+\.[0-9]+))?`)
 
-type LeafVersion struct {
+type PackageVersion struct {
 	Original     string
 	Name         string
 	Version      string
 	MajorVersion string
 }
 
-func (s Service) parseLeafVersion(str string) LeafVersion {
-	match := reLeafVersion.FindStringSubmatch(str)
+func (s Service) parsePackageVersion(str string) PackageVersion {
+	match := rePackageVersion.FindStringSubmatch(str)
 	if len(match) == 0 {
-		return LeafVersion{}
+		return PackageVersion{}
 	}
 
-	return LeafVersion{
+	return PackageVersion{
 		Original:     match[0],
 		Name:         tryGetSliceAtIndex(match, 1, ""),
 		Version:      tryGetSliceAtIndex(match, 2, ""),
@@ -666,10 +666,10 @@ func (s Service) parseLeafVersion(str string) LeafVersion {
 	}
 }
 
-func (s Service) resolveOrUpdateLeavesForFiles(mintFiles []*MintYAMLFile, update bool, versionPicker func(versions api.LeafVersionsResult, leaf string, major string) (string, error)) (map[string]string, error) {
-	leafVersions, err := s.APIClient.GetLeafVersions()
+func (s Service) resolveOrUpdatePackagesForFiles(mintFiles []*MintYAMLFile, update bool, versionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)) (map[string]string, error) {
+	packageVersions, err := s.APIClient.GetPackageVersions()
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to fetch leaf versions")
+		return nil, errors.Wrap(err, "unable to fetch package versions")
 	}
 
 	docs := make(map[string]*YAMLDoc)
@@ -688,35 +688,35 @@ func (s Service) resolveOrUpdateLeavesForFiles(mintFiles []*MintYAMLFile, update
 		}
 
 		err = file.Doc.ForEachNode(nodePath, func(node ast.Node) error {
-			leafVersion := s.parseLeafVersion(node.String())
-			if leafVersion.Name == "" {
-				// Leaves won't be found for eg. embedded runs, call: ${{ run.dir }}/embed.yml
+			packageVersion := s.parsePackageVersion(node.String())
+			if packageVersion.Name == "" {
+				// Packages won't be found for eg. embedded runs, call: ${{ run.dir }}/embed.yml
 				return nil
-			} else if !update && leafVersion.MajorVersion != "" {
+			} else if !update && packageVersion.MajorVersion != "" {
 				return nil
 			}
 
-			targetLeafVersion, err := versionPicker(*leafVersions, leafVersion.Name, leafVersion.MajorVersion)
+			targetPackageVersion, err := versionPicker(*packageVersions, packageVersion.Name, packageVersion.MajorVersion)
 			if err != nil {
 				fmt.Fprintln(s.Stderr, err.Error())
 				return nil
 			}
 
-			newLeaf := fmt.Sprintf("%s %s", leafVersion.Name, targetLeafVersion)
-			if newLeaf == node.String() {
+			newPackage := fmt.Sprintf("%s %s", packageVersion.Name, targetPackageVersion)
+			if newPackage == node.String() {
 				return nil
 			}
 
-			if err = file.Doc.ReplaceAtPath(node.GetPath(), newLeaf); err != nil {
+			if err = file.Doc.ReplaceAtPath(node.GetPath(), newPackage); err != nil {
 				return err
 			}
 
-			replacements[leafVersion.Original] = targetLeafVersion
+			replacements[packageVersion.Original] = targetPackageVersion
 			hasChange = true
 			return nil
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to replace leaf references")
+			return nil, errors.Wrap(err, "unable to replace package references")
 		}
 
 		if hasChange {
@@ -1140,28 +1140,28 @@ func (s Service) outputLatestVersionMessage() {
 	fmt.Fprintln(w)
 }
 
-func PickLatestMajorVersion(versions api.LeafVersionsResult, leaf string, _ string) (string, error) {
-	latestVersion, ok := versions.LatestMajor[leaf]
+func PickLatestMajorVersion(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error) {
+	latestVersion, ok := versions.LatestMajor[rwxPackage]
 	if !ok {
-		return "", fmt.Errorf("Unable to find the leaf %q; skipping it.", leaf)
+		return "", fmt.Errorf("Unable to find the package %q; skipping it.", rwxPackage)
 	}
 
 	return latestVersion, nil
 }
 
-func PickLatestMinorVersion(versions api.LeafVersionsResult, leaf string, major string) (string, error) {
+func PickLatestMinorVersion(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error) {
 	if major == "" {
-		return PickLatestMajorVersion(versions, leaf, major)
+		return PickLatestMajorVersion(versions, rwxPackage, major)
 	}
 
-	majorVersions, ok := versions.LatestMinor[leaf]
+	majorVersions, ok := versions.LatestMinor[rwxPackage]
 	if !ok {
-		return "", fmt.Errorf("Unable to find the leaf %q; skipping it.", leaf)
+		return "", fmt.Errorf("Unable to find the package %q; skipping it.", rwxPackage)
 	}
 
 	latestVersion, ok := majorVersions[major]
 	if !ok {
-		return "", fmt.Errorf("Unable to find major version %q for leaf %q; skipping it.", major, leaf)
+		return "", fmt.Errorf("Unable to find major version %q for package %q; skipping it.", major, rwxPackage)
 	}
 
 	return latestVersion, nil

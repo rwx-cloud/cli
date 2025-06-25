@@ -178,13 +178,13 @@ func (c UpdateBaseConfig) Validate() error {
 	return nil
 }
 
-type UpdateLeavesConfig struct {
+type UpdatePackagesConfig struct {
 	RwxDirectory             string
 	Files                    []string
-	ReplacementVersionPicker func(versions api.LeafVersionsResult, leaf string, major string) (string, error)
+	ReplacementVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)
 }
 
-func (c UpdateLeavesConfig) Validate() error {
+func (c UpdatePackagesConfig) Validate() error {
 	if c.ReplacementVersionPicker == nil {
 		return errors.New("a replacement version picker must be provided")
 	}
@@ -286,17 +286,17 @@ func (r ResolveBaseResult) HasChanges() bool {
 	return len(r.ErroredRunFiles) > 0 || len(r.UpdatedRunFiles) > 0
 }
 
-type ResolveLeavesConfig struct {
+type ResolvePackagesConfig struct {
 	RwxDirectory        string
 	Files               []string
-	LatestVersionPicker func(versions api.LeafVersionsResult, leaf string, _ string) (string, error)
+	LatestVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error)
 }
 
-func (c ResolveLeavesConfig) PickLatestVersion(versions api.LeafVersionsResult, leaf string) (string, error) {
-	return c.LatestVersionPicker(versions, leaf, "")
+func (c ResolvePackagesConfig) PickLatestVersion(versions api.PackageVersionsResult, rwxPackage string) (string, error) {
+	return c.LatestVersionPicker(versions, rwxPackage, "")
 }
 
-func (c ResolveLeavesConfig) Validate() error {
+func (c ResolvePackagesConfig) Validate() error {
 	if c.LatestVersionPicker == nil {
 		return errors.New("a latest version picker must be provided")
 	}
@@ -304,10 +304,10 @@ func (c ResolveLeavesConfig) Validate() error {
 	return nil
 }
 
-type ResolveLeavesResult struct {
-	ResolvedLeaves map[string]string
+type ResolvePackagesResult struct {
+	ResolvedPackages map[string]string
 }
 
-func (r ResolveLeavesResult) HasChanges() bool {
-	return len(r.ResolvedLeaves) > 0
+func (r ResolvePackagesResult) HasChanges() bool {
+	return len(r.ResolvedPackages) > 0
 }

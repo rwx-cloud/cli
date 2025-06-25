@@ -202,7 +202,7 @@ type SetSecretsInVaultResult struct {
 	SetSecrets []string `json:"set_secrets"`
 }
 
-type LeafVersionsResult struct {
+type PackageVersionsResult struct {
 	LatestMajor map[string]string            `json:"latest_major"`
 	LatestMinor map[string]map[string]string `json:"latest_minor"`
 }
