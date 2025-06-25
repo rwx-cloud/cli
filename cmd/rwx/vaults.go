@@ -6,7 +6,7 @@ import (
 )
 
 var vaultsCmd = &cobra.Command{
-	Short: "Manage Mint vaults and secrets",
+	Short: "Manage vaults and secrets",
 	Use:   "vaults",
 }
 

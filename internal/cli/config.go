@@ -19,7 +19,7 @@ type Config struct {
 
 func (c Config) Validate() error {
 	if c.APIClient == nil {
-		return errors.New("missing Mint client")
+		return errors.New("missing RWX client")
 	}
 
 	if c.SSHClient == nil {
@@ -43,7 +43,7 @@ type DebugTaskConfig struct {
 
 func (c DebugTaskConfig) Validate() error {
 	if c.DebugKey == "" {
-		return errors.New("you must specify a run ID, a task ID, or a Mint Cloud URL")
+		return errors.New("you must specify a run ID, a task ID, or an RWX Cloud URL")
 	}
 
 	return nil

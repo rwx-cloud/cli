@@ -1,18 +1,18 @@
-# Mint CLI
+# RWX CLI
 
-Mint is the only CI/CD platform that:
+RWX is the only CI/CD platform that:
 * Defines steps as a directed acyclic graph (DAG)
 * Provies automatic content-based caching
 * Supports a local CLI development workflow
 
-Read more about Mint at [rwx.com/mint](https://www.rwx.com/mint)
+Read more about RWX at [rwx.com](https://www.rwx.com)
 
 ## Links
 
-- 🌐 [rwx.com/mint](https://www.rwx.com/mint)
-- 📣 [@rwx_research](https://twitter.com/rwx_research)
+- 🌐 [rwx.com](https://www.rwx.com)
+- 📣 [@rwx_cloud](https://twitter.com/rwx_cloud)
 - 💬 [discord](https://www.rwx.com/discord)
-- 📚 [documentation](https://www.rwx.com/docs/mint)
+- 📚 [documentation](https://www.rwx.com/docs)
 - 📧 hello@rwx.com
 
 ## Contributing

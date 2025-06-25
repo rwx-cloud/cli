@@ -14,7 +14,7 @@ var debugCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return service.DebugTask(cli.DebugTaskConfig{DebugKey: args[0]})
 	},
-	Short: "Debug a task on Mint",
+	Short: "Debug a task",
 	Use:   "debug [flags] [debugKey]",
 }
 

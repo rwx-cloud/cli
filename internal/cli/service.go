@@ -1119,7 +1119,7 @@ func (s Service) outputLatestVersionMessage() {
 		return
 	}
 
-	showLatestVersion := os.Getenv("MINT_HIDE_LATEST_VERSION") == ""
+	showLatestVersion := os.Getenv("MINT_HIDE_LATEST_VERSION") == "" && os.Getenv("RWX_HIDE_LATEST_VERSION") == ""
 
 	if !showLatestVersion || !versions.NewVersionAvailable() {
 		return
@@ -1127,7 +1127,7 @@ func (s Service) outputLatestVersionMessage() {
 
 	w := s.Stderr
 	fmt.Fprintln(w, "========================================")
-	fmt.Fprintln(w, "A new version of Mint is available!")
+	fmt.Fprintln(w, "A new version is available!")
 	fmt.Fprintf(w, "You are currently on version %s\n", versions.GetCliCurrentVersion())
 	fmt.Fprintf(w, "The latest version is %s\n", versions.GetCliLatestVersion())
 

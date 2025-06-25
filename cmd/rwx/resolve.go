@@ -37,10 +37,10 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return resolveBase(args)
 		},
-		Short: "Add a base layer to Mint run configurations that do not have one",
-		Long: "Add a base layer to Mint run configurations that do not have one.\n" +
+		Short: "Add a base layer to RWX run configurations that do not have one",
+		Long: "Add a base layer to RWX run configurations that do not have one.\n" +
 			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.\n" +
-			"Mint will find the best match based on the provided flags. If no flags are provided,\n" +
+			"The best match will be found based on the provided flags. If no flags are provided,\n" +
 			"it will use the current default base layer.",
 		Use: "base [flags] [files...]",
 	}

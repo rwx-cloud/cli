@@ -26,7 +26,7 @@ func (c *Client) Close() error {
 func (c *Client) InteractiveSession() error {
 	session, err := c.Client.NewSession()
 	if err != nil {
-		return errors.Wrapf(err, "unable to start interactive debug session in Mint")
+		return errors.Wrapf(err, "unable to start interactive debug session")
 	}
 	defer session.Close()
 

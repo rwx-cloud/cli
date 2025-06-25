@@ -99,7 +99,7 @@ func (c Client) GetDebugConnectionInfo(debugKey string) (DebugConnectionInfo, er
 		}
 		return connectionInfo, errors.ErrGone
 	default:
-		return connectionInfo, errors.New(fmt.Sprintf("Unable to call Mint API - %s", resp.Status))
+		return connectionInfo, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&connectionInfo); err != nil {
@@ -140,7 +140,7 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 	if resp.StatusCode != 201 {
 		msg := extractErrorMessage(resp.Body)
 		if msg == "" {
-			msg = fmt.Sprintf("Unable to call Mint API - %s", resp.Status)
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 		}
 
 		return nil, errors.New(msg)
@@ -209,7 +209,7 @@ func (c Client) InitiateDispatch(cfg InitiateDispatchConfig) (*InitiateDispatchR
 		}{}
 
 		if err := json.NewDecoder(resp.Body).Decode(&errorStruct); err != nil {
-			return nil, errors.New(fmt.Sprintf("Unable to call Mint API - %s", resp.Status))
+			return nil, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
 		}
 
 		return nil, errors.New(errorStruct.Error)
@@ -245,7 +245,7 @@ func (c Client) GetDispatch(cfg GetDispatchConfig) (*GetDispatchResult, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("Unable to call Mint API - %s", resp.Status))
+		return nil, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
 	}
 
 	respBody := struct {
@@ -295,7 +295,7 @@ func (c Client) Lint(cfg LintConfig) (*LintResult, error) {
 	if resp.StatusCode != 200 {
 		msg := extractErrorMessage(resp.Body)
 		if msg == "" {
-			msg = fmt.Sprintf("Unable to call Mint API - %s", resp.Status)
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 		}
 
 		return nil, errors.New(msg)
@@ -336,7 +336,7 @@ func (c Client) ObtainAuthCode(cfg ObtainAuthCodeConfig) (*ObtainAuthCodeResult,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 201 {
-		return nil, errors.New(fmt.Sprintf("Unable to call Mint API - %s", resp.Status))
+		return nil, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
 	}
 
 	respBody := ObtainAuthCodeResult{}
@@ -391,7 +391,7 @@ func (c Client) Whoami() (*WhoamiResult, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("Unable to call Mint API - %s", resp.Status))
+		return nil, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
 	}
 
 	respBody := WhoamiResult{}
@@ -426,7 +426,7 @@ func (c Client) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*SetSecretsInVau
 	if resp.StatusCode != 200 {
 		msg := extractErrorMessage(resp.Body)
 		if msg == "" {
-			msg = fmt.Sprintf("Unable to call Mint API - %s", resp.Status)
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 		}
 
 		return nil, errors.New(msg)
@@ -457,7 +457,7 @@ func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	if resp.StatusCode != 200 {
 		msg := extractErrorMessage(resp.Body)
 		if msg == "" {
-			msg = fmt.Sprintf("Unable to call Mint API - %s", resp.Status)
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 		}
 		return nil, errors.New(msg)
 	}
@@ -513,7 +513,7 @@ func decodeResponseJSON(resp *http.Response, result any) error {
 
 	errMsg := extractErrorMessage(resp.Body)
 	if errMsg == "" {
-		errMsg = fmt.Sprintf("Unable to call Mint API - %s", resp.Status)
+		errMsg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 	}
 
 	if resp.StatusCode == http.StatusNotFound {

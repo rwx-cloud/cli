@@ -1,6 +1,6 @@
-# Contributing to Mint
+# Contributing to `rwx`
 
-The Mint CLI is an open-source project and we welcome any contributions from other
+The RWX CLI is an open-source project and we welcome any contributions from other
 developers interested in test automation.
 
 ## Filing Issues
@@ -25,7 +25,7 @@ opening a PR.
 
 ### Development setup
 
-You should not need any dependencies outside of Go to work on the Mint CLI.
+You should not need any dependencies outside of Go to work on the RWX CLI.
 
 We use [Mage](https://magefile.org) as the build tool for our project. To show
 a list of available targets, run `go run ./tools/mage -l`:
@@ -33,11 +33,11 @@ a list of available targets, run `go run ./tools/mage -l`:
 ```
 Targets:
   all        cleans output, builds, tests, and lints.
-  build*     builds the Mint-CLI
+  build*     builds the RWX CLI
   clean      removes any generated artifacts from the repository.
   lint       runs the linter & performs static-analysis checks.
   lintFix    Applies lint checks and fixes any issues.
-  test       executes the test-suite for the Mint-CLI.
+  test       executes the test-suite for the RWX CLI.
 
 * default target
 ```
@@ -49,4 +49,4 @@ necessary, but is a bit nicer to use.
 
 Besides the `--debug` flag, some useful options during development are:
 
-* `MINT_HOST` to route API traffic to a different host.
+* `RWX_HOST` to route API traffic to a different host.
