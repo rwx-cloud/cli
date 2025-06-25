@@ -114,7 +114,7 @@ func init() {
 	dispatchCmd.Flags().StringVar(&DispatchRef, "ref", "", "the git ref to use for the run")
 	dispatchCmd.Flags().BoolVar(&DispatchOpen, "open", false, "open the run in a browser")
 	dispatchCmd.Flags().BoolVar(&DispatchDebug, "debug", false, "start a remote debugging session once a breakpoint is hit")
-	dispatchCmd.Flags().StringVar(&DispatchTitle, "title", "", "the title the UI will display for the Mint run")
+	dispatchCmd.Flags().StringVar(&DispatchTitle, "title", "", "the title the UI will display for the run")
 	dispatchCmd.Flags().BoolVar(&DispatchJson, "json", false, "output json data to stdout")
 	dispatchCmd.Flags().SortFlags = false
 }

@@ -44,7 +44,7 @@ func runMint(t *testing.T, input input) result {
 
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
-		require.True(t, ok, "mint exited with an error that wasn't an ExitError")
+		require.True(t, ok, "rwx exited with an error that wasn't an ExitError")
 		exitCode = exitErr.ExitCode()
 	}
 

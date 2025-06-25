@@ -25,7 +25,7 @@ var (
 	// rootCmd represents the main `rwx` command
 	rootCmd = &cobra.Command{
 		Use:           "rwx",
-		Short:         "A CLI client from www.rwx.com/mint",
+		Short:         "A CLI client from www.rwx.com",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Version:       config.Version,
@@ -56,7 +56,7 @@ var (
 )
 
 func addRwxDirFlag(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
+	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 }
 
 func init() {
@@ -72,7 +72,7 @@ func init() {
 		rwxHost = rwxHostEnv
 	}
 
-	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", os.Getenv("RWX_ACCESS_TOKEN"), "the access token for Mint")
+	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", os.Getenv("RWX_ACCESS_TOKEN"), "the access token for RWX")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "enable debug output")
 	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 

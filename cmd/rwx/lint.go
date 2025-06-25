@@ -49,7 +49,7 @@ var (
 
 			return nil
 		},
-		Short:  "Lint Mint configuration files",
+		Short:  "Lint RWX configuration files",
 		Use:    "lint [flags]",
 		Hidden: true,
 	}
@@ -57,6 +57,6 @@ var (
 
 func init() {
 	lintCmd.Flags().BoolVar(&LintWarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
-	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your Mint files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
+	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 	lintCmd.Flags().StringVarP(&LintOutputFormat, "output", "o", "multiline", "output format: multiline, oneline, none")
 }

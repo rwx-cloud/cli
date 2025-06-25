@@ -56,7 +56,7 @@ func Build(ctx context.Context) error {
 
 // Clean removes any generated artifacts from the repository.
 func Clean(ctx context.Context) error {
-	return sh.Rm("./mint")
+	return sh.Rm("./rwx")
 }
 
 // Lint runs the linter & performs static-analysis checks.

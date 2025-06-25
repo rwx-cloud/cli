@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Build and Development
-- `go run ./tools/mage build` - Build the Mint CLI binary (outputs to `./rwx`)
+- `go run ./tools/mage build` - Build the RWX CLI binary (outputs to `./rwx`)
 - `go run ./tools/mage test` - Run full test suite (unit + integration tests)
 - `go run ./tools/mage unitTest` - Run unit tests only (`./internal/...` and `./cmd/...`)
 - `go run ./tools/mage integrationTest` - Run integration tests only (`./test/...`)
@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Integration tests require building first: `go run ./tools/mage build && go test ./test/...`
 
 ### Environment Variables for Development
-- `MINT_HOST` - Override API host (defaults to `cloud.rwx.com`)
+- `RWX_HOST` - Override API host (defaults to `cloud.rwx.com`)
 - `RWX_ACCESS_TOKEN` - Access token for API authentication
 - `REPORT=1` - Generate JUnit XML test reports
 - `CGO_ENABLED=0` - For static builds (adds `-a` flag to go build)
@@ -35,17 +35,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Service Layer**: `internal/cli/service.go` contains the main business logic. The CLI follows a service-oriented architecture where commands delegate to the `cli.Service` which orchestrates API calls, file operations, and SSH connections.
 
-**API Client**: `internal/api/client.go` handles all HTTP communication with the Mint cloud service. It manages authentication, request formatting, and response parsing.
+**API Client**: `internal/api/client.go` handles all HTTP communication with the RWX cloud service. It manages authentication, request formatting, and response parsing.
 
 **Access Token Management**: `internal/accesstoken/` provides pluggable backends for storing access tokens. The file backend supports migration from `~/.mint` to `~/.config/rwx`.
 
-**Configuration Discovery**: The CLI looks for Mint configuration in `.rwx` directories (or `.mint` directories for legacy support), traversing up the directory tree until found.
+**Configuration Discovery**: The CLI looks for RWX configuration in `.rwx` directories (or `.mint` directories for legacy support), traversing up the directory tree until found.
 
 ### Key Patterns
 
 - **Error Handling**: Uses `github.com/pkg/errors` for error wrapping. `cli.HandledError` indicates errors already reported to user.
 - **Configuration**: YAML-based configuration files parsed via `github.com/goccy/go-yaml`
-- **SSH Operations**: `internal/ssh/client.go` handles secure connections to Mint infrastructure
+- **SSH Operations**: `internal/ssh/client.go` handles secure connections to RWX infrastructure
 - **Testing**: Uses standard Go testing with testify/require for assertions. Separate unit and integration test suites
 
 ### Project Structure
@@ -57,7 +57,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `test/` - Integration tests (require built binary)
 - `tools/mage/` - Build tool entry point
 
-The CLI is designed as a client for Mint CI/CD platform, providing local development workflow with DAG-based step definitions and content-based caching.
+The CLI is designed as a client for RWX CI/CD platform, providing local development workflow with DAG-based step definitions and content-based caching.
 
 ## About you, Claude
 
