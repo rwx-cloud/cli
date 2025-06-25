@@ -8,15 +8,15 @@ import (
 )
 
 var resolveCmd = &cobra.Command{
-	Short: "Resolve and add versions for base layers and Mint leaves",
+	Short: "Resolve and add versions for base layers and RWX packages",
 	Use:   "resolve [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {
 			case "base":
 				return resolveBase(args[1:])
-			case "leaves":
-				return resolveLeaves(args[1:])
+			case "packages":
+				return resolvePackages(args[1:])
 			}
 		}
 
@@ -24,7 +24,7 @@ var resolveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return resolveLeaves(args)
+		return resolvePackages(args)
 	},
 }
 
@@ -45,15 +45,15 @@ var (
 		Use: "base [flags] [files...]",
 	}
 
-	resolveLeavesCmd = &cobra.Command{
+	resolvePackagesCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return resolveLeaves(args)
+			return resolvePackages(args)
 		},
-		Short: "Add the latest version to all leaf invocations that do not have one",
-		Long: "Add the latest version to all leaf invocations that do not have one.\n" +
-			"Updates all top-level YAML files in .rwx that 'call' a leaf without a version\n" +
+		Short: "Add the latest version to all package invocations that do not have one",
+		Long: "Add the latest version to all package invocations that do not have one.\n" +
+			"Updates all top-level YAML files in .rwx that 'call' a package without a version\n" +
 			"to use the latest version.",
-		Use: "leaves [flags] [files...]",
+		Use: "packages [flags] [files...]",
 	}
 )
 
@@ -71,8 +71,8 @@ func resolveBase(files []string) error {
 	return nil
 }
 
-func resolveLeaves(files []string) error {
-	_, err := service.ResolveLeaves(cli.ResolveLeavesConfig{
+func resolvePackages(files []string) error {
+	_, err := service.ResolvePackages(cli.ResolvePackagesConfig{
 		Files:               files,
 		RwxDirectory:        RwxDirectory,
 		LatestVersionPicker: cli.PickLatestMajorVersion,
@@ -86,9 +86,9 @@ func init() {
 	resolveBaseCmd.Flags().StringVar(&resolveBaseArch, "arch", "", "target architecture")
 	addRwxDirFlag(resolveBaseCmd)
 
-	addRwxDirFlag(resolveLeavesCmd)
+	addRwxDirFlag(resolvePackagesCmd)
 
 	resolveCmd.AddCommand(resolveBaseCmd)
-	resolveCmd.AddCommand(resolveLeavesCmd)
+	resolveCmd.AddCommand(resolvePackagesCmd)
 	addRwxDirFlag(resolveCmd)
 }

@@ -82,7 +82,7 @@ func init() {
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(whoamiCmd)
 	rootCmd.AddCommand(vaultsCmd)
-	rootCmd.AddCommand(leavesCmd)
+	rootCmd.AddCommand(packagesCmd)
 	rootCmd.AddCommand(lintCmd)
 	rootCmd.AddCommand(resolveCmd)
 	rootCmd.AddCommand(updateCmd)

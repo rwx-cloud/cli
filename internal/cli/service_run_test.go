@@ -30,15 +30,15 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				getLeafVersionsCalled := false
-				majorLeafVersions := make(map[string]string)
-				minorLeafVersions := make(map[string]map[string]string)
+				getPackageVersionsCalled := false
+				majorPackageVersions := make(map[string]string)
+				minorPackageVersions := make(map[string]map[string]string)
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					getLeafVersionsCalled = true
-					return &api.LeafVersionsResult{
-						LatestMajor: majorLeafVersions,
-						LatestMinor: minorLeafVersions,
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					getPackageVersionsCalled = true
+					return &api.PackageVersionsResult{
+						LatestMajor: majorPackageVersions,
+						LatestMinor: minorPackageVersions,
 					}, nil
 				}
 
@@ -113,7 +113,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, "some nested yaml", receivedRwxDir[6].FileContents)
 
 				_ = resolveBaseLayerCalled
-				_ = getLeafVersionsCalled
+				_ = getPackageVersionsCalled
 			})
 
 			t.Run("when an empty directory is found", func(t *testing.T) {
@@ -130,8 +130,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -194,8 +194,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -254,8 +254,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -346,8 +346,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -410,8 +410,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -468,8 +468,8 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-					return &api.LeafVersionsResult{
+				s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+					return &api.PackageVersionsResult{
 						LatestMajor: make(map[string]string),
 						LatestMinor: make(map[string]map[string]string),
 					}, nil
@@ -575,8 +575,8 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: make(map[string]string),
 					LatestMinor: make(map[string]map[string]string),
 				}, nil
@@ -621,7 +621,7 @@ func TestService_InitiatingRun(t *testing.T) {
 			require.Contains(t, s.mockStderr.String(), "Configured \".mint/foo.yml\" to run on ubuntu 24.04\n")
 		})
 
-		t.Run("when leaf is missing version", func(t *testing.T) {
+		t.Run("when package is missing version", func(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
@@ -635,14 +635,14 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			getLeafVersionsCalled := false
-			majorLeafVersions := make(map[string]string)
-			majorLeafVersions["mint/setup-node"] = "1.2.3"
+			getPackageVersionsCalled := false
+			majorPackageVersions := make(map[string]string)
+			majorPackageVersions["mint/setup-node"] = "1.2.3"
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				getLeafVersionsCalled = true
-				return &api.LeafVersionsResult{
-					LatestMajor: majorLeafVersions,
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				getPackageVersionsCalled = true
+				return &api.PackageVersionsResult{
+					LatestMajor: majorPackageVersions,
 					LatestMinor: make(map[string]map[string]string),
 				}, nil
 			}
@@ -680,10 +680,10 @@ func TestService_InitiatingRun(t *testing.T) {
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			require.True(t, getLeafVersionsCalled)
+			require.True(t, getPackageVersionsCalled)
 			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedSpecifiedFileContent)
 			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedRwxDirectoryFileContent)
-			require.Contains(t, s.mockStderr.String(), "Configured leaf mint/setup-node to use version 1.2.3\n")
+			require.Contains(t, s.mockStderr.String(), "Configured package mint/setup-node to use version 1.2.3\n")
 		})
 	})
 
@@ -716,8 +716,8 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: make(map[string]string),
 					LatestMinor: make(map[string]map[string]string),
 				}, nil
@@ -793,8 +793,8 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			s.mockAPI.MockGetLeafVersions = func() (*api.LeafVersionsResult, error) {
-				return &api.LeafVersionsResult{
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
 					LatestMajor: make(map[string]string),
 					LatestMinor: make(map[string]map[string]string),
 				}, nil

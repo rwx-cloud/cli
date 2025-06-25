@@ -6,15 +6,15 @@ import (
 )
 
 var updateCmd = &cobra.Command{
-	Short: "Update versions for base layers and Mint leaves",
+	Short: "Update versions for base layers and RWX packages",
 	Use:   "update [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {
 			case "base":
 				return updateBase(args[1:])
-			case "leaves":
-				return updateLeaves(args[1:])
+			case "packages":
+				return updatePackages(args[1:])
 			}
 		}
 
@@ -22,7 +22,7 @@ var updateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return updateLeaves(args)
+		return updatePackages(args)
 	},
 }
 
@@ -39,14 +39,14 @@ var (
 		Use: "base [flags] [files...]",
 	}
 
-	updateLeavesCmd = &cobra.Command{
+	updatePackagesCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return updateLeaves(args)
+			return updatePackages(args)
 		},
-		Short: "Update all leaves to their latest (minor) version",
-		Long: "Update all leaves to their latest (minor) version.\n" +
+		Short: "Update all packages to their latest (minor) version",
+		Long: "Update all packages to their latest (minor) version.\n" +
 			"Takes a list of files as arguments, or updates all toplevel YAML files in .rwx if no files are given.",
-		Use: "leaves [flags] [files...]",
+		Use: "packages [flags] [files...]",
 	}
 )
 
@@ -58,13 +58,13 @@ func updateBase(files []string) error {
 	return err
 }
 
-func updateLeaves(files []string) error {
+func updatePackages(files []string) error {
 	replacementVersionPicker := cli.PickLatestMinorVersion
 	if AllowMajorVersionChange {
 		replacementVersionPicker = cli.PickLatestMajorVersion
 	}
 
-	return service.UpdateLeaves(cli.UpdateLeavesConfig{
+	return service.UpdatePackages(cli.UpdatePackagesConfig{
 		Files:                    files,
 		RwxDirectory:             RwxDirectory,
 		ReplacementVersionPicker: replacementVersionPicker,
@@ -74,11 +74,11 @@ func updateLeaves(files []string) error {
 func init() {
 	addRwxDirFlag(updateBaseCmd)
 
-	updateLeavesCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update leaves to the latest major version")
-	addRwxDirFlag(updateLeavesCmd)
+	updatePackagesCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update packages to the latest major version")
+	addRwxDirFlag(updatePackagesCmd)
 
 	updateCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update to the latest major version")
 	updateCmd.AddCommand(updateBaseCmd)
-	updateCmd.AddCommand(updateLeavesCmd)
+	updateCmd.AddCommand(updatePackagesCmd)
 	addRwxDirFlag(updateCmd)
 }

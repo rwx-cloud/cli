@@ -12,7 +12,7 @@ type API struct {
 	MockAcquireToken           func(tokenUrl string) (*api.AcquireTokenResult, error)
 	MockWhoami                 func() (*api.WhoamiResult, error)
 	MockSetSecretsInVault      func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
-	MockGetLeafVersions        func() (*api.LeafVersionsResult, error)
+	MockGetPackageVersions     func() (*api.PackageVersionsResult, error)
 	MockLint                   func(api.LintConfig) (*api.LintResult, error)
 	MockInitiateDispatch       func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
 	MockGetDispatch            func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
@@ -67,12 +67,12 @@ func (c *API) SetSecretsInVault(cfg api.SetSecretsInVaultConfig) (*api.SetSecret
 	return nil, errors.New("MockSetSecretsInVault was not configured")
 }
 
-func (c *API) GetLeafVersions() (*api.LeafVersionsResult, error) {
-	if c.MockGetLeafVersions != nil {
-		return c.MockGetLeafVersions()
+func (c *API) GetPackageVersions() (*api.PackageVersionsResult, error) {
+	if c.MockGetPackageVersions != nil {
+		return c.MockGetPackageVersions()
 	}
 
-	return nil, errors.New("MockGetLeafVersions was not configured")
+	return nil, errors.New("MockGetPackageVersions was not configured")
 }
 
 func (c *API) Lint(cfg api.LintConfig) (*api.LintResult, error) {

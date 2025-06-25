@@ -440,7 +440,7 @@ func (c Client) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*SetSecretsInVau
 	return &respBody, nil
 }
 
-func (c Client) GetLeafVersions() (*LeafVersionsResult, error) {
+func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, bytes.NewBuffer([]byte{}))
@@ -462,7 +462,7 @@ func (c Client) GetLeafVersions() (*LeafVersionsResult, error) {
 		return nil, errors.New(msg)
 	}
 
-	respBody := LeafVersionsResult{}
+	respBody := PackageVersionsResult{}
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 		return nil, errors.Wrap(err, "unable to parse API response")
 	}
