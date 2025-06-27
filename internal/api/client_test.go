@@ -34,7 +34,7 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 				Status:     "201 Created",
 				StatusCode: 201,
 				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
-				Header:     http.Header{"X-Mint-Cli-Latest-Version": []string{"1000000.0.0"}},
+				Header:     http.Header{"X-Rwx-Cli-Latest-Version": []string{"1000000.0.0"}},
 			}, nil
 		}
 

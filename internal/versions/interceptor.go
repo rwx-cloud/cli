@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-const latestVersionHeader = "X-Mint-Cli-Latest-Version"
+const latestVersionHeader = "X-Rwx-Cli-Latest-Version"
 
 type versionInterceptor struct {
 	http.RoundTripper
