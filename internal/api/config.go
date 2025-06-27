@@ -203,6 +203,7 @@ type SetSecretsInVaultResult struct {
 }
 
 type PackageVersionsResult struct {
+	Renames     map[string]string            `json:"renames"`
 	LatestMajor map[string]string            `json:"latest_major"`
 	LatestMinor map[string]map[string]string `json:"latest_minor"`
 }

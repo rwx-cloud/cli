@@ -631,12 +631,7 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 	} else {
 		fmt.Fprintln(s.Stdout, "Updated the following packages:")
 		for original, replacement := range replacements {
-			replacementParts := strings.Split(replacement, " ")
-			if len(replacementParts) == 2 {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacementParts[1])
-			} else {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
-			}
+			fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
 		}
 	}
 
@@ -696,13 +691,18 @@ func (s Service) resolveOrUpdatePackagesForFiles(mintFiles []*MintYAMLFile, upda
 				return nil
 			}
 
-			targetPackageVersion, err := versionPicker(*packageVersions, packageVersion.Name, packageVersion.MajorVersion)
+			newName := packageVersions.Renames[packageVersion.Name]
+			if newName == "" {
+				newName = packageVersion.Name
+			}
+
+			targetPackageVersion, err := versionPicker(*packageVersions, newName, packageVersion.MajorVersion)
 			if err != nil {
 				fmt.Fprintln(s.Stderr, err.Error())
 				return nil
 			}
 
-			newPackage := fmt.Sprintf("%s %s", packageVersion.Name, targetPackageVersion)
+			newPackage := fmt.Sprintf("%s %s", newName, targetPackageVersion)
 			if newPackage == node.String() {
 				return nil
 			}
@@ -711,7 +711,11 @@ func (s Service) resolveOrUpdatePackagesForFiles(mintFiles []*MintYAMLFile, upda
 				return err
 			}
 
-			replacements[packageVersion.Original] = targetPackageVersion
+			if newName != packageVersion.Name {
+				replacements[packageVersion.Original] = fmt.Sprintf("%s %s", newName, targetPackageVersion)
+			} else {
+				replacements[packageVersion.Original] = targetPackageVersion
+			}
 			hasChange = true
 			return nil
 		})
