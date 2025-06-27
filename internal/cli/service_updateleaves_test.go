@@ -157,18 +157,27 @@ tasks:
 				"mint/setup-node": "1.2.3",
 				"mint/setup-ruby": "1.0.1",
 				"mint/setup-go":   "1.3.5",
+				"mint/renamed":    "1.0.0",
+				"renamed/install": "1.0.1",
 			}
 
 			minorPackageVersions := map[string]map[string]string{
 				"mint/setup-node": {"1": "1.2.3"},
 				"mint/setup-ruby": {"0": "0.0.2", "1": "1.0.1"},
 				"mint/setup-go":   {"1": "1.3.5"},
+				"mint/renamed":    {"1": "1.0.0"},
+				"renamed/install": {"1": "1.0.1"},
+			}
+
+			renames := map[string]string{
+				"mint/renamed": "renamed/install",
 			}
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
 					LatestMajor: majorPackageVersions,
 					LatestMinor: minorPackageVersions,
+					Renames:     renames,
 				}, nil
 			}
 
@@ -180,6 +189,8 @@ tasks:
     call: mint/setup-ruby 0.0.1
   - key: baz
     call: mint/setup-go
+  - key: renamed
+    call: mint/renamed 1.0.0
 `
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 			require.NoError(t, err)
@@ -210,6 +221,8 @@ tasks:
     call: mint/setup-ruby 1.0.1
   - key: baz
     call: mint/setup-go 1.3.5
+  - key: renamed
+    call: renamed/install 1.0.1
 `, string(contents))
 
 				contents, err = os.ReadFile(filepath.Join(s.tmp, "bar.yaml"))
@@ -224,6 +237,7 @@ tasks:
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 0.0.1 → 1.0.1")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 1.0.0 → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "mint/renamed 1.0.0 → renamed/install 1.0.1")
 			})
 
 			t.Run("with minor version updates only", func(t *testing.T) {
@@ -249,6 +263,8 @@ tasks:
     call: mint/setup-ruby 0.0.2
   - key: baz
     call: mint/setup-go 1.3.5
+  - key: renamed
+    call: renamed/install 1.0.1
 `, string(contents))
 
 				contents, err = os.ReadFile(filepath.Join(s.tmp, "bar.yaml"))
@@ -263,6 +279,7 @@ tasks:
 				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 0.0.1 → 0.0.2")
 				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 1.0.0 → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "mint/renamed 1.0.0 → renamed/install 1.0.1")
 			})
 
 			t.Run("when a single file is targeted", func(t *testing.T) {
