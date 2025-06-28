@@ -11,7 +11,7 @@ base:
 
 tasks:
   - key: updategit
-    call: mint/update-leaves-github 1.0.8
+    call: mint/update-leaves-github 1.0.9
     with:
       repository: https://github.com/rwx-cloud/cli.git
       ref: ${{ init.sha }}
