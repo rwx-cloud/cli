@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/goccy/go-yaml v1.18.0
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
@@ -14,8 +14,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.38.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/crypto v0.39.0
+	golang.org/x/sync v0.15.0
 	golang.org/x/term v0.32.0
 )
 
