@@ -307,6 +307,37 @@ tasks:
     call: mint/setup-ruby 1.0.1
 `, string(contents))
 			})
+
+			t.Run("keeps arrays on newlines", func(t *testing.T) {
+				originalContents := `
+tasks:
+  - key: hello
+    call: mint/setup-go
+  - key: goodbye
+    use:
+      [hello]
+    run: echo "Goodbye, World!"
+`
+				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalContents), 0o644)
+				require.NoError(t, err)
+
+				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
+					ReplacementVersionPicker: cli.PickLatestMajorVersion,
+				})
+				require.NoError(t, err)
+
+				contents, err := os.ReadFile(filepath.Join(s.tmp, "foo.yaml"))
+				require.NoError(t, err)
+				require.Equal(t, `tasks:
+  - key: hello
+    call: mint/setup-go 1.3.5
+  - key: goodbye
+    use:
+      [hello]
+    run: echo "Goodbye, World!"
+`, string(contents))
+			})
 		})
 
 		t.Run("updates snippet files", func(t *testing.T) {
