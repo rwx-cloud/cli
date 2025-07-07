@@ -341,7 +341,7 @@ tasks:
 		require.Equal(t, originalContents, string(contents))
 
 		require.Equal(t, "Unknown base tag 2 for run definitions: ci.yaml\n", bl.s.mockStderr.String())
-		require.Equal(t, "No run bases to update.\n", bl.s.mockStdout.String())
+		require.Equal(t, "All base OS tags are up-to-date.\n", bl.s.mockStdout.String())
 	})
 
 	t.Run("when yaml file has a base with os and arch but no tag", func(t *testing.T) {

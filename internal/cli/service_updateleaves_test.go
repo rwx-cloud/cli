@@ -147,7 +147,7 @@ tasks:
     call: mint/setup-node 1.2.3
 `, string(contents))
 
-			require.Contains(t, s.mockStdout.String(), "No packages to update.")
+			require.Contains(t, s.mockStdout.String(), "All packages are up-to-date.")
 		})
 
 		t.Run("when there are packages to update across multiple files", func(t *testing.T) {
@@ -502,7 +502,7 @@ tasks:
     call: mint/setup-node 1.1.1
 `, string(contents))
 
-				require.Contains(t, s.mockStdout.String(), "No packages to update.")
+				require.Contains(t, s.mockStdout.String(), "All packages are up-to-date.")
 			})
 
 			t.Run("while not referencing the latest minor version", func(t *testing.T) {

@@ -627,7 +627,7 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 	}
 
 	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "No packages to update.")
+		fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
 	} else {
 		fmt.Fprintln(s.Stdout, "Updated the following packages:")
 		for original, replacement := range replacements {
@@ -832,7 +832,7 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 	}
 
 	if !result.HasChanges() {
-		fmt.Fprintln(s.Stdout, "No run bases to update.")
+		fmt.Fprintln(s.Stdout, "All base OS tags are up-to-date.")
 	} else {
 		if len(result.UpdatedRunFiles) > 0 {
 			fmt.Fprintln(s.Stdout, "Updated base for the following run definitions:")
