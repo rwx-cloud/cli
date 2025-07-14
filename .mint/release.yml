@@ -76,7 +76,7 @@ tasks:
       printf "$aliasedVersion" > "$MINT_VALUES/aliased-version"
 
   - key: code
-    call: git/clone 1.6.7
+    call: git/clone 1.6.8
     after: verify-inputs
     with:
       preserve-git-dir: true
