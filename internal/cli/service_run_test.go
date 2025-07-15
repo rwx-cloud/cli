@@ -912,4 +912,43 @@ func TestService_InitiatingRun(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "the path to a run definition must be provided")
 	})
+
+	t.Run("when base resolution has errors but no updates", func(t *testing.T) {
+		s := setupTest(t)
+
+		runConfig := cli.InitiateRunConfig{}
+		
+		// Mock that base resolution fails
+		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
+			return api.ResolveBaseLayerResult{}, fmt.Errorf("invalid YAML syntax")
+		}
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		// Create a file with invalid YAML syntax that will cause base resolution to fail
+		originalSpecifiedFileContent := "# This is a comment\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+
+		mintDir := filepath.Join(s.tmp, ".mint")
+		err := os.MkdirAll(mintDir, 0o755)
+		require.NoError(t, err)
+
+		err = os.WriteFile(filepath.Join(mintDir, "foo.yml"), []byte(originalSpecifiedFileContent), 0o644)
+		require.NoError(t, err)
+
+		runConfig.MintFilePath = ".mint/foo.yml"
+		runConfig.RwxDirectory = ".mint"
+
+		// This should not crash even when base resolution fails
+		_, err = s.service.InitiateRun(runConfig)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to resolve base")
+		
+		// Verify that no success message was printed (since there were no successful updates)
+		require.NotContains(t, s.mockStderr.String(), "Configured")
+	})
 }
