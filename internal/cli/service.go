@@ -170,16 +170,22 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, errors.Wrap(err, "unable to resolve base")
 	}
 
-	if addBaseIfNeeded.HasChanges() {
+	if len(addBaseIfNeeded.UpdatedRunFiles) > 0 {
 		update := addBaseIfNeeded.UpdatedRunFiles[0]
 		if update.ResolvedBase.Os == "" {
 			return nil, errors.New("unable to determine OS")
 		}
 
-		fmt.Fprintf(s.Stderr, "Configured %q to run on %s\n\n", runDefinitionPath, update.ResolvedBase.Os)
+		fmt.Fprintf(s.Stderr, "Configured %q to run on %s\n\n", update.OriginalPath, update.ResolvedBase.Os)
 
 		if err = reloadRunDefinitions(); err != nil {
 			return nil, err
+		}
+	}
+
+	if len(addBaseIfNeeded.ErroredRunFiles) > 0 {
+		for _, erroredFile := range addBaseIfNeeded.ErroredRunFiles {
+			fmt.Fprintf(s.Stderr, "Failed to configure base for %q: %v\n", erroredFile.OriginalPath, erroredFile.Error)
 		}
 	}
 

@@ -147,6 +147,130 @@ tasks:
 		require.Contains(t, err.Error(), "failed to find path ( $.base ): node not found")
 		require.True(t, errors.Is(err, yaml.ErrNotFoundNode))
 	})
+
+	t.Run("inserts before leading comments", func(t *testing.T) {
+		contents := `# This is a multiline
+# comment
+tasks:
+  - key: a
+    run: echo a`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.InsertBefore("$.tasks", map[string]any{
+			"base": map[string]any{
+				"os":  "ubuntu 24.04",
+				"tag": 1.1,
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+# This is a multiline
+# comment
+tasks:
+  - key: a
+    run: echo a
+`, doc.String())
+	})
+
+	t.Run("inserts after single line comment", func(t *testing.T) {
+		contents := `# Single comment
+tasks:
+  - key: a
+    run: echo a`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.InsertBefore("$.tasks", map[string]any{
+			"base": map[string]any{
+				"os":  "ubuntu 24.04",
+				"tag": 1.1,
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+# Single comment
+tasks:
+  - key: a
+    run: echo a
+`, doc.String())
+	})
+
+	t.Run("preserves comment block structure", func(t *testing.T) {
+		contents := `# Header comment
+# Continued comment
+
+# Another comment block
+tasks:
+  - key: a
+    run: echo a`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.InsertBefore("$.tasks", map[string]any{
+			"base": map[string]any{
+				"os":  "ubuntu 24.04",
+				"tag": 1.1,
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `# Header comment
+# Continued comment
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+# Another comment block
+tasks:
+  - key: a
+    run: echo a
+`, doc.String())
+	})
+
+	t.Run("handles mixed content and comments", func(t *testing.T) {
+		contents := `# File header
+config:
+  value: true
+
+# Task comments
+tasks:
+  - key: a
+    run: echo a`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.InsertBefore("$.tasks", map[string]any{
+			"base": map[string]any{
+				"os":  "ubuntu 24.04",
+				"tag": 1.1,
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `# File header
+config:
+  value: true
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+# Task comments
+tasks:
+  - key: a
+    run: echo a
+`, doc.String())
+	})
 }
 
 func TestYamlDoc_MergeAtPath(t *testing.T) {

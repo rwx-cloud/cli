@@ -131,7 +131,39 @@ func (doc *YAMLDoc) InsertBefore(beforeYamlPath string, value any) error {
 	if token.Prev.Prev == nil {
 		return errors.New("unexpected token structure: token.Prev.Prev is nil")
 	}
-	idx := token.Prev.Prev.Position.Offset - 1
+
+	// Find the start of the line containing the anchor key.
+	keyToken := token.Prev.Prev
+	content := []byte(doc.astFile.String())
+
+	idx := keyToken.Position.Offset
+	for idx > 0 && content[idx-1] != '\n' {
+		idx--
+	}
+
+	// Look backwards to find any preceding comment lines and insert before them.
+	// This preserves comment blocks by inserting before the entire block.
+	hasComments := false
+	for idx > 0 {
+		// Find the start of the previous line
+		lineStart := idx - 1
+		for lineStart > 0 && content[lineStart-1] != '\n' {
+			lineStart--
+		}
+
+		// Check if the previous line is a comment or empty
+		lineContent := content[lineStart : idx-1]
+		trimmed := strings.TrimSpace(string(lineContent))
+		if strings.HasPrefix(trimmed, "#") {
+			idx = lineStart
+			hasComments = true
+		} else if trimmed == "" && hasComments {
+			// Only skip empty lines if we've found comments
+			idx = lineStart
+		} else {
+			break
+		}
+	}
 
 	node, err := yaml.NewEncoder(nil).EncodeToNode(value)
 	if err != nil {
