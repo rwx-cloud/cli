@@ -17,7 +17,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 1.6.7
+    call: git/clone 1.6.8
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
@@ -92,7 +92,7 @@ tasks:
       git diff --exit-code
 
   - key: rwx-testing-code
-    call: git/clone 1.6.7
+    call: git/clone 1.6.8
     with:
       path: ./rwx-testing
       repository: https://github.com/rwx-cloud/rwx-testing.git
