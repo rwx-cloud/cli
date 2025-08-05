@@ -2,8 +2,9 @@ package cli
 
 import (
 	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/ssh"
 
-	"golang.org/x/crypto/ssh"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type APIClient interface {
@@ -20,8 +21,12 @@ type APIClient interface {
 	ResolveBaseLayer(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
 }
 
+var _ APIClient = api.Client{}
+
 type SSHClient interface {
 	Close() error
-	Connect(addr string, cfg ssh.ClientConfig) error
+	Connect(addr string, cfg gossh.ClientConfig) error
 	InteractiveSession() error
 }
+
+var _ SSHClient = (*ssh.Client)(nil)
