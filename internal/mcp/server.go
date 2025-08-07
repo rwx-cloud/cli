@@ -56,8 +56,23 @@ func (s *Server) Run(ctx context.Context, transport mcp.Transport) error {
 
 func (s *Server) addTools() {
 	mcp.AddTool(s.ms, &mcp.Tool{
-		Name:        "get_run_test_failures",
-		Description: "Get the list of failed tests for the given run(s)",
+		Name: "get_run_test_failures",
+		Description: `Get the list of failed tests for the given run(s).
+
+Run URLs/IDs are for RWX Cloud (not other CI providers) and can be found from:
+- RWX Cloud URLs like: https://cloud.rwx.com/mint/my-org/runs/90bf40a00be843ed89cc1d9c8535f0ca
+- Just the run ID portion: 90bf40a00be843ed89cc1d9c8535f0ca
+- GitHub PR status checks: ` + "`" + `gh pr view <pr> --json statusCheckRollup` + "`" + ` (extract from targetUrl)
+- GitHub commit status (when not a PR): ` + "`" + `gh api repos/:owner/:repo/commits/<sha>/status` + "`" + `
+
+When finding runs, typically target runs for a specific commit or PR.
+
+Examples:
+- Full URLs: ["https://cloud.rwx.com/mint/my-org/runs/90bf40a00be843ed89cc1d9c8535f0ca"]
+- Just IDs: ["90bf40a00be843ed89cc1d9c8535f0ca", "41fcc0f38a054716b83c49cd7662539a"]`,
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: true,
+		},
 	}, s.getRunTestFailures)
 }
 
