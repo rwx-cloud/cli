@@ -59,9 +59,9 @@ func (s *Server) addTools() {
 		Name: "get_run_test_failures",
 		Description: `Get the list of failed tests for the given run(s).
 
-Run URLs/IDs are for RWX Cloud (not other CI providers) and can be found from:
-- RWX Cloud URLs like: https://cloud.rwx.com/mint/my-org/runs/90bf40a00be843ed89cc1d9c8535f0ca
-- Just the run ID portion: 90bf40a00be843ed89cc1d9c8535f0ca
+Run URLs or IDs are for RWX (not other CI providers) and can be found from:
+- RWX URLs like: https://cloud.rwx.com/mint/my-org/runs/90bf40a00be843ed89cc1d9c8535f0ca
+- The run ID: 90bf40a00be843ed89cc1d9c8535f0ca
 - GitHub PR status checks: ` + "`" + `gh pr view <pr> --json statusCheckRollup` + "`" + ` (extract from targetUrl)
 - GitHub commit status (when not a PR): ` + "`" + `gh api repos/:owner/:repo/commits/<sha>/status` + "`" + `
 
