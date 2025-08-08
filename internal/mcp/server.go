@@ -61,7 +61,7 @@ func (s *Server) addTools() {
 
 Run URLs or IDs are for RWX (not other CI providers) and can be found from:
 - RWX URLs like: https://cloud.rwx.com/mint/my-org/runs/90bf40a00be843ed89cc1d9c8535f0ca
-- The run ID: 90bf40a00be843ed89cc1d9c8535f0ca
+- Run IDs like: 90bf40a00be843ed89cc1d9c8535f0ca
 - GitHub PR status checks: ` + "`" + `gh pr view <pr> --json statusCheckRollup` + "`" + ` (extract from targetUrl)
 - GitHub commit status (when not a PR): ` + "`" + `gh api repos/:owner/:repo/commits/<sha>/status` + "`" + `
 
