@@ -8,8 +8,11 @@ import (
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
+
+var _ cli.APIClient = (*mocks.API)(nil)
 
 func TestService_InitiatingRun(t *testing.T) {
 	t.Run("with a specific mint file and no specific directory", func(t *testing.T) {
@@ -917,7 +920,7 @@ func TestService_InitiatingRun(t *testing.T) {
 		s := setupTest(t)
 
 		runConfig := cli.InitiateRunConfig{}
-		
+
 		// Mock that base resolution fails
 		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
 			return api.ResolveBaseLayerResult{}, fmt.Errorf("invalid YAML syntax")
@@ -947,7 +950,7 @@ func TestService_InitiatingRun(t *testing.T) {
 		_, err = s.service.InitiateRun(runConfig)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to resolve base")
-		
+
 		// Verify that no success message was printed (since there were no successful updates)
 		require.NotContains(t, s.mockStderr.String(), "Configured")
 	})
