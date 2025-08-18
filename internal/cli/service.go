@@ -1136,17 +1136,12 @@ func (s Service) outputLatestVersionMessage() {
 	}
 
 	w := s.Stderr
-	fmt.Fprintln(w, "========================================")
-	fmt.Fprintln(w, "A new version is available!")
-	fmt.Fprintf(w, "You are currently on version %s\n", versions.GetCliCurrentVersion())
-	fmt.Fprintf(w, "The latest version is %s\n", versions.GetCliLatestVersion())
+	fmt.Fprintf(w, "A new release of rwx is available: %s → %s\n", versions.GetCliCurrentVersion(), versions.GetCliLatestVersion())
 
 	if versions.InstalledWithHomebrew() {
-		fmt.Fprintln(w, "\nYou can update to the latest version with:")
-		fmt.Fprintln(w, "    brew upgrade rwx-cloud/tap/rwx")
+		fmt.Fprintln(w, "To upgrade, run: brew upgrade rwx-cloud/tap/rwx")
 	}
 
-	fmt.Fprintln(w, "========================================")
 	fmt.Fprintln(w)
 }
 
