@@ -1131,7 +1131,7 @@ func (s Service) outputLatestVersionMessage() {
 
 	showLatestVersion := os.Getenv("MINT_HIDE_LATEST_VERSION") == "" && os.Getenv("RWX_HIDE_LATEST_VERSION") == ""
 
-	if !showLatestVersion || !versions.NewVersionAvailable() {
+	if !showLatestVersion {
 		return
 	}
 
