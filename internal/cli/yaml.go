@@ -62,6 +62,36 @@ func (doc *YAMLDoc) HasTasks() bool {
 	return doc.hasPath("$.tasks")
 }
 
+func (doc *YAMLDoc) AllTasksAreEmbeddedRuns() bool {
+	err := doc.ForEachNode("$.tasks[*]", func(node ast.Node) error {
+		mapNode, ok := node.(*ast.MappingNode)
+		if !ok {
+			return fmt.Errorf("expected mapping node, got %T", node)
+		}
+
+		hasEmbeddedRun := false
+		for _, entry := range mapNode.Values {
+			if entry.Key.String() != "call" {
+				continue
+			}
+
+			if strings.HasPrefix(entry.Value.String(), "${{") {
+				hasEmbeddedRun = true
+			}
+
+			break
+		}
+
+		if !hasEmbeddedRun {
+			return errors.New("no embedded run found")
+		}
+
+		return nil
+	})
+
+	return err == nil
+}
+
 func (doc *YAMLDoc) IsRunDefinition() bool {
 	if len(doc.astFile.Docs) != 1 {
 		// Multi-document files are not supported

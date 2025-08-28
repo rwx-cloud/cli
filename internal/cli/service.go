@@ -916,6 +916,11 @@ func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, req
 			return false
 		}
 
+		// Skip if all tasks in this file are embedded runs
+		if doc.AllTasksAreEmbeddedRuns() {
+			return false
+		}
+
 		return true
 	})
 

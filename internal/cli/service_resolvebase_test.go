@@ -468,4 +468,39 @@ tasks:
 			require.Equal(t, string(contentsThree), string(contents))
 		})
 	})
+
+	t.Run("when yaml file with only embedded runs doesn't include base", func(t *testing.T) {
+		bl := setupBaseLayer(t)
+
+		err := os.WriteFile(filepath.Join(bl.mintDir, "foo.yaml"), []byte(`
+tasks:
+  - key: a
+    call: ${{ run.dir }}/bar.yaml
+`), 0o644)
+		require.NoError(t, err)
+
+		err = os.WriteFile(filepath.Join(bl.mintDir, "bar.yaml"), []byte(`
+tasks:
+  - key: b
+    run: /bin/true
+`), 0o644)
+		require.NoError(t, err)
+
+		t.Run("does not add base to file", func(t *testing.T) {
+			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
+				Arch: "quantum",
+			})
+			require.NoError(t, err)
+
+			var contents []byte
+
+			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "foo.yaml"))
+			require.NoError(t, err)
+			require.Equal(t, `
+tasks:
+  - key: a
+    call: ${{ run.dir }}/bar.yaml
+`, string(contents))
+		})
+	})
 }
