@@ -37,7 +37,7 @@ func All(ctx context.Context) error {
 	return nil
 }
 
-// Build builds the Mint-CLI
+// Build builds the RWX CLI
 func Build(ctx context.Context) error {
 	args := []string{"./cmd/rwx"}
 
