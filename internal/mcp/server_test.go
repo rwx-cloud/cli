@@ -42,7 +42,7 @@ func setupMCPTest(t *testing.T, mockAPI *mocks.API) *mcpTestSetup {
 	}()
 
 	client := gomcp.NewClient(&gomcp.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
-	session, err := client.Connect(ctx, clientTransport)
+	session, err := client.Connect(ctx, clientTransport, nil)
 	require.NoError(t, err)
 
 	return &mcpTestSetup{
