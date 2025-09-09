@@ -26,7 +26,7 @@ func Serve(ctx context.Context, config ServeConfig) error {
 	}
 
 	server := NewServer(ServerConfig{APIClient: apiClient})
-	return server.Run(ctx, mcp.NewStdioTransport())
+	return server.Run(ctx, &mcp.StdioTransport{})
 }
 
 type Server struct {
@@ -80,13 +80,13 @@ type GetRunFailedTestsInput struct {
 	RunUrls []string `json:"run_urls" jsonschema:"The URLs or IDs of the run"`
 }
 
-func (s *Server) getRunTestFailures(ctx context.Context, session *mcp.ServerSession, params *mcp.CallToolParamsFor[GetRunFailedTestsInput]) (*mcp.CallToolResult, error) {
-	res, err := s.api.McpGetRunTestFailures(api.McpGetRunTestFailuresRequest{RunUrls: params.Arguments.RunUrls})
+func (s *Server) getRunTestFailures(ctx context.Context, request *mcp.CallToolRequest, input GetRunFailedTestsInput) (*mcp.CallToolResult, any, error) {
+	res, err := s.api.McpGetRunTestFailures(api.McpGetRunTestFailuresRequest{RunUrls: input.RunUrls})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return mcpToolTextResult(res.Text), nil
+	return mcpToolTextResult(res.Text), nil, nil
 }
 
 func mcpToolTextResult(text string) *mcp.CallToolResult {
