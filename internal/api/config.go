@@ -216,3 +216,24 @@ type resolveBaseLayerSpec struct {
 
 type ResolveBaseLayerConfig = resolveBaseLayerSpec
 type ResolveBaseLayerResult = resolveBaseLayerSpec
+
+type StartOCIImagePushConfig struct {
+	TaskID      string                             `json:"task_id"`
+	Image       StartOCIImagePushConfigImage       `json:"image"`
+	Credentials StartOCIImagePushConfigCredentials `json:"credentials"`
+}
+
+type StartOCIImagePushConfigImage struct {
+	Registry   string   `json:"registry"`
+	Repository string   `json:"repository"`
+	Tags       []string `json:"tags"`
+}
+
+type StartOCIImagePushConfigCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type StartOCIImagePushResult struct {
+	PushID string `json:"push_id"`
+}

@@ -19,6 +19,7 @@ type APIClient interface {
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)
 	ResolveBaseLayer(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
+	StartOCIImagePush(cfg api.StartOCIImagePushConfig) (api.StartOCIImagePushResult, error)
 }
 
 var _ APIClient = api.Client{}

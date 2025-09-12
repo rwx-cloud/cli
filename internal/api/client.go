@@ -499,6 +499,35 @@ func (c Client) ResolveBaseLayer(cfg ResolveBaseLayerConfig) (ResolveBaseLayerRe
 	return result, nil
 }
 
+func (c Client) StartOCIImagePush(cfg StartOCIImagePushConfig) (StartOCIImagePushResult, error) {
+	endpoint := "/mint/api/oci_images/pushes"
+	result := StartOCIImagePushResult{}
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func decodeResponseJSON(resp *http.Response, result any) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if result == nil {

@@ -315,3 +315,47 @@ func TestAPIClient_ResolveBaseLayer(t *testing.T) {
 		require.Equal(t, "quantum", result.Arch)
 	})
 }
+
+func TestAPIClient_StartOCIImagePush(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/oci_images/pushes", req.URL.Path)
+			require.Equal(t, http.MethodPost, req.Method)
+			reqBody, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			require.Contains(t, string(reqBody), "task-123")
+			require.Contains(t, string(reqBody), "myuser")
+			require.Contains(t, string(reqBody), "mypass")
+			require.Contains(t, string(reqBody), "dockerhub.io")
+			require.Contains(t, string(reqBody), "myimage")
+			require.Contains(t, string(reqBody), "latest")
+			require.Contains(t, string(reqBody), "other")
+
+			body := `{"push_id": "push-123"}`
+			return &http.Response{
+				Status:     "202 Accepted",
+				StatusCode: 202,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		pushConfig := api.StartOCIImagePushConfig{
+			TaskID: "task-123",
+			Credentials: api.StartOCIImagePushConfigCredentials{
+				Username: "myuser",
+				Password: "mypass",
+			},
+			Image: api.StartOCIImagePushConfigImage{
+				Registry:   "dockerhub.io",
+				Repository: "myimage",
+				Tags:       []string{"latest", "other"},
+			},
+		}
+
+		result, err := c.StartOCIImagePush(pushConfig)
+		require.NoError(t, err)
+		require.Equal(t, "push-123", result.PushID)
+	})
+}

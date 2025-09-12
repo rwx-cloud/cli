@@ -18,6 +18,7 @@ type API struct {
 	MockGetDispatch            func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
 	MockResolveBaseLayer       func(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
 	MockMcpGetRunTestFailures  func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
+	MockStartOCIImagePush      func(api.StartOCIImagePushConfig) (api.StartOCIImagePushResult, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -114,4 +115,12 @@ func (c *API) McpGetRunTestFailures(cfg api.McpGetRunTestFailuresRequest) (*api.
 	}
 
 	return nil, errors.New("MockMcpGetRunTestFailures was not configured")
+}
+
+func (c *API) StartOCIImagePush(cfg api.StartOCIImagePushConfig) (api.StartOCIImagePushResult, error) {
+	if c.MockStartOCIImagePush != nil {
+		return c.MockStartOCIImagePush(cfg)
+	}
+
+	return api.StartOCIImagePushResult{}, errors.New("MockStartOCIImagePush was not configured")
 }

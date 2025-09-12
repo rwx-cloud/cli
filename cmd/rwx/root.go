@@ -87,4 +87,5 @@ func init() {
 	rootCmd.AddCommand(resolveCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(pushCmd)
 }
