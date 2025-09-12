@@ -10,6 +10,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/ssh"
+	"golang.org/x/term"
 
 	"github.com/spf13/cobra"
 )
@@ -45,7 +46,14 @@ var (
 				return errors.Wrap(err, "unable to initialize API client")
 			}
 
-			service, err = cli.NewService(cli.Config{APIClient: c, SSHClient: new(ssh.Client), Stdout: os.Stdout, Stderr: os.Stderr})
+			service, err = cli.NewService(cli.Config{
+				APIClient:   c,
+				SSHClient:   new(ssh.Client),
+				Stdout:      os.Stdout,
+				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
+				Stderr:      os.Stderr,
+				StderrIsTTY: term.IsTerminal(int(os.Stderr.Fd())),
+			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize CLI")
 			}
@@ -87,4 +95,5 @@ func init() {
 	rootCmd.AddCommand(resolveCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(pushCmd)
 }

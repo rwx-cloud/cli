@@ -42,10 +42,12 @@ func setupTest(t *testing.T) *testSetup {
 	setup.mockStderr = &strings.Builder{}
 
 	setup.config = cli.Config{
-		APIClient: setup.mockAPI,
-		SSHClient: setup.mockSSH,
-		Stdout:    setup.mockStdout,
-		Stderr:    setup.mockStderr,
+		APIClient:   setup.mockAPI,
+		SSHClient:   setup.mockSSH,
+		Stdout:      setup.mockStdout,
+		StdoutIsTTY: false,
+		Stderr:      setup.mockStderr,
+		StderrIsTTY: false,
 	}
 	setup.service, err = cli.NewService(setup.config)
 	require.NoError(t, err)
