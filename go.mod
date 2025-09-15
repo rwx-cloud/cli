@@ -11,7 +11,7 @@ require (
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/magefile/mage v1.15.0
 	github.com/manifoldco/promptui v0.9.0
-	github.com/modelcontextprotocol/go-sdk v0.4.0
+	github.com/modelcontextprotocol/go-sdk v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
@@ -26,7 +26,7 @@ require (
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/google/jsonschema-go v0.2.1-0.20250825175020-748c325cec76 // indirect
+	github.com/google/jsonschema-go v0.2.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
