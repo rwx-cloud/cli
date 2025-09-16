@@ -55,6 +55,8 @@ func (c *Client) UploadLayer(l io.Reader) error {
 		return err
 	}
 
+	fmt.Println("session started")
+
 	r, w := io.Pipe()
 	hash := sha256.New()
 	gzipped := io.TeeReader(r, hash)
@@ -68,15 +70,20 @@ func (c *Client) UploadLayer(l io.Reader) error {
 		return err
 	})
 
+	fmt.Println("chunks starting")
+
 	for {
 		buf := make([]byte, c.chunkSize)
+		fmt.Println("reading chunk")
 		n, err := io.ReadFull(gzipped, buf)
+		fmt.Println("chunk read")
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("unable to read layer data: %w", err)
 		}
 		if n == 0 {
 			break
 		}
+		fmt.Println("uploading chunk")
 		if err := c.uploadChunk(buf[:n]); err != nil {
 			return fmt.Errorf("unable to upload layer chunk: %w", err)
 		}
