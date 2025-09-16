@@ -83,6 +83,10 @@ func (c *Client) UploadLayer(l io.Reader) error {
 		}
 	}
 
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("unable to gzip layer data: %w", err)
+	}
+
 	if err := c.closeSession(hash); err != nil {
 		return fmt.Errorf("unable to close layer upload session: %w", err)
 	}
@@ -135,6 +139,8 @@ func (c *Client) uploadChunk(chunk []byte) error {
 	req.Header.Set("Content-Range", fmt.Sprintf("%v-%v", c.uploadedSoFar, c.uploadedSoFar+len(chunk)-1)) // inclusive on both sides
 	req.Header.Set("Content-Type", "application/octet-stream")
 
+	fmt.Printf("Uploading bytes %v-%v\n", c.uploadedSoFar, c.uploadedSoFar+len(chunk)-1)
+
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("unable to upload layer chunk: %w", err)
@@ -154,9 +160,12 @@ func (c *Client) uploadChunk(chunk []byte) error {
 }
 
 func (c *Client) closeSession(h hash.Hash) error {
+	compressedSha := fmt.Sprintf("sha256:%x", h.Sum(nil))
+	fmt.Printf("Closing upload session with digest %s\n", compressedSha)
+
 	closeURL := c.uploadURL
 	q := closeURL.Query()
-	q.Set("digest", fmt.Sprintf("sha256:%x", h.Sum(nil)))
+	q.Set("digest", compressedSha)
 	closeURL.RawQuery = q.Encode()
 
 	req, err := http.NewRequest(http.MethodPut, closeURL.String(), nil)
