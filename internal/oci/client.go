@@ -55,14 +55,13 @@ func (c *Client) UploadLayer(l io.Reader) error {
 		return err
 	}
 
-	gzbuf := &bytes.Buffer{}
-	gzbuf.Grow(c.chunkSize)
+	r, w := io.Pipe()
 	hash := sha256.New()
-	gzipped := io.TeeReader(gzbuf, hash)
+	gzipped := io.TeeReader(r, hash)
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {
-		gz := gzip.NewWriter(gzbuf)
+		gz := gzip.NewWriter(w)
 		defer gz.Close()
 
 		_, err := io.Copy(gz, l)
@@ -71,7 +70,7 @@ func (c *Client) UploadLayer(l io.Reader) error {
 
 	for {
 		buf := make([]byte, c.chunkSize)
-		n, err := gzipped.Read(buf)
+		n, err := io.ReadFull(gzipped, buf)
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("unable to read layer data: %w", err)
 		}
