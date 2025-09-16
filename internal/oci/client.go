@@ -75,7 +75,7 @@ func (c *Client) UploadLayer(l io.Reader) error {
 	for {
 		buf := make([]byte, c.chunkSize)
 		fmt.Println("reading chunk")
-		n, err := io.ReadFull(gzipped, buf)
+		n, err := gzipped.Read(buf)
 		fmt.Println("chunk read")
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("unable to read layer data: %w", err)
