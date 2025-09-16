@@ -54,16 +54,15 @@ func (c *Client) UploadLayer(l io.Reader) error {
 	if err := c.startSession(); err != nil {
 		return err
 	}
-
 	fmt.Println("session started")
 
-	r, w := io.Pipe()
 	hash := sha256.New()
-	gzipped := io.TeeReader(r, hash)
+	gzipped, w := io.Pipe()
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {
-		gz := gzip.NewWriter(w)
+		defer w.Close()
+		gz := gzip.NewWriter(io.MultiWriter(hash, w))
 		defer gz.Close()
 
 		_, err := io.Copy(gz, l)
@@ -75,9 +74,9 @@ func (c *Client) UploadLayer(l io.Reader) error {
 	for {
 		buf := make([]byte, c.chunkSize)
 		fmt.Println("reading chunk")
-		n, err := gzipped.Read(buf)
+		n, err := io.ReadFull(gzipped, buf)
 		fmt.Println("chunk read")
-		if err != nil && err != io.EOF {
+		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF && err != io.ErrShortBuffer {
 			return fmt.Errorf("unable to read layer data: %w", err)
 		}
 		if n == 0 {
@@ -153,7 +152,7 @@ func (c *Client) uploadChunk(chunk []byte) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("unexpected status code uploading layer chunk: %d", resp.StatusCode)
 	}
 
@@ -188,6 +187,8 @@ func (c *Client) closeSession(h hash.Hash) error {
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("unexpected status code closing layer upload: %d", resp.StatusCode)
 	}
+
+	fmt.Printf("blob location: %q\n", resp.Header.Get("Location"))
 
 	return nil
 }
