@@ -29,4 +29,5 @@ var pushCmd = &cobra.Command{
 
 func init() {
 	pushCmd.Flags().StringArrayVar(&pushOCIReferences, "to", []string{}, "the qualified OCI reference to push the image to (can be specified multiple times)")
+	pushCmd.AddCommand(pushLayerCmd)
 }
