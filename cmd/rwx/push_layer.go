@@ -39,11 +39,7 @@ var pushLayerCmd = &cobra.Command{
 		}
 		defer res.Body.Close()
 
-		c := oci.NewClient(oci.ClientConfig{
-			RegistryURL: *registryURL,
-			Repository:  pushOCILayerRepository,
-			Credentials: credentials,
-		})
+		c := oci.NewClient(*registryURL, pushOCILayerRepository, credentials)
 		if err := c.UploadLayer(res.Body); err != nil {
 			return fmt.Errorf("unable to upload layer to OCI registry: %w", err)
 		}
