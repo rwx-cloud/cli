@@ -35,7 +35,7 @@ var pushManifestCmd = &cobra.Command{
 		return nil
 	},
 	Short: "Push an OCI manifest to a registry",
-	Use:   "layer --registry <registry> --repository <repository> [--layer '<diff-id>|<digest>|<size-in-bytes>']...",
+	Use:   "manifest --registry <registry> --repository <repository> [--layer '<diff-id>|<digest>|<size-in-bytes>']...",
 }
 
 func init() {
