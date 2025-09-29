@@ -101,7 +101,14 @@ func (u *ManifestUpload) fetchOCIConfiguration() (ociConfiguration, error) {
 	configUrl.Scheme = "https"
 	configUrl.Host = os.Getenv("RWX_HOST")
 	configUrl.Path = "/mint/api/unstable/images/pushes/configuration"
-	resp, err := u.rwxhttp.Get(configUrl.String())
+
+	req, err := http.NewRequest(http.MethodGet, configUrl.String(), nil)
+	if err != nil {
+		return ociConfiguration{}, fmt.Errorf("unable to create oci configuration request: %w", err)
+	}
+	req.Header.Set("X-RWX-Acknowledge-Unstable", "true")
+
+	resp, err := u.rwxhttp.Do(req)
 	if err != nil {
 		return ociConfiguration{}, fmt.Errorf("unable to fetch oci configuration: %w", err)
 	}
