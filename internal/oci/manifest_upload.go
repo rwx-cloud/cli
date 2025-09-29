@@ -155,7 +155,7 @@ func (u *ManifestUpload) uploadImageConfig(ociCfg ociConfiguration) (specs.Descr
 	digest := digest.FromBytes(cfgBytes)
 
 	url := u.registryURL.JoinPath("/v2/", u.repository, "/manifests/", digest.String())
-	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewReader(cfgBytes))
+	req, err := http.NewRequest(http.MethodPut, url.String(), bytes.NewReader(cfgBytes))
 	if err != nil {
 		return specs.Descriptor{}, fmt.Errorf("unable to create manifest upload request: %w", err)
 	}
