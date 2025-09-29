@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/opencontainers/go-digest"
+	specsouter "github.com/opencontainers/image-spec/specs-go"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -46,8 +47,14 @@ func NewManifestUpload(ocihttp http.Client, rwxhttp http.Client, registryURL url
 			return nil, fmt.Errorf("invalid layer descriptor %q, expected <diff-id>|<digest>|<size-in-bytes>", layerString)
 		}
 
-		diffID := digest.FromString(parts[0])
-		digest := digest.FromString(parts[1])
+		diffID, err := digest.Parse(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid diff-id %q: %w", parts[0], err)
+		}
+		dgst, err := digest.Parse(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid digest %q: %w", parts[1], err)
+		}
 		size, err := strconv.Atoi(parts[2])
 		if err != nil {
 			return nil, fmt.Errorf("invalid size in layer descriptor %q: %w", layerString, err)
@@ -56,7 +63,7 @@ func NewManifestUpload(ocihttp http.Client, rwxhttp http.Client, registryURL url
 		layer := layer{
 			descriptor: specs.Descriptor{
 				MediaType: specs.MediaTypeImageLayerGzip,
-				Digest:    digest,
+				Digest:    dgst,
 				Size:      int64(size),
 			},
 			diffID: diffID,
@@ -154,13 +161,16 @@ func (u *ManifestUpload) uploadImageConfig(ociCfg ociConfiguration) (specs.Descr
 
 	digest := digest.FromBytes(cfgBytes)
 
-	url := u.registryURL.JoinPath("/v2/", u.repository, "/manifests/", digest.String())
-	req, err := http.NewRequest(http.MethodPut, url.String(), bytes.NewReader(cfgBytes))
+	url := u.registryURL.JoinPath("/v2/", u.repository, "/blobs/uploads/")
+	q := url.Query()
+	q.Add("digest", digest.String())
+	url.RawQuery = q.Encode()
+	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewReader(cfgBytes))
 	if err != nil {
 		return specs.Descriptor{}, fmt.Errorf("unable to create manifest upload request: %w", err)
 	}
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(cfgBytes)))
-	req.Header.Set("Content-Type", specs.MediaTypeImageConfig)
+	req.Header.Set("Content-Type", "application/octet-stream")
 
 	resp, err := u.ocihttp.Do(req)
 	if err != nil {
@@ -181,8 +191,12 @@ func (u *ManifestUpload) uploadImageConfig(ociCfg ociConfiguration) (specs.Descr
 
 func (u *ManifestUpload) constructManifest(cfg specs.Descriptor) specs.Manifest {
 	manifest := specs.Manifest{
-		Config: cfg,
-		Layers: make([]specs.Descriptor, 0, len(u.layers)),
+		Versioned: specsouter.Versioned{
+			SchemaVersion: 2,
+		},
+		MediaType: specs.MediaTypeImageManifest,
+		Config:    cfg,
+		Layers:    make([]specs.Descriptor, 0, len(u.layers)),
 	}
 
 	for _, layer := range u.layers {
