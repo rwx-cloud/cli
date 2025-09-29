@@ -98,10 +98,7 @@ func (u *ManifestUpload) Upload() error {
 
 func (u *ManifestUpload) fetchOCIConfiguration() (ociConfiguration, error) {
 	configUrl := url.URL{}
-	configUrl.Scheme = os.Getenv("RWX_SCHEME")
-	if configUrl.Scheme == "" {
-		configUrl.Scheme = "https"
-	}
+	configUrl.Scheme = "https"
 	configUrl.Host = os.Getenv("RWX_HOST")
 	configUrl.Path = "/mint/api/unstable/images/pushes/configuration"
 	resp, err := u.rwxhttp.Get(configUrl.String())
