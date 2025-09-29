@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/url"
@@ -22,7 +23,15 @@ type rwxtransport struct {
 
 func (t rwxtransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Add("Authorization", "Bearer "+t.token)
-	return http.DefaultTransport.RoundTrip(req)
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	} else {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+
+	return transport.RoundTrip(req)
 }
 
 type Client struct {
