@@ -319,7 +319,7 @@ func TestAPIClient_ResolveBaseLayer(t *testing.T) {
 func TestAPIClient_StartOCIImagePush(t *testing.T) {
 	t.Run("builds the request and parses the response", func(t *testing.T) {
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/oci_images/pushes", req.URL.Path)
+			require.Equal(t, "/mint/api/images/pushes", req.URL.Path)
 			require.Equal(t, http.MethodPost, req.Method)
 			reqBody, err := io.ReadAll(req.Body)
 			require.NoError(t, err)

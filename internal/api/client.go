@@ -500,7 +500,7 @@ func (c Client) ResolveBaseLayer(cfg ResolveBaseLayerConfig) (ResolveBaseLayerRe
 }
 
 func (c Client) StartOCIImagePush(cfg StartOCIImagePushConfig) (StartOCIImagePushResult, error) {
-	endpoint := "/mint/api/oci_images/pushes"
+	endpoint := "/mint/api/images/pushes"
 	result := StartOCIImagePushResult{}
 
 	encodedBody, err := json.Marshal(cfg)
