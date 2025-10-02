@@ -315,3 +315,69 @@ func TestAPIClient_ResolveBaseLayer(t *testing.T) {
 		require.Equal(t, "quantum", result.Arch)
 	})
 }
+
+func TestAPIClient_StartImagePush(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/images/pushes", req.URL.Path)
+			require.Equal(t, http.MethodPost, req.Method)
+			reqBody, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			require.Contains(t, string(reqBody), "task-123")
+			require.Contains(t, string(reqBody), "myuser")
+			require.Contains(t, string(reqBody), "mypass")
+			require.Contains(t, string(reqBody), "dockerhub.io")
+			require.Contains(t, string(reqBody), "myimage")
+			require.Contains(t, string(reqBody), "latest")
+			require.Contains(t, string(reqBody), "other")
+
+			body := `{"push_id": "push-123"}`
+			return &http.Response{
+				Status:     "202 Accepted",
+				StatusCode: 202,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		pushConfig := api.StartImagePushConfig{
+			TaskID: "task-123",
+			Credentials: api.StartImagePushConfigCredentials{
+				Username: "myuser",
+				Password: "mypass",
+			},
+			Image: api.StartImagePushConfigImage{
+				Registry:   "dockerhub.io",
+				Repository: "myimage",
+				Tags:       []string{"latest", "other"},
+			},
+		}
+
+		result, err := c.StartImagePush(pushConfig)
+		require.NoError(t, err)
+		require.Equal(t, "push-123", result.PushID)
+	})
+}
+
+func TestAPIClient_ImagePushStatus(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/images/pushes/abc123", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+
+			body := `{"status": "in_progress"}`
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.ImagePushStatus("abc123")
+		require.NoError(t, err)
+		require.Equal(t, "in_progress", result.Status)
+	})
+}

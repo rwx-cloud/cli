@@ -216,3 +216,29 @@ type resolveBaseLayerSpec struct {
 
 type ResolveBaseLayerConfig = resolveBaseLayerSpec
 type ResolveBaseLayerResult = resolveBaseLayerSpec
+
+type StartImagePushConfig struct {
+	TaskID      string                          `json:"task_id"`
+	Image       StartImagePushConfigImage       `json:"image"`
+	Credentials StartImagePushConfigCredentials `json:"credentials"`
+}
+
+type StartImagePushConfigImage struct {
+	Registry   string   `json:"registry"`
+	Repository string   `json:"repository"`
+	Tags       []string `json:"tags"`
+}
+
+type StartImagePushConfigCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type StartImagePushResult struct {
+	PushID string `json:"push_id"`
+	RunURL string `json:"run_url"`
+}
+
+type ImagePushStatusResult struct {
+	Status string `json:"status"`
+}

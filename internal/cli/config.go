@@ -4,17 +4,21 @@ import (
 	"io"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/dockercli"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
-	APIClient APIClient
-	SSHClient SSHClient
-	Stdout    io.Writer
-	Stderr    io.Writer
+	APIClient   APIClient
+	SSHClient   SSHClient
+	Stdout      io.Writer
+	StdoutIsTTY bool
+	Stderr      io.Writer
+	StderrIsTTY bool
 }
 
 func (c Config) Validate() error {
@@ -310,4 +314,46 @@ type ResolvePackagesResult struct {
 
 func (r ResolvePackagesResult) HasChanges() bool {
 	return len(r.ResolvedPackages) > 0
+}
+
+type PushImageConfig struct {
+	TaskID     string
+	References []reference.Named
+	DockerCLI  dockercli.AuthConfigurator
+	JSON       bool
+	Wait       bool
+	OpenURL    func(url string) error
+}
+
+func NewPushImageConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (PushImageConfig, error) {
+	if taskID == "" {
+		return PushImageConfig{}, errors.New("a task ID must be provided")
+	}
+
+	if len(references) == 0 {
+		return PushImageConfig{}, errors.New("at least one OCI reference must be provided")
+	}
+
+	parsedReferences := make([]reference.Named, 0, len(references))
+	for _, refStr := range references {
+		ref, err := reference.ParseNamed(refStr)
+		if err != nil {
+			return PushImageConfig{}, errors.Wrapf(err, "invalid OCI reference: %s", refStr)
+		}
+		parsedReferences = append(parsedReferences, ref)
+	}
+
+	dockerCli, err := dockercli.New()
+	if err != nil {
+		return PushImageConfig{}, err
+	}
+
+	return PushImageConfig{
+		TaskID:     taskID,
+		References: parsedReferences,
+		DockerCLI:  dockerCli,
+		JSON:       json,
+		Wait:       wait,
+		OpenURL:    openURL,
+	}, nil
 }
