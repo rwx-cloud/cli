@@ -20,30 +20,16 @@ We use GitHub pull requests for code contributions and reviews.
 
 Our CI system will run tests & our linting setup against new pull requests, but
 to shorten your feedback cycle, we would appreciate if
-`go run ./tools/mage lint` and `go run ./tools/mage test` pass before
+`golangci-lint run ./...` and `go test ./...` pass before
 opening a PR.
 
 ### Development setup
 
-You should not need any dependencies outside of Go to work on the RWX CLI.
-
-We use [Mage](https://magefile.org) as the build tool for our project. To show
-a list of available targets, run `go run ./tools/mage -l`:
+We use [mise](https://mise.jdx.dev) to manage local dependencies.
 
 ```
-Targets:
-  all        cleans output, builds, tests, and lints.
-  build*     builds the RWX CLI
-  clean      removes any generated artifacts from the repository.
-  lint       runs the linter & performs static-analysis checks.
-  lintFix    Applies lint checks and fixes any issues.
-  test       executes the test-suite for the RWX CLI.
-
-* default target
+mise install
 ```
-
-Mage can also be installed as command-line applications. This is not strictly
-necessary, but is a bit nicer to use.
 
 ### Debugging
 

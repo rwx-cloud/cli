@@ -70,10 +70,7 @@ tasks:
 
   - key: rwx-cli
     use: go-deps
-    run: |
-      CGO_ENABLED=0 \
-        LDFLAGS="-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
-        go run ./tools/mage build
+    run: go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
 
   - key: integration-tests
     use: rwx-cli
@@ -83,7 +80,7 @@ tasks:
 
   - key: lint
     use: [golangci-lint, go-deps]
-    run: go run ./tools/mage lint
+    run: golangci-lint run ./...
 
   - key: go-mod-tidy
     use: go-deps
