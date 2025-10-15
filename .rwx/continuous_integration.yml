@@ -70,7 +70,7 @@ tasks:
 
   - key: rwx-cli
     use: go-deps
-    run: go build -a -ldflags "-w s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
+    run: go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
 
   - key: integration-tests
     use: rwx-cli
