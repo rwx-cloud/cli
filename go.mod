@@ -11,7 +11,6 @@ require (
 	github.com/docker/cli v28.4.0+incompatible
 	github.com/goccy/go-yaml v1.18.1-0.20250612065507-74d4101d4035
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
-	github.com/magefile/mage v1.15.0
 	github.com/manifoldco/promptui v0.9.0
 	github.com/modelcontextprotocol/go-sdk v0.5.0
 	github.com/pkg/errors v0.9.1

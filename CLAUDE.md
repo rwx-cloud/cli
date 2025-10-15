@@ -5,21 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Build and Development
-- `go run ./tools/mage build` - Build the RWX CLI binary (outputs to `./rwx`)
-- `go run ./tools/mage test` - Run full test suite (unit + integration tests)
-- `go run ./tools/mage unitTest` - Run unit tests only (`./internal/...` and `./cmd/...`)
-- `go run ./tools/mage integrationTest` - Run integration tests only (`./test/...`)
-- `go run ./tools/mage lint` - Run golangci-lint static analysis
-- `go run ./tools/mage lintFix` - Apply lint fixes and run `go mod tidy`
-- `go run ./tools/mage clean` - Remove build artifacts (`./rwx` binary)
-- `go run ./tools/mage all` - Clean, build, test, and lint
-- `go run ./tools/mage -l` - List all available Mage targets
+- `go build` - Build the RWX CLI binary (outputs to `./rwx`)
+- `go test ./...` - Run full test suite (unit + integration tests)
+- `go test ./internal/... ./cmd/...` - Run unit tests only (`./internal/...` and `./cmd/...`)
+- `go test ./test/...` - Run integration tests only (`./test/...`)
+- `golangci-lint run ./....` - Run golangci-lint static analysis
+- `golangci-lint run --fix ./...` - Apply lint fixes
+- `go mod tidy` - Apply dependency changes
 
 ### Testing
 - `go test ./internal/... ./cmd/...` - Run unit tests with standard Go testing
 - `go test -v ./internal/... ./cmd/...` - Run unit tests with verbose output
 - `go test -run TestName ./path/to/package` - Run a specific test
-- Integration tests require building first: `go run ./tools/mage build && go test ./test/...`
 
 ### Environment Variables for Development
 - `RWX_HOST` - Override API host (defaults to `cloud.rwx.com`)
@@ -55,7 +52,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `internal/accesstoken/` - Authentication token management
 - `internal/fs/`, `internal/errors/`, `internal/messages/` - Utility packages
 - `test/` - Integration tests (require built binary)
-- `tools/mage/` - Build tool entry point
 
 The CLI is designed as a client for RWX CI/CD platform, providing local development workflow with DAG-based step definitions and content-based caching.
 
