@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eou pipefail
+
+git init > /dev/null
+git commit --allow-empty -m "Initial commit" > /dev/null
+git checkout $(git rev-parse HEAD) > /dev/null
