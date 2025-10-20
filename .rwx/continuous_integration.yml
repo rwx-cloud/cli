@@ -55,8 +55,18 @@ tasks:
     use: go
     run: go install gotest.tools/gotestsum@latest
 
+  - key: git
+    run: |
+      sudo apt-get update
+      sudo apt-get install git
+      sudo apt-get clean
+
+      git config --global user.name "Testing"
+      git config --global user.email "git@example.com"
+      git config --global init.defaultBranch main
+
   - key: unit-tests
-    use: [go-deps, rwx-cli, gotestsum]
+    use: [go-deps, rwx-cli, gotestsum, git]
     run: |
       gotestsum \
         --jsonfile tmp/go-test.json \

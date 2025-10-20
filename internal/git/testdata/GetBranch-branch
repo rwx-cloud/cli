@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eou pipefail
+
+git init > /dev/null
+
+git branch --show-current
