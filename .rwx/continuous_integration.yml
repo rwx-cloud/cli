@@ -61,6 +61,10 @@ tasks:
       sudo apt-get install git
       sudo apt-get clean
 
+      git config --global user.name "Testing"
+      git config --global user.email "git@example.com"
+      git config --global init.defaultBranch main
+
   - key: unit-tests
     use: [go-deps, rwx-cli, gotestsum, git]
     run: |

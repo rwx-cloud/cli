@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eou pipefail
+
+git init > /dev/null
+git remote add origin http://fake-remote > /dev/null
