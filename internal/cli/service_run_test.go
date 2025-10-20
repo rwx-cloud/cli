@@ -92,6 +92,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, "some/nested/path", cfg.RwxDirectory[5].Path)
 					require.Equal(t, "some/nested/path/tasks.yaml", cfg.RwxDirectory[6].Path)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
@@ -166,6 +169,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Len(t, cfg.RwxDirectory, 1)
 					require.Equal(t, ".", cfg.RwxDirectory[0].Path)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
 						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -225,6 +231,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
 					require.Len(t, cfg.RwxDirectory, 0)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
 						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -311,6 +320,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, "some/nested/path", cfg.RwxDirectory[5].Path)
 					require.Equal(t, "some/nested/path/tasks.yaml", cfg.RwxDirectory[6].Path)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
@@ -382,6 +394,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Len(t, cfg.RwxDirectory, 1)
 					require.Equal(t, ".", cfg.RwxDirectory[0].Path)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
 						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -441,6 +456,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
 					require.Len(t, cfg.RwxDirectory, 0)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
 						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -534,6 +552,9 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, "test-suites", cfg.RwxDirectory[7].Path)
 					require.Equal(t, "test-suites/config.yaml", cfg.RwxDirectory[8].Path)
 					require.True(t, cfg.UseCache)
+					require.NotNil(t, cfg.Git)
+					require.Equal(t, "main", cfg.Git.Branch)
+					require.NotNil(t, cfg.Git.Branch)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
@@ -604,6 +625,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
 				require.Len(t, cfg.RwxDirectory, 2)
 				require.True(t, cfg.UseCache)
+				require.NotNil(t, cfg.Git)
+				require.Equal(t, "main", cfg.Git.Branch)
+				require.NotNil(t, cfg.Git.Branch)
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
@@ -669,6 +693,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
 				require.Len(t, cfg.RwxDirectory, 2)
 				require.True(t, cfg.UseCache)
+				require.NotNil(t, cfg.Git)
+				require.Equal(t, "main", cfg.Git.Branch)
+				require.NotNil(t, cfg.Git.Branch)
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
@@ -762,6 +789,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, "mintdir-tasks.json", cfg.RwxDirectory[1].Path)
 				require.Equal(t, "mintdir-tasks.yml", cfg.RwxDirectory[2].Path)
 				require.True(t, cfg.UseCache)
+				require.NotNil(t, cfg.Git)
+				require.Equal(t, "main", cfg.Git.Branch)
+				require.NotNil(t, cfg.Git.Branch)
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				receivedRwxDir = cfg.RwxDirectory
 				return &api.InitiateRunResult{
@@ -829,6 +859,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Len(t, cfg.RwxDirectory, 1)
 				require.Equal(t, ".", cfg.RwxDirectory[0].Path)
 				require.True(t, cfg.UseCache)
+				require.NotNil(t, cfg.Git)
+				require.Equal(t, "main", cfg.Git.Branch)
+				require.NotNil(t, cfg.Git.Branch)
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				return &api.InitiateRunResult{
 					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",

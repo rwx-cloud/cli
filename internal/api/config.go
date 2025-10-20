@@ -31,11 +31,17 @@ type InitiateRunConfig struct {
 	TargetedTaskKeys         []string                  `json:"targeted_task_keys,omitempty"`
 	Title                    string                    `json:"title,omitempty"`
 	UseCache                 bool                      `json:"use_cache"`
+	Git                      GitMetadata               `json:"git"`
 }
 
 type InitializationParameter struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type GitMetadata struct {
+	Branch string `json:"branch"`
+	Sha    string `json:"sha"`
 }
 
 type InitiateRunResult struct {

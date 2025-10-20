@@ -61,6 +61,8 @@ type InitiateRunConfig struct {
 	NoCache        bool
 	TargetedTasks  []string
 	Title          string
+	GitBranch      string
+	GitSha         string
 }
 
 func (c InitiateRunConfig) Validate() error {
