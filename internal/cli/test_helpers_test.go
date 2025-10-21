@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,6 +33,16 @@ func setupTest(t *testing.T) *testSetup {
 	setup.tmp, err = filepath.EvalSymlinks(setup.tmp)
 	require.NoError(t, err)
 	setup.originalWd, err = os.Getwd()
+	require.NoError(t, err)
+
+	cmd := exec.Command("git", "init")
+	cmd.Dir = setup.tmp
+	_, err = cmd.CombinedOutput()
+	require.NoError(t, err)
+
+	cmd = exec.Command("git", "config", "init.defaultBranch", "main")
+	cmd.Dir = setup.tmp
+	_, err = cmd.CombinedOutput()
 	require.NoError(t, err)
 
 	err = os.Chdir(setup.tmp)
