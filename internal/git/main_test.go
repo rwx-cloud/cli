@@ -163,3 +163,104 @@ func TestGetCommit(t *testing.T) {
 		})
 	})
 }
+
+func TestGeneratePatchFile(t *testing.T) {
+	t.Run("does not write a patch file", func(t *testing.T) {
+		t.Run("when git is not installed", func(t *testing.T) {
+			source := ""
+			destination := ""
+			patchFile := git.GeneratePatchFile(source, destination, "fake-git")
+			require.Equal(t, false, patchFile.Written)
+		})
+
+		t.Run("when we can't determine a diff", func(t *testing.T) {
+			source := ""
+			destination := ""
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, false, patchFile.Written)
+		})
+
+		t.Run("when there is no diff", func(t *testing.T) {
+			repo, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, false, patchFile.Written)
+		})
+	})
+
+	t.Run("writes a patch file", func(t *testing.T) {
+		t.Run("when there's an uncommitted diff", func(t *testing.T) {
+			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, true, patchFile.Written)
+			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+
+			patch, err := os.ReadFile(patchFile.Path)
+			require.NoError(t, err)
+			require.Contains(t, string(patch), "new file mode 100644")
+		})
+
+		t.Run("when there's an uncommitted diff", func(t *testing.T) {
+			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, true, patchFile.Written)
+			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+
+			patch, err := os.ReadFile(patchFile.Path)
+			require.NoError(t, err)
+			require.Contains(t, string(patch), "new file mode 100644")
+
+			require.Equal(t, []string{}, patchFile.UntrackedFiles)
+		})
+
+		t.Run("including changes to binary files", func(t *testing.T) {
+			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, true, patchFile.Written)
+			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+
+			patch, err := os.ReadFile(patchFile.Path)
+			require.NoError(t, err)
+			require.Contains(t, string(patch), "GIT binary patch")
+
+			require.Equal(t, []string{}, patchFile.UntrackedFiles)
+		})
+
+		t.Run("without changes to untracked files", func(t *testing.T) {
+			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, true, patchFile.Written)
+			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+
+			patch, err := os.ReadFile(patchFile.Path)
+			require.NoError(t, err)
+			require.Contains(t, string(patch), "new file mode 100644")
+
+			require.Equal(t, []string{"bar.txt"}, patchFile.UntrackedFiles)
+		})
+	})
+}

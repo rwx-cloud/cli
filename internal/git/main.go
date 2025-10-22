@@ -1,7 +1,9 @@
 package git
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -70,4 +72,65 @@ func GetCommit(dir string, gitBinary ...string) string {
 	}
 
 	return ""
+}
+
+type PatchFile struct {
+	Written        bool
+	Path           string
+	UntrackedFiles []string
+}
+
+func GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) PatchFile {
+
+	binary := "git"
+	if len(gitBinary) > 0 && gitBinary[0] != "" {
+		binary = gitBinary[0]
+	}
+	sha := GetCommit(sourceDir)
+	if sha == "" {
+		// We can't determine a patch
+		return PatchFile{}
+	}
+
+	cmd := exec.Command(binary, "diff", sha, "-p", "--binary")
+	cmd.Dir = sourceDir
+
+	patch, err := cmd.Output()
+	if err != nil {
+		// We can't determine a patch
+		return PatchFile{}
+	}
+
+	if string(patch) == "" {
+		// There is no patch
+		return PatchFile{}
+	}
+
+	outputPath := filepath.Join(destDir, ".patches", sha)
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		// We can't write a patch
+		return PatchFile{}
+	}
+
+	if err = os.WriteFile(outputPath, patch, 0644); err != nil {
+		// We can't write a patch
+		return PatchFile{}
+	}
+
+	cmd = exec.Command(binary, "ls-files", "--others", "--exclude-standard")
+	cmd.Dir = sourceDir
+
+	untracked, err := cmd.Output()
+	if err != nil {
+		// We can't determine untracked files
+		return PatchFile{}
+	}
+
+	untrackedFiles := strings.Fields(string(untracked))
+
+	return PatchFile{
+		Written:        true,
+		Path:           outputPath,
+		UntrackedFiles: untrackedFiles,
+	}
 }
