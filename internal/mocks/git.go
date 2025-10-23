@@ -1,35 +1,38 @@
 package mocks
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/rwx-cloud/cli/internal/git"
 )
 
 type Git struct {
-	MockGetBranch         func() string
-	MockGetCommit         func() string
-	MockGeneratePatchFile func(destDir string) git.PatchFile
+	MockGetBranch         string
+	MockGetCommit         string
+	MockGeneratePatchFile git.PatchFile
 }
 
 func (c *Git) GetBranch() string {
-	if c.MockGetBranch != nil {
-		return c.MockGetBranch()
-	}
-
-	return ""
+	return c.MockGetBranch
 }
 
 func (c *Git) GetCommit() string {
-	if c.MockGetCommit != nil {
-		return c.MockGetCommit()
-	}
-
-	return ""
+	return c.MockGetCommit
 }
 
 func (c *Git) GeneratePatchFile(destDir string) git.PatchFile {
-	if c.MockGeneratePatchFile != nil {
-		return c.MockGeneratePatchFile(destDir)
+	if c.MockGeneratePatchFile.Written {
+		if err := os.MkdirAll(filepath.Dir(c.MockGeneratePatchFile.Path), 0755); err != nil {
+			// We can't write a patch
+			return git.PatchFile{}
+		}
+
+		if err := os.WriteFile(c.MockGeneratePatchFile.Path, []byte("patch"), 0644); err != nil {
+			// We can't write a patch
+			return git.PatchFile{}
+		}
 	}
 
-	return git.PatchFile{}
+	return c.MockGeneratePatchFile
 }

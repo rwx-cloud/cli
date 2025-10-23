@@ -46,13 +46,9 @@ func TestService_InitiatingRun(t *testing.T) {
 				}
 
 				branch := "main"
-				s.mockGit.MockGetBranch = func() string {
-					return branch
-				}
+				s.mockGit.MockGetBranch = branch
 				sha := "e86ec9c4802fb5f6c7d7220c5f7356278e7ace5a"
-				s.mockGit.MockGetCommit = func() string {
-					return sha
-				}
+				s.mockGit.MockGetCommit = sha
 
 				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
