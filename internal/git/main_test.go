@@ -190,6 +190,18 @@ func TestGeneratePatchFile(t *testing.T) {
 			patchFile := git.GeneratePatchFile(source, destination)
 			require.Equal(t, false, patchFile.Written)
 		})
+
+		t.Run("when there are uncommitted changes to LFS tracked files", func(t *testing.T) {
+			repo, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
+			defer os.RemoveAll(repo)
+
+			source := filepath.Join(repo, "repo")
+			destination := repo
+
+			patchFile := git.GeneratePatchFile(source, destination)
+			require.Equal(t, false, patchFile.Written)
+			require.Equal(t, true, patchFile.LFSChanges)
+		})
 	})
 
 	t.Run("writes a patch file", func(t *testing.T) {

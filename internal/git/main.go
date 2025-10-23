@@ -78,6 +78,7 @@ type PatchFile struct {
 	Written        bool
 	Path           string
 	UntrackedFiles []string
+	LFSChanges     bool
 }
 
 func GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) PatchFile {
@@ -92,7 +93,34 @@ func GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) Pa
 		return PatchFile{}
 	}
 
-	cmd := exec.Command(binary, "diff", sha, "-p", "--binary")
+	cmd := exec.Command(binary, "diff", sha, "--name-only")
+	cmd.Dir = sourceDir
+
+	files, err := cmd.Output()
+	if err != nil {
+		// We can't determine a patch
+		return PatchFile{}
+	}
+
+	for _, file := range strings.Split(strings.TrimSpace(string(files)), "\n") {
+		cmd := exec.Command(binary, "check-attr", "filter", "--", file)
+		cmd.Dir = sourceDir
+
+		attrs, err := cmd.CombinedOutput()
+		if err != nil {
+			// We can't determine a patch
+			return PatchFile{}
+		}
+
+		if strings.Contains(string(attrs), "filter: lfs") {
+			// There are changes to LFS tracked files
+			return PatchFile{
+				LFSChanges: true,
+			}
+		}
+	}
+
+	cmd = exec.Command(binary, "diff", sha, "-p", "--binary")
 	cmd.Dir = sourceDir
 
 	patch, err := cmd.Output()

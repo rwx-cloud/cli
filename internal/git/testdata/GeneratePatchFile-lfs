@@ -1,0 +1,22 @@
+#!/bin/bash
+set -eou pipefail
+
+mkdir origin
+pushd origin > /dev/null
+git init > /dev/null
+touch foo.txt
+git lfs track foo.txt > /dev/null
+git add foo.txt
+git add .gitattributes
+git commit -m "Initial commit" > /dev/null
+
+# Expected common ancestor:
+git rev-parse HEAD
+
+popd > /dev/null
+
+git clone origin repo > /dev/null 2>&1
+
+pushd repo > /dev/null
+echo "hi" >> foo.txt
+popd > /dev/null
