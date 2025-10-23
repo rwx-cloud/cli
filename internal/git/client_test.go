@@ -46,8 +46,8 @@ func repoFixture(t *testing.T, fixturePath string) (string, string) {
 
 func TestGetBranch(t *testing.T) {
 	t.Run("returns empty if git is not installed", func(t *testing.T) {
-		client := new(git.Client)
-		branch := client.GetBranch("", "fake-git")
+		client := &git.Client{Binary: "fake", Dir: ""}
+		branch := client.GetBranch()
 		require.Equal(t, "", branch)
 	})
 
@@ -58,8 +58,8 @@ func TestGetBranch(t *testing.T) {
 		}
 		defer os.RemoveAll(tempDir)
 
-		client := new(git.Client)
-		branch := client.GetBranch(tempDir)
+		client := &git.Client{Binary: "git", Dir: tempDir}
+		branch := client.GetBranch()
 		require.Equal(t, "", branch)
 	})
 
@@ -67,8 +67,8 @@ func TestGetBranch(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetBranch-detached-head")
 		defer os.RemoveAll(repo)
 
-		client := new(git.Client)
-		branch := client.GetBranch(repo)
+		client := &git.Client{Binary: "git", Dir: repo}
+		branch := client.GetBranch()
 		require.Equal(t, expected, branch)
 	})
 
@@ -76,16 +76,16 @@ func TestGetBranch(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetBranch-branch")
 		defer os.RemoveAll(repo)
 
-		client := new(git.Client)
-		branch := client.GetBranch(repo)
+		client := &git.Client{Binary: "git", Dir: repo}
+		branch := client.GetBranch()
 		require.Equal(t, expected, branch)
 	})
 }
 
 func TestGetCommit(t *testing.T) {
 	t.Run("returns empty if git is not installed", func(t *testing.T) {
-		client := new(git.Client)
-		commit := client.GetCommit("", "fake-git")
+		client := &git.Client{Binary: "fake", Dir: ""}
+		commit := client.GetCommit()
 		require.Equal(t, "", commit)
 	})
 
@@ -96,8 +96,8 @@ func TestGetCommit(t *testing.T) {
 		}
 		defer os.RemoveAll(tempDir)
 
-		client := new(git.Client)
-		commit := client.GetCommit(tempDir)
+		client := &git.Client{Binary: "git", Dir: tempDir}
+		commit := client.GetCommit()
 		require.Equal(t, "", commit)
 	})
 
@@ -105,8 +105,8 @@ func TestGetCommit(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetCommit-no-remote")
 		defer os.RemoveAll(repo)
 
-		client := new(git.Client)
-		commit := client.GetCommit(repo)
+		client := &git.Client{Binary: "git", Dir: repo}
+		commit := client.GetCommit()
 		require.Equal(t, expected, commit)
 	})
 
@@ -114,8 +114,8 @@ func TestGetCommit(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetCommit-no-remote-origin")
 		defer os.RemoveAll(repo)
 
-		client := new(git.Client)
-		commit := client.GetCommit(filepath.Join(repo, "repo"))
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		commit := client.GetCommit()
 		require.Equal(t, expected, commit)
 	})
 
@@ -123,8 +123,8 @@ func TestGetCommit(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
 		defer os.RemoveAll(repo)
 
-		client := new(git.Client)
-		commit := client.GetCommit(repo)
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		commit := client.GetCommit()
 		require.Equal(t, expected, commit)
 	})
 
@@ -133,8 +133,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
 			defer os.RemoveAll(repo)
 
-			client := new(git.Client)
-			commit := client.GetCommit(filepath.Join(repo, "repo"))
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 
@@ -142,8 +142,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
 			defer os.RemoveAll(repo)
 
-			client := new(git.Client)
-			commit := client.GetCommit(filepath.Join(repo, "repo"))
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 	})
@@ -153,8 +153,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch")
 			defer os.RemoveAll(repo)
 
-			client := new(git.Client)
-			commit := client.GetCommit(filepath.Join(repo, "repo"))
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 
@@ -162,8 +162,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged")
 			defer os.RemoveAll(repo)
 
-			client := new(git.Client)
-			commit := client.GetCommit(filepath.Join(repo, "repo"))
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 
@@ -171,8 +171,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged-a-lot")
 			defer os.RemoveAll(repo)
 
-			client := new(git.Client)
-			commit := client.GetCommit(filepath.Join(repo, "repo"))
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 	})
@@ -181,42 +181,36 @@ func TestGetCommit(t *testing.T) {
 func TestGeneratePatchFile(t *testing.T) {
 	t.Run("does not write a patch file", func(t *testing.T) {
 		t.Run("when git is not installed", func(t *testing.T) {
-			source := ""
-			destination := ""
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination, "fake-git")
+			client := &git.Client{Binary: "fake", Dir: ""}
+			patchFile := client.GeneratePatchFile("")
+
 			require.Equal(t, false, patchFile.Written)
 		})
 
 		t.Run("when we can't determine a diff", func(t *testing.T) {
-			source := ""
-			destination := ""
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
+			client := &git.Client{Binary: "git", Dir: ""}
+			patchFile := client.GeneratePatchFile("")
+
 			require.Equal(t, false, patchFile.Written)
 		})
 
 		t.Run("when there is no diff", func(t *testing.T) {
-			repo, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
-			defer os.RemoveAll(repo)
+			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, false, patchFile.Written)
 		})
 
 		t.Run("when there are uncommitted changes to LFS tracked files", func(t *testing.T) {
-			repo, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
-			defer os.RemoveAll(repo)
+			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, false, patchFile.Written)
 			require.Equal(t, true, patchFile.LFSChanges)
 		})
@@ -224,16 +218,14 @@ func TestGeneratePatchFile(t *testing.T) {
 
 	t.Run("writes a patch file", func(t *testing.T) {
 		t.Run("when there's an uncommitted diff", func(t *testing.T) {
-			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
-			defer os.RemoveAll(repo)
+			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -241,16 +233,14 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("when there's an uncommitted diff", func(t *testing.T) {
-			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
-			defer os.RemoveAll(repo)
+			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -260,16 +250,14 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("including changes to binary files", func(t *testing.T) {
-			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
-			defer os.RemoveAll(repo)
+			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -279,16 +267,14 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("without changes to untracked files", func(t *testing.T) {
-			repo, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
-			defer os.RemoveAll(repo)
+			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
+			defer os.RemoveAll(tempDir)
 
-			source := filepath.Join(repo, "repo")
-			destination := repo
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(tempDir)
 
-			client := new(git.Client)
-			patchFile := client.GeneratePatchFile(source, destination)
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(repo, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)

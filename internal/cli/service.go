@@ -217,13 +217,8 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		i++
 	}
 
-	dir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	sha := s.GitClient.GetCommit(dir)
-	branch := s.GitClient.GetBranch(dir)
+	sha := s.GitClient.GetCommit()
+	branch := s.GitClient.GetBranch()
 
 	runResult, err := s.APIClient.InitiateRun(api.InitiateRunConfig{
 		InitializationParameters: initializationParameters,

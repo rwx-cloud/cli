@@ -47,10 +47,18 @@ var (
 				return errors.Wrap(err, "unable to initialize API client")
 			}
 
+			dir, err := os.Getwd()
+			if err != nil {
+				return errors.Wrap(err, "unable to initialize CLI")
+			}
+
 			service, err = cli.NewService(cli.Config{
-				APIClient:   c,
-				SSHClient:   new(ssh.Client),
-				GitClient:   new(git.Client),
+				APIClient: c,
+				SSHClient: new(ssh.Client),
+				GitClient: &git.Client{
+					Binary: "git",
+					Dir:    dir,
+				},
 				Stdout:      os.Stdout,
 				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:      os.Stderr,

@@ -46,11 +46,11 @@ func TestService_InitiatingRun(t *testing.T) {
 				}
 
 				branch := "main"
-				s.mockGit.MockGetBranch = func(dir string) string {
+				s.mockGit.MockGetBranch = func() string {
 					return branch
 				}
 				sha := "e86ec9c4802fb5f6c7d7220c5f7356278e7ace5a"
-				s.mockGit.MockGetCommit = func(dir string) string {
+				s.mockGit.MockGetCommit = func() string {
 					return sha
 				}
 

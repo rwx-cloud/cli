@@ -35,7 +35,7 @@ type SSHClient interface {
 var _ SSHClient = (*ssh.Client)(nil)
 
 type GitClient interface {
-	GetBranch(dir string, gitBinary ...string) string
-	GetCommit(dir string, gitBinary ...string) string
-	GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) git.PatchFile
+	GetBranch() string
+	GetCommit() string
+	GeneratePatchFile(destDir string) git.PatchFile
 }

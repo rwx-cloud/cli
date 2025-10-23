@@ -7,17 +7,14 @@ import (
 	"strings"
 )
 
-type Client struct{}
+type Client struct {
+	Binary string
+	Dir    string
+}
 
-func (c *Client) GetBranch(dir string, gitBinary ...string) string {
-
-	binary := "git"
-	if len(gitBinary) > 0 && gitBinary[0] != "" {
-		binary = gitBinary[0]
-	}
-
-	cmd := exec.Command(binary, "branch", "--show-current")
-	cmd.Dir = dir
+func (c *Client) GetBranch() string {
+	cmd := exec.Command(c.Binary, "branch", "--show-current")
+	cmd.Dir = c.Dir
 
 	out, err := cmd.Output()
 	if err != nil {
@@ -28,15 +25,10 @@ func (c *Client) GetBranch(dir string, gitBinary ...string) string {
 	return branch
 }
 
-func (c *Client) GetCommit(dir string, gitBinary ...string) string {
-	binary := "git"
-	if len(gitBinary) > 0 && gitBinary[0] != "" {
-		binary = gitBinary[0]
-	}
-
+func (c *Client) GetCommit() string {
 	// Map known commits to their remote ref
-	cmd := exec.Command(binary, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes")
-	cmd.Dir = dir
+	cmd := exec.Command(c.Binary, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes")
+	cmd.Dir = c.Dir
 
 	remoteRefs, err := cmd.Output()
 	if err != nil {
@@ -59,8 +51,8 @@ func (c *Client) GetCommit(dir string, gitBinary ...string) string {
 	}
 
 	// Walk our log until we find a commit that matches
-	cmd = exec.Command(binary, "rev-list", "HEAD")
-	cmd.Dir = dir
+	cmd = exec.Command(c.Binary, "rev-list", "HEAD")
+	cmd.Dir = c.Dir
 	commits, err := cmd.Output()
 
 	if err != nil {
@@ -83,20 +75,15 @@ type PatchFile struct {
 	LFSChanges     bool
 }
 
-func (c *Client) GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) PatchFile {
-
-	binary := "git"
-	if len(gitBinary) > 0 && gitBinary[0] != "" {
-		binary = gitBinary[0]
-	}
-	sha := c.GetCommit(sourceDir)
+func (c *Client) GeneratePatchFile(destDir string) PatchFile {
+	sha := c.GetCommit()
 	if sha == "" {
 		// We can't determine a patch
 		return PatchFile{}
 	}
 
-	cmd := exec.Command(binary, "diff", sha, "--name-only")
-	cmd.Dir = sourceDir
+	cmd := exec.Command(c.Binary, "diff", sha, "--name-only")
+	cmd.Dir = c.Dir
 
 	files, err := cmd.Output()
 	if err != nil {
@@ -105,8 +92,8 @@ func (c *Client) GeneratePatchFile(sourceDir string, destDir string, gitBinary .
 	}
 
 	for _, file := range strings.Split(strings.TrimSpace(string(files)), "\n") {
-		cmd := exec.Command(binary, "check-attr", "filter", "--", file)
-		cmd.Dir = sourceDir
+		cmd := exec.Command(c.Binary, "check-attr", "filter", "--", file)
+		cmd.Dir = c.Dir
 
 		attrs, err := cmd.CombinedOutput()
 		if err != nil {
@@ -122,8 +109,8 @@ func (c *Client) GeneratePatchFile(sourceDir string, destDir string, gitBinary .
 		}
 	}
 
-	cmd = exec.Command(binary, "diff", sha, "-p", "--binary")
-	cmd.Dir = sourceDir
+	cmd = exec.Command(c.Binary, "diff", sha, "-p", "--binary")
+	cmd.Dir = c.Dir
 
 	patch, err := cmd.Output()
 	if err != nil {
@@ -147,8 +134,8 @@ func (c *Client) GeneratePatchFile(sourceDir string, destDir string, gitBinary .
 		return PatchFile{}
 	}
 
-	cmd = exec.Command(binary, "ls-files", "--others", "--exclude-standard")
-	cmd.Dir = sourceDir
+	cmd = exec.Command(c.Binary, "ls-files", "--others", "--exclude-standard")
+	cmd.Dir = c.Dir
 
 	untracked, err := cmd.Output()
 	if err != nil {
