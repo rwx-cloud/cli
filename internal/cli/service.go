@@ -21,7 +21,6 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/dotenv"
 	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/messages"
 	"github.com/rwx-cloud/cli/internal/versions"
 
@@ -223,8 +222,8 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, err
 	}
 
-	sha := git.GetCommit(dir)
-	branch := git.GetBranch(dir)
+	sha := s.GitClient.GetCommit(dir)
+	branch := s.GitClient.GetBranch(dir)
 
 	runResult, err := s.APIClient.InitiateRun(api.InitiateRunConfig{
 		InitializationParameters: initializationParameters,

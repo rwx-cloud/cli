@@ -9,6 +9,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
 	"golang.org/x/term"
 
@@ -49,6 +50,7 @@ var (
 			service, err = cli.NewService(cli.Config{
 				APIClient:   c,
 				SSHClient:   new(ssh.Client),
+				GitClient:   new(git.Client),
 				Stdout:      os.Stdout,
 				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:      os.Stderr,

@@ -17,6 +17,7 @@ type testSetup struct {
 	service    cli.Service
 	mockAPI    *mocks.API
 	mockSSH    *mocks.SSH
+	mockGit    *mocks.Git
 	mockStdout *strings.Builder
 	mockStderr *strings.Builder
 	tmp        string
@@ -49,12 +50,14 @@ func setupTest(t *testing.T) *testSetup {
 	require.NoError(t, err)
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
+	setup.mockGit = new(mocks.Git)
 	setup.mockStdout = &strings.Builder{}
 	setup.mockStderr = &strings.Builder{}
 
 	setup.config = cli.Config{
 		APIClient:   setup.mockAPI,
 		SSHClient:   setup.mockSSH,
+		GitClient:   setup.mockGit,
 		Stdout:      setup.mockStdout,
 		StdoutIsTTY: false,
 		Stderr:      setup.mockStderr,

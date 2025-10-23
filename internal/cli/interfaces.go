@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -32,3 +33,9 @@ type SSHClient interface {
 }
 
 var _ SSHClient = (*ssh.Client)(nil)
+
+type GitClient interface {
+	GetBranch(dir string, gitBinary ...string) string
+	GetCommit(dir string, gitBinary ...string) string
+	GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) git.PatchFile
+}

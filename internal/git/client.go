@@ -7,7 +7,9 @@ import (
 	"strings"
 )
 
-func GetBranch(dir string, gitBinary ...string) string {
+type Client struct{}
+
+func (c *Client) GetBranch(dir string, gitBinary ...string) string {
 
 	binary := "git"
 	if len(gitBinary) > 0 && gitBinary[0] != "" {
@@ -26,7 +28,7 @@ func GetBranch(dir string, gitBinary ...string) string {
 	return branch
 }
 
-func GetCommit(dir string, gitBinary ...string) string {
+func (c *Client) GetCommit(dir string, gitBinary ...string) string {
 	binary := "git"
 	if len(gitBinary) > 0 && gitBinary[0] != "" {
 		binary = gitBinary[0]
@@ -81,13 +83,13 @@ type PatchFile struct {
 	LFSChanges     bool
 }
 
-func GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) PatchFile {
+func (c *Client) GeneratePatchFile(sourceDir string, destDir string, gitBinary ...string) PatchFile {
 
 	binary := "git"
 	if len(gitBinary) > 0 && gitBinary[0] != "" {
 		binary = gitBinary[0]
 	}
-	sha := GetCommit(sourceDir)
+	sha := c.GetCommit(sourceDir)
 	if sha == "" {
 		// We can't determine a patch
 		return PatchFile{}
