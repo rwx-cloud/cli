@@ -15,6 +15,10 @@ func repoFixture(t *testing.T, fixturePath string) (string, string) {
 	t.Helper()
 
 	tempDir, err := os.MkdirTemp("", "gitrepo")
+	t.Cleanup(func() {
+		defer os.RemoveAll(tempDir)
+	})
+
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -53,10 +57,11 @@ func TestGetBranch(t *testing.T) {
 
 	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "gitrepo")
+		defer os.RemoveAll(tempDir)
+
 		if err != nil {
 			t.Fatalf("failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
 		branch := client.GetBranch()
@@ -91,10 +96,11 @@ func TestGetCommit(t *testing.T) {
 
 	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "gitrepo")
+		defer os.RemoveAll(tempDir)
+
 		if err != nil {
 			t.Fatalf("failed to create temp dir: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
 		commit := client.GetCommit()
@@ -196,7 +202,6 @@ func TestGeneratePatchFile(t *testing.T) {
 
 		t.Run("when there is no diff", func(t *testing.T) {
 			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
@@ -206,7 +211,6 @@ func TestGeneratePatchFile(t *testing.T) {
 
 		t.Run("when there are uncommitted changes to LFS tracked files", func(t *testing.T) {
 			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
@@ -219,7 +223,6 @@ func TestGeneratePatchFile(t *testing.T) {
 	t.Run("writes a patch file", func(t *testing.T) {
 		t.Run("when there's an uncommitted diff", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
@@ -234,7 +237,6 @@ func TestGeneratePatchFile(t *testing.T) {
 
 		t.Run("when there's an uncommitted diff", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
@@ -251,7 +253,6 @@ func TestGeneratePatchFile(t *testing.T) {
 
 		t.Run("including changes to binary files", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
@@ -268,7 +269,6 @@ func TestGeneratePatchFile(t *testing.T) {
 
 		t.Run("without changes to untracked files", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
-			defer os.RemoveAll(tempDir)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
