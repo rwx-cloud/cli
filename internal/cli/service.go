@@ -129,9 +129,6 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	branch := s.GitClient.GetBranch()
 
 	patchable := true
-	if _, ok := os.LookupEnv("CI"); ok {
-		patchable = false
-	}
 
 	if _, ok := os.LookupEnv("RWX_DISABLE_SYNC_LOCAL_CHANGES"); ok {
 		patchable = false

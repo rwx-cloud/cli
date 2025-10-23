@@ -73,17 +73,6 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			Written: true,
 		}
 
-		t.Run("when env CI is set", func(t *testing.T) {
-			t.Setenv("CI", "1")
-
-			// it launches a run but does not patch
-			rwxDir := initiateRun(t, patchFile)
-
-			for _, entry := range rwxDir {
-				require.False(t, strings.Contains(entry.Path, ".patches/"))
-			}
-		})
-
 		t.Run("when env RWX_DISABLE_SYNC_LOCAL_CHANGES is set", func(t *testing.T) {
 			t.Setenv("RWX_DISABLE_SYNC_LOCAL_CHANGES", "1")
 
