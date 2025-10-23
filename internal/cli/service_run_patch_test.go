@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,19 +15,27 @@ import (
 
 var _ cli.APIClient = (*mocks.API)(nil)
 
-func initiateRun(t *testing.T, mockGit *mocks.Git) []api.RwxDirectoryEntry {
+func initiateRun(t *testing.T, patchFile git.PatchFile) []api.RwxDirectoryEntry {
 	s := setupTest(t)
-	s.mockGit = mockGit
+	s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
+	s.mockGit.MockGeneratePatchFile = patchFile
 
 	var receivedRwxDir []api.RwxDirectoryEntry
 
 	runConfig := cli.InitiateRunConfig{}
-	runConfig.MintFilePath = "mint.yml"
-	runConfig.RwxDirectory = ""
+
+	rwxDir := filepath.Join(s.tmp, ".rwx")
+	err := os.MkdirAll(rwxDir, 0o755)
+	require.NoError(t, err)
+
+	runConfig.RwxDirectory = rwxDir
+
+	definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+	runConfig.MintFilePath = definitionsFile
 
 	definition := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 
-	err := os.WriteFile("mint.yml", []byte(definition), 0o644)
+	err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
 	require.NoError(t, err)
 
 	s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
@@ -52,7 +61,7 @@ func initiateRun(t *testing.T, mockGit *mocks.Git) []api.RwxDirectoryEntry {
 func TestService_InitiatingRunPatch(t *testing.T) {
 	t.Run("when the run is not patchable", func(t *testing.T) {
 		// it launches a run but does not patch
-		rwxDir := initiateRun(t, nil)
+		rwxDir := initiateRun(t, git.PatchFile{})
 
 		for _, entry := range rwxDir {
 			require.False(t, strings.HasPrefix(entry.Path, ".patches/"))
@@ -60,20 +69,18 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 	})
 
 	t.Run("when the run is patchable", func(t *testing.T) {
-		mockGit := new(mocks.Git)
-		mockGit.MockGeneratePatchFile = git.PatchFile{
+		patchFile := git.PatchFile{
 			Written: true,
-			Path:    ".patches/3e76c8295cd0ce4decbf7b56253c902ce296cb25",
 		}
 
 		t.Run("when env CI is set", func(t *testing.T) {
 			t.Setenv("CI", "1")
 
 			// it launches a run but does not patch
-			rwxDir := initiateRun(t, mockGit)
+			rwxDir := initiateRun(t, patchFile)
 
 			for _, entry := range rwxDir {
-				require.False(t, strings.HasPrefix(entry.Path, mockGit.MockGeneratePatchFile.Path))
+				require.False(t, strings.Contains(entry.Path, ".patches/"))
 			}
 		})
 
@@ -81,10 +88,10 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			t.Setenv("RWX_DISABLE_SYNC_LOCAL_CHANGES", "1")
 
 			// it launches a run but does not patch
-			rwxDir := initiateRun(t, mockGit)
+			rwxDir := initiateRun(t, patchFile)
 
 			for _, entry := range rwxDir {
-				require.False(t, strings.HasPrefix(entry.Path, mockGit.MockGeneratePatchFile.Path))
+				require.False(t, strings.Contains(entry.Path, ".patches/"))
 			}
 		})
 
@@ -93,11 +100,11 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			// points you toward the opt out env vars and otherwise configures
 			// the CLI to support run patching. For now, just assume absence
 			// of the env vars is opt-in.
-			rwxDir := initiateRun(t, mockGit)
+			rwxDir := initiateRun(t, patchFile)
 
 			patched := false
 			for _, entry := range rwxDir {
-				if strings.HasPrefix(entry.Path, mockGit.MockGeneratePatchFile.Path) {
+				if strings.Contains(entry.Path, ".patches/") {
 					patched = true
 				}
 			}

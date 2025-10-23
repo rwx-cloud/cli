@@ -54,12 +54,12 @@ func setupTest(t *testing.T) *testSetup {
 	}
 	setup.service, err = cli.NewService(setup.config)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.Chdir(setup.originalWd)
-		require.NoError(t, err)
-		err = os.RemoveAll(setup.tmp)
-		require.NoError(t, err)
-	})
+	// t.Cleanup(func() {
+	// 	err := os.Chdir(setup.originalWd)
+	// 	require.NoError(t, err)
+	// 	err = os.RemoveAll(setup.tmp)
+	// 	require.NoError(t, err)
+	// })
 
 	return setup
 }

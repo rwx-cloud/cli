@@ -23,14 +23,20 @@ func (c *Git) GetCommit() string {
 
 func (c *Git) GeneratePatchFile(destDir string) git.PatchFile {
 	if c.MockGeneratePatchFile.Written {
-		if err := os.MkdirAll(filepath.Dir(c.MockGeneratePatchFile.Path), 0755); err != nil {
+		if err := os.MkdirAll(destDir, 0755); err != nil {
 			// We can't write a patch
 			return git.PatchFile{}
 		}
 
-		if err := os.WriteFile(c.MockGeneratePatchFile.Path, []byte("patch"), 0644); err != nil {
+		path := filepath.Join(destDir, c.GetCommit())
+		if err := os.WriteFile(path, []byte("patch"), 0644); err != nil {
 			// We can't write a patch
 			return git.PatchFile{}
+		}
+
+		return git.PatchFile{
+			Written: c.MockGeneratePatchFile.Written,
+			Path:    path,
 		}
 	}
 
