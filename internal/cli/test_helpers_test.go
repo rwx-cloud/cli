@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +16,7 @@ type testSetup struct {
 	service    cli.Service
 	mockAPI    *mocks.API
 	mockSSH    *mocks.SSH
+	mockGit    *mocks.Git
 	mockStdout *strings.Builder
 	mockStderr *strings.Builder
 	tmp        string
@@ -35,26 +35,18 @@ func setupTest(t *testing.T) *testSetup {
 	setup.originalWd, err = os.Getwd()
 	require.NoError(t, err)
 
-	cmd := exec.Command("git", "init")
-	cmd.Dir = setup.tmp
-	_, err = cmd.CombinedOutput()
-	require.NoError(t, err)
-
-	cmd = exec.Command("git", "config", "init.defaultBranch", "main")
-	cmd.Dir = setup.tmp
-	_, err = cmd.CombinedOutput()
-	require.NoError(t, err)
-
 	err = os.Chdir(setup.tmp)
 	require.NoError(t, err)
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
+	setup.mockGit = new(mocks.Git)
 	setup.mockStdout = &strings.Builder{}
 	setup.mockStderr = &strings.Builder{}
 
 	setup.config = cli.Config{
 		APIClient:   setup.mockAPI,
 		SSHClient:   setup.mockSSH,
+		GitClient:   setup.mockGit,
 		Stdout:      setup.mockStdout,
 		StdoutIsTTY: false,
 		Stderr:      setup.mockStderr,

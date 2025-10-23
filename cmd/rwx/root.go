@@ -9,6 +9,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
 	"golang.org/x/term"
 
@@ -46,9 +47,18 @@ var (
 				return errors.Wrap(err, "unable to initialize API client")
 			}
 
+			dir, err := os.Getwd()
+			if err != nil {
+				return errors.Wrap(err, "unable to initialize CLI")
+			}
+
 			service, err = cli.NewService(cli.Config{
-				APIClient:   c,
-				SSHClient:   new(ssh.Client),
+				APIClient: c,
+				SSHClient: new(ssh.Client),
+				GitClient: &git.Client{
+					Binary: "git",
+					Dir:    dir,
+				},
 				Stdout:      os.Stdout,
 				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:      os.Stderr,

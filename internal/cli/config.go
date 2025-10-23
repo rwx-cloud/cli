@@ -15,6 +15,7 @@ import (
 type Config struct {
 	APIClient   APIClient
 	SSHClient   SSHClient
+	GitClient   GitClient
 	Stdout      io.Writer
 	StdoutIsTTY bool
 	Stderr      io.Writer
@@ -28,6 +29,10 @@ func (c Config) Validate() error {
 
 	if c.SSHClient == nil {
 		return errors.New("missing SSH client constructor")
+	}
+
+	if c.GitClient == nil {
+		return errors.New("missing Git client constructor")
 	}
 
 	if c.Stdout == nil {
