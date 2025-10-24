@@ -85,10 +85,6 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 		})
 
 		t.Run("when opted in to run patching", func(t *testing.T) {
-			// TODO: Before release, we're going to have an initial prompt that
-			// points you toward the opt out env vars and otherwise configures
-			// the CLI to support run patching. For now, just assume absence
-			// of the env vars is opt-in.
 			rwxDir := initiateRun(t, patchFile)
 
 			patched := false
