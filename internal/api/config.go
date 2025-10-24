@@ -40,8 +40,9 @@ type InitializationParameter struct {
 }
 
 type GitMetadata struct {
-	Branch string `json:"branch"`
-	Sha    string `json:"sha"`
+	Branch    string `json:"branch"`
+	Sha       string `json:"sha"`
+	OriginUrl string `json:"origin_url"`
 }
 
 type InitiateRunResult struct {

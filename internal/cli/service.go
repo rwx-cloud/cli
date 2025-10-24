@@ -127,6 +127,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 	sha := s.GitClient.GetCommit()
 	branch := s.GitClient.GetBranch()
+	originUrl := s.GitClient.GetOriginUrl()
 
 	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
 	if rwxDirectoryPath != "" {
@@ -239,8 +240,9 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		Title:                    cfg.Title,
 		UseCache:                 !cfg.NoCache,
 		Git: api.GitMetadata{
-			Branch: branch,
-			Sha:    sha,
+			Branch:    branch,
+			Sha:       sha,
+			OriginUrl: originUrl,
 		},
 	})
 	if err != nil {
