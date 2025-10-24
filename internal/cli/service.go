@@ -125,8 +125,22 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
+	sha := s.GitClient.GetCommit()
+	branch := s.GitClient.GetBranch()
+
 	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
 	if rwxDirectoryPath != "" {
+
+		patchable := true
+
+		if _, ok := os.LookupEnv("RWX_DISABLE_SYNC_LOCAL_CHANGES"); ok {
+			patchable = false
+		}
+
+		if patchable {
+			_ = s.GitClient.GeneratePatchFile(filepath.Join(rwxDirectoryPath, ".patches"))
+		}
+
 		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
 		if err != nil {
 			if errors.Is(err, errors.ErrFileNotExists) {
@@ -216,9 +230,6 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 		i++
 	}
-
-	sha := s.GitClient.GetCommit()
-	branch := s.GitClient.GetBranch()
 
 	runResult, err := s.APIClient.InitiateRun(api.InitiateRunConfig{
 		InitializationParameters: initializationParameters,
