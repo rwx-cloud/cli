@@ -68,6 +68,18 @@ func (c *Client) GetCommit() string {
 	return ""
 }
 
+func (c *Client) GetOriginUrl() string {
+	cmd := exec.Command(c.Binary, "remote", "get-url", "origin")
+	cmd.Dir = c.Dir
+
+	url, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(url))
+}
+
 type PatchFile struct {
 	Written        bool
 	Path           string
