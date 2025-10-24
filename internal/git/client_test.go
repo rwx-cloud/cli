@@ -69,12 +69,12 @@ func TestGetBranch(t *testing.T) {
 	})
 
 	t.Run("returns empty if we're in detached HEAD state", func(t *testing.T) {
-		repo, expected := repoFixture(t, "testdata/GetBranch-detached-head")
+		repo, _ := repoFixture(t, "testdata/GetBranch-detached-head")
 		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: repo}
 		branch := client.GetBranch()
-		require.Equal(t, expected, branch)
+		require.Equal(t, "", branch)
 	})
 
 	t.Run("returns a branch if we're on a branch", func(t *testing.T) {
@@ -108,30 +108,30 @@ func TestGetCommit(t *testing.T) {
 	})
 
 	t.Run("returns empty if remote is not set", func(t *testing.T) {
-		repo, expected := repoFixture(t, "testdata/GetCommit-no-remote")
+		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote")
 		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: repo}
 		commit := client.GetCommit()
-		require.Equal(t, expected, commit)
+		require.Equal(t, "", commit)
 	})
 
 	t.Run("returns empty if remote origin is not set", func(t *testing.T) {
-		repo, expected := repoFixture(t, "testdata/GetCommit-no-remote-origin")
+		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote-origin")
 		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		commit := client.GetCommit()
-		require.Equal(t, expected, commit)
+		require.Equal(t, "", commit)
 	})
 
 	t.Run("returns empty if there is no common ancestor", func(t *testing.T) {
-		repo, expected := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
+		repo, _ := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
 		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		commit := client.GetCommit()
-		require.Equal(t, expected, commit)
+		require.Equal(t, "", commit)
 	})
 
 	t.Run("when we're in detatched HEAD state", func(t *testing.T) {
