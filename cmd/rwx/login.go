@@ -51,6 +51,7 @@ var (
 					DeviceName:         DeviceName,
 					AccessTokenBackend: accessTokenBackend,
 					OpenUrl:            openUrl,
+					PollInterval:       1,
 				},
 			)
 			if err != nil {

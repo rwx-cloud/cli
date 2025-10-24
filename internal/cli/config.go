@@ -144,6 +144,7 @@ type LoginConfig struct {
 	DeviceName         string
 	AccessTokenBackend accesstoken.Backend
 	OpenUrl            func(url string) error
+	PollInterval       int
 }
 
 func (c LoginConfig) Validate() error {

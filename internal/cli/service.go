@@ -486,7 +486,7 @@ func (s Service) Login(cfg LoginConfig) error {
 				return accesstoken.Set(cfg.AccessTokenBackend, tokenResult.Token)
 			}
 		case "pending":
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
 		default:
 			stop()
 			return errors.New("The code is in an unexpected state. You can try again, but this is likely an issue with RWX Cloud. Please reach out at support@rwx.com.")
