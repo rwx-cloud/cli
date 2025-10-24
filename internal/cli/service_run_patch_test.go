@@ -84,7 +84,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			}
 		})
 
-		t.Run("when opted in to run patching", func(t *testing.T) {
+		t.Run("by default", func(t *testing.T) {
 			rwxDir := initiateRun(t, patchFile)
 
 			patched := false
