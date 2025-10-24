@@ -270,13 +270,13 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("when there are uncommitted changes to LFS tracked files", func(t *testing.T) {
-			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
+			tempDir, expected := repoFixture(t, "testdata/GeneratePatchFile-lfs")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, false, patchFile.Written)
-			require.Equal(t, true, patchFile.LFSChanges)
+			require.ElementsMatch(t, strings.Split(expected, " "), patchFile.LFSChangedFiles)
 		})
 	})
 

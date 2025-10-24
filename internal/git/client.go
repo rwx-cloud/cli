@@ -81,10 +81,10 @@ func (c *Client) GetOriginUrl() string {
 }
 
 type PatchFile struct {
-	Written        bool
-	Path           string
-	UntrackedFiles []string
-	LFSChanges     bool
+	Written         bool
+	Path            string
+	UntrackedFiles  []string
+	LFSChangedFiles []string
 }
 
 func (c *Client) GeneratePatchFile(destDir string) PatchFile {
@@ -103,6 +103,8 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		return PatchFile{}
 	}
 
+	lfsChangedFiles := []string{}
+
 	for _, file := range strings.Split(strings.TrimSpace(string(files)), "\n") {
 		cmd := exec.Command(c.Binary, "check-attr", "filter", "--", file)
 		cmd.Dir = c.Dir
@@ -114,10 +116,16 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		}
 
 		if strings.Contains(string(attrs), "filter: lfs") {
-			// There are changes to LFS tracked files
-			return PatchFile{
-				LFSChanges: true,
-			}
+			parts := strings.SplitN(string(attrs), ":", 2)
+			lfsFile := strings.TrimSpace(parts[0])
+			lfsChangedFiles = append(lfsChangedFiles, string(lfsFile))
+		}
+	}
+
+	if len(lfsChangedFiles) > 0 {
+		// There are changes to LFS tracked files
+		return PatchFile{
+			LFSChangedFiles: lfsChangedFiles,
 		}
 	}
 
