@@ -112,7 +112,12 @@ func (s Service) PushImage(config PushImageConfig) error {
 		)
 	}
 
-	ticker := time.NewTicker(1 * time.Second)
+	pollInterval := config.PollInterval
+	if pollInterval == 0*time.Second {
+		pollInterval = 1 * time.Millisecond
+	}
+
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	var finalPushResult api.ImagePushStatusResult
 statusloop:
