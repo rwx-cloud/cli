@@ -49,6 +49,8 @@ func TestService_InitiatingRun(t *testing.T) {
 				s.mockGit.MockGetBranch = branch
 				sha := "e86ec9c4802fb5f6c7d7220c5f7356278e7ace5a"
 				s.mockGit.MockGetCommit = sha
+				originUrl := "git@github.com:rwx-cloud/cli.git"
+				s.mockGit.MockGetOriginUrl = originUrl
 
 				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
@@ -100,6 +102,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.NotNil(t, cfg.Git)
 					require.Equal(t, branch, cfg.Git.Branch)
 					require.Equal(t, sha, cfg.Git.Sha)
+					require.Equal(t, originUrl, cfg.Git.OriginUrl)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{

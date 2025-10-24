@@ -10,6 +10,7 @@ import (
 type Git struct {
 	MockGetBranch         string
 	MockGetCommit         string
+	MockGetOriginUrl      string
 	MockGeneratePatchFile git.PatchFile
 }
 
@@ -19,6 +20,10 @@ func (c *Git) GetBranch() string {
 
 func (c *Git) GetCommit() string {
 	return c.MockGetCommit
+}
+
+func (c *Git) GetOriginUrl() string {
+	return c.MockGetOriginUrl
 }
 
 func (c *Git) GeneratePatchFile(destDir string) git.PatchFile {

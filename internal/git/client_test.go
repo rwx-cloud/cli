@@ -184,6 +184,66 @@ func TestGetCommit(t *testing.T) {
 	})
 }
 
+func TestGetOriginUrl(t *testing.T) {
+	t.Run("returns empty if git is not installed", func(t *testing.T) {
+		client := &git.Client{Binary: "fake", Dir: ""}
+		url := client.GetOriginUrl()
+		require.Equal(t, "", url)
+	})
+
+	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "gitrepo")
+		defer os.RemoveAll(tempDir)
+
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+
+		client := &git.Client{Binary: "git", Dir: tempDir}
+		url := client.GetOriginUrl()
+
+		require.Equal(t, "", url)
+	})
+
+	t.Run("returns empty if there are no remotes", func(t *testing.T) {
+		repo, _ := repoFixture(t, "testdata/GetOriginUrl-no-remote")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		url := client.GetOriginUrl()
+
+		require.Equal(t, "", url)
+	})
+
+	t.Run("returns empty if there is no remote origin", func(t *testing.T) {
+		repo, _ := repoFixture(t, "testdata/GetOriginUrl-no-remote-origin")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		url := client.GetOriginUrl()
+
+		require.Equal(t, "", url)
+	})
+
+	t.Run("returns origin url even if there are many remotes", func(t *testing.T) {
+		repo, expected := repoFixture(t, "testdata/GetOriginUrl-many-remotes")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		url := client.GetOriginUrl()
+
+		require.NotEqual(t, "", expected)
+		require.Equal(t, expected, url)
+	})
+
+	t.Run("returns origin url", func(t *testing.T) {
+		repo, expected := repoFixture(t, "testdata/GetOriginUrl")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		url := client.GetOriginUrl()
+
+		require.NotEqual(t, "", expected)
+		require.Equal(t, expected, url)
+	})
+}
+
 func TestGeneratePatchFile(t *testing.T) {
 	t.Run("does not write a patch file", func(t *testing.T) {
 		t.Run("when git is not installed", func(t *testing.T) {
