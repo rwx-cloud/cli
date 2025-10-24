@@ -247,7 +247,8 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 			OriginUrl: originUrl,
 		},
 		Patch: api.PatchMetadata{
-			Sent: patchFile.Written,
+			Sent:           patchFile.Written,
+			UntrackedFiles: patchFile.UntrackedFiles,
 		},
 	})
 	if err != nil {
