@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/distribution/reference"
@@ -144,6 +145,7 @@ type LoginConfig struct {
 	DeviceName         string
 	AccessTokenBackend accesstoken.Backend
 	OpenUrl            func(url string) error
+	PollInterval       time.Duration
 }
 
 func (c LoginConfig) Validate() error {
@@ -324,12 +326,13 @@ func (r ResolvePackagesResult) HasChanges() bool {
 }
 
 type PushImageConfig struct {
-	TaskID     string
-	References []reference.Named
-	DockerCLI  dockercli.AuthConfigurator
-	JSON       bool
-	Wait       bool
-	OpenURL    func(url string) error
+	TaskID       string
+	References   []reference.Named
+	DockerCLI    dockercli.AuthConfigurator
+	JSON         bool
+	Wait         bool
+	OpenURL      func(url string) error
+	PollInterval time.Duration
 }
 
 func NewPushImageConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (PushImageConfig, error) {
@@ -356,11 +359,12 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 	}
 
 	return PushImageConfig{
-		TaskID:     taskID,
-		References: parsedReferences,
-		DockerCLI:  dockerCli,
-		JSON:       json,
-		Wait:       wait,
-		OpenURL:    openURL,
+		TaskID:       taskID,
+		References:   parsedReferences,
+		DockerCLI:    dockerCli,
+		JSON:         json,
+		Wait:         wait,
+		OpenURL:      openURL,
+		PollInterval: 1 * time.Second,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"time"
 
 	"github.com/skratchdot/open-golang/open"
 
@@ -51,6 +52,7 @@ var (
 					DeviceName:         DeviceName,
 					AccessTokenBackend: accessTokenBackend,
 					OpenUrl:            openUrl,
+					PollInterval:       1 * time.Second,
 				},
 			)
 			if err != nil {
