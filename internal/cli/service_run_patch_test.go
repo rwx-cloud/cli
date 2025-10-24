@@ -47,6 +47,7 @@ func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata ap
 	s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 		require.Equal(t, expectedPatchMetadata.Sent, cfg.Patch.Sent)
 		require.Equal(t, expectedPatchMetadata.UntrackedFiles, cfg.Patch.UntrackedFiles)
+		require.Equal(t, expectedPatchMetadata.LFSFiles, cfg.Patch.LFSFiles)
 		receivedRwxDir = cfg.RwxDirectory
 		return &api.InitiateRunResult{
 			RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -72,9 +73,11 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 
 	t.Run("when the run is patchable", func(t *testing.T) {
 		untrackedFiles := []string{"foo.txt"}
+		lfsChangedFiles := []string{"bar.txt"}
 		patchFile := git.PatchFile{
-			Written:        true,
-			UntrackedFiles: untrackedFiles,
+			Written:         true,
+			UntrackedFiles:  untrackedFiles,
+			LFSChangedFiles: lfsChangedFiles,
 		}
 
 		t.Run("when env RWX_DISABLE_SYNC_LOCAL_CHANGES is set", func(t *testing.T) {
@@ -92,6 +95,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			expectedPatchMetadata := api.PatchMetadata{
 				Sent:           true,
 				UntrackedFiles: untrackedFiles,
+				LFSFiles:       lfsChangedFiles,
 			}
 
 			rwxDir := initiateRun(t, patchFile, expectedPatchMetadata)

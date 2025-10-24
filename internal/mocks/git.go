@@ -40,9 +40,10 @@ func (c *Git) GeneratePatchFile(destDir string) git.PatchFile {
 		}
 
 		return git.PatchFile{
-			Written:        c.MockGeneratePatchFile.Written,
-			Path:           path,
-			UntrackedFiles: c.MockGeneratePatchFile.UntrackedFiles,
+			Written:         c.MockGeneratePatchFile.Written,
+			Path:            path,
+			UntrackedFiles:  c.MockGeneratePatchFile.UntrackedFiles,
+			LFSChangedFiles: c.MockGeneratePatchFile.LFSChangedFiles,
 		}
 	}
 
