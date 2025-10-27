@@ -941,6 +941,11 @@ func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, req
 			return false
 		}
 
+		// Skip files that have custom base images
+		if doc.HasBase() && doc.TryReadStringAtPath("$.base.image") != "" && doc.TryReadStringAtPath("$.base.config") != "" {
+			return false
+		}
+
 		return true
 	})
 

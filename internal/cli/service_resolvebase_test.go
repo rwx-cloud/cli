@@ -503,4 +503,42 @@ tasks:
 `, string(contents))
 		})
 	})
+
+	t.Run("when yaml file has a custom base image it does not add os/tag", func(t *testing.T) {
+		bl := setupBaseLayer(t)
+
+		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
+  github:
+    push: {}
+
+base:
+	image: alpine:latest
+	config: none
+
+tasks:
+  - key: a
+  - key: b
+`), 0o644)
+		require.NoError(t, err)
+
+		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
+		require.NoError(t, err)
+
+		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, `on:
+  github:
+    push: {}
+
+base:
+	image: alpine:latest
+	config: none
+
+tasks:
+  - key: a
+  - key: b
+`, string(contents))
+
+		require.Equal(t, "No run files were missing base.\n", bl.s.mockStdout.String())
+	})
 }
