@@ -248,8 +248,10 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		},
 		Patch: api.PatchMetadata{
 			Sent:           patchFile.Written,
-			UntrackedFiles: patchFile.UntrackedFiles,
-			LFSFiles:       patchFile.LFSChangedFiles,
+			UntrackedFiles: patchFile.UntrackedFiles.Files,
+			UntrackedCount: patchFile.UntrackedFiles.Count,
+			LFSFiles:       patchFile.LFSChangedFiles.Files,
+			LFSCount:       patchFile.LFSChangedFiles.Count,
 		},
 	})
 	if err != nil {

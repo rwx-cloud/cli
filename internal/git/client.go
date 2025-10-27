@@ -80,11 +80,21 @@ func (c *Client) GetOriginUrl() string {
 	return strings.TrimSpace(string(url))
 }
 
+type UntrackedFilesMetadata struct {
+	Files []string
+	Count int
+}
+
+type LFSChangedFilesMetadata struct {
+	Files []string
+	Count int
+}
+
 type PatchFile struct {
 	Written         bool
 	Path            string
-	UntrackedFiles  []string
-	LFSChangedFiles []string
+	UntrackedFiles  UntrackedFilesMetadata
+	LFSChangedFiles LFSChangedFilesMetadata
 }
 
 func (c *Client) GeneratePatchFile(destDir string) PatchFile {
@@ -124,8 +134,13 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 
 	if len(lfsChangedFiles) > 0 {
 		// There are changes to LFS tracked files
+		lfsMetadata := LFSChangedFilesMetadata{
+			Files: lfsChangedFiles,
+			Count: len(lfsChangedFiles),
+		}
+
 		return PatchFile{
-			LFSChangedFiles: lfsChangedFiles,
+			LFSChangedFiles: lfsMetadata,
 		}
 	}
 
@@ -164,10 +179,14 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 	}
 
 	untrackedFiles := strings.Fields(string(untracked))
+	untrackedMetadata := UntrackedFilesMetadata{
+		Files: untrackedFiles,
+		Count: len(untrackedFiles),
+	}
 
 	return PatchFile{
 		Written:        true,
 		Path:           outputPath,
-		UntrackedFiles: untrackedFiles,
+		UntrackedFiles: untrackedMetadata,
 	}
 }

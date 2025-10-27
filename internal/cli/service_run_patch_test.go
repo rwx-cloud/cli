@@ -72,8 +72,15 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 	})
 
 	t.Run("when the run is patchable", func(t *testing.T) {
-		untrackedFiles := []string{"foo.txt"}
-		lfsChangedFiles := []string{"bar.txt"}
+		untrackedFiles := git.UntrackedFilesMetadata{
+			Files: []string{"foo.txt"},
+			Count: 1,
+		}
+		lfsChangedFiles := git.LFSChangedFilesMetadata{
+			Files: []string{"bar.txt"},
+			Count: 1,
+		}
+
 		patchFile := git.PatchFile{
 			Written:         true,
 			UntrackedFiles:  untrackedFiles,
@@ -94,8 +101,10 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 		t.Run("by default", func(t *testing.T) {
 			expectedPatchMetadata := api.PatchMetadata{
 				Sent:           true,
-				UntrackedFiles: untrackedFiles,
-				LFSFiles:       lfsChangedFiles,
+				UntrackedFiles: untrackedFiles.Files,
+				UntrackedCount: untrackedFiles.Count,
+				LFSFiles:       lfsChangedFiles.Files,
+				LFSCount:       lfsChangedFiles.Count,
 			}
 
 			rwxDir := initiateRun(t, patchFile, expectedPatchMetadata)

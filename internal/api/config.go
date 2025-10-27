@@ -49,7 +49,9 @@ type GitMetadata struct {
 type PatchMetadata struct {
 	Sent           bool     `json:"sent"`
 	LFSFiles       []string `json:"lfs_files"`
+	LFSCount       int      `json:"lfs_count"`
 	UntrackedFiles []string `json:"untracked_giles"`
+	UntrackedCount int      `json:"untracked_count"`
 }
 
 type InitiateRunResult struct {
