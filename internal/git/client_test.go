@@ -296,7 +296,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.Contains(t, string(patch), "new file mode 100644")
 		})
 
-		t.Run("when there's an uncommitted diff", func(t *testing.T) {
+		t.Run("when there's a committed diff", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
