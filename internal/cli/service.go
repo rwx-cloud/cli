@@ -21,6 +21,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/dotenv"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/messages"
 	"github.com/rwx-cloud/cli/internal/versions"
 
@@ -128,6 +129,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	sha := s.GitClient.GetCommit()
 	branch := s.GitClient.GetBranch()
 	originUrl := s.GitClient.GetOriginUrl()
+	patchFile := git.PatchFile{}
 
 	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
 	if rwxDirectoryPath != "" {
@@ -139,7 +141,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 
 		if patchable {
-			_ = s.GitClient.GeneratePatchFile(filepath.Join(rwxDirectoryPath, ".patches"))
+			patchFile = s.GitClient.GeneratePatchFile(filepath.Join(rwxDirectoryPath, ".patches"))
 		}
 
 		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
@@ -243,6 +245,13 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 			Branch:    branch,
 			Sha:       sha,
 			OriginUrl: originUrl,
+		},
+		Patch: api.PatchMetadata{
+			Sent:           patchFile.Written,
+			UntrackedFiles: patchFile.UntrackedFiles.Files,
+			UntrackedCount: patchFile.UntrackedFiles.Count,
+			LFSFiles:       patchFile.LFSChangedFiles.Files,
+			LFSCount:       patchFile.LFSChangedFiles.Count,
 		},
 	})
 	if err != nil {

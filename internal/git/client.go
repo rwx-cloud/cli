@@ -80,11 +80,21 @@ func (c *Client) GetOriginUrl() string {
 	return strings.TrimSpace(string(url))
 }
 
+type UntrackedFilesMetadata struct {
+	Files []string
+	Count int
+}
+
+type LFSChangedFilesMetadata struct {
+	Files []string
+	Count int
+}
+
 type PatchFile struct {
-	Written        bool
-	Path           string
-	UntrackedFiles []string
-	LFSChanges     bool
+	Written         bool
+	Path            string
+	UntrackedFiles  UntrackedFilesMetadata
+	LFSChangedFiles LFSChangedFilesMetadata
 }
 
 func (c *Client) GeneratePatchFile(destDir string) PatchFile {
@@ -103,6 +113,8 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		return PatchFile{}
 	}
 
+	lfsChangedFiles := []string{}
+
 	for _, file := range strings.Split(strings.TrimSpace(string(files)), "\n") {
 		cmd := exec.Command(c.Binary, "check-attr", "filter", "--", file)
 		cmd.Dir = c.Dir
@@ -114,10 +126,21 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		}
 
 		if strings.Contains(string(attrs), "filter: lfs") {
-			// There are changes to LFS tracked files
-			return PatchFile{
-				LFSChanges: true,
-			}
+			parts := strings.SplitN(string(attrs), ":", 2)
+			lfsFile := strings.TrimSpace(parts[0])
+			lfsChangedFiles = append(lfsChangedFiles, string(lfsFile))
+		}
+	}
+
+	if len(lfsChangedFiles) > 0 {
+		// There are changes to LFS tracked files
+		lfsMetadata := LFSChangedFilesMetadata{
+			Files: lfsChangedFiles,
+			Count: len(lfsChangedFiles),
+		}
+
+		return PatchFile{
+			LFSChangedFiles: lfsMetadata,
 		}
 	}
 
@@ -156,10 +179,14 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 	}
 
 	untrackedFiles := strings.Fields(string(untracked))
+	untrackedMetadata := UntrackedFilesMetadata{
+		Files: untrackedFiles,
+		Count: len(untrackedFiles),
+	}
 
 	return PatchFile{
 		Written:        true,
 		Path:           outputPath,
-		UntrackedFiles: untrackedFiles,
+		UntrackedFiles: untrackedMetadata,
 	}
 }

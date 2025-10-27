@@ -270,13 +270,14 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("when there are uncommitted changes to LFS tracked files", func(t *testing.T) {
-			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-lfs")
+			tempDir, expected := repoFixture(t, "testdata/GeneratePatchFile-lfs")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, false, patchFile.Written)
-			require.Equal(t, true, patchFile.LFSChanges)
+			require.ElementsMatch(t, strings.Split(expected, " "), patchFile.LFSChangedFiles.Files)
+			require.Equal(t, 2, patchFile.LFSChangedFiles.Count)
 		})
 	})
 
@@ -295,7 +296,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.Contains(t, string(patch), "new file mode 100644")
 		})
 
-		t.Run("when there's an uncommitted diff", func(t *testing.T) {
+		t.Run("when there's a committed diff", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
@@ -308,7 +309,8 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, string(patch), "new file mode 100644")
 
-			require.Equal(t, []string{}, patchFile.UntrackedFiles)
+			require.Equal(t, []string{}, patchFile.UntrackedFiles.Files)
+			require.Equal(t, 0, patchFile.UntrackedFiles.Count)
 		})
 
 		t.Run("including changes to binary files", func(t *testing.T) {
@@ -324,7 +326,8 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, string(patch), "GIT binary patch")
 
-			require.Equal(t, []string{}, patchFile.UntrackedFiles)
+			require.Equal(t, []string{}, patchFile.UntrackedFiles.Files)
+			require.Equal(t, 0, patchFile.UntrackedFiles.Count)
 		})
 
 		t.Run("without changes to untracked files", func(t *testing.T) {
@@ -340,7 +343,8 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, string(patch), "new file mode 100644")
 
-			require.Equal(t, []string{"bar.txt"}, patchFile.UntrackedFiles)
+			require.Equal(t, []string{"bar.txt"}, patchFile.UntrackedFiles.Files)
+			require.Equal(t, 1, patchFile.UntrackedFiles.Count)
 		})
 	})
 }

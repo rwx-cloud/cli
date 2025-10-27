@@ -32,6 +32,7 @@ type InitiateRunConfig struct {
 	Title                    string                    `json:"title,omitempty"`
 	UseCache                 bool                      `json:"use_cache"`
 	Git                      GitMetadata               `json:"git"`
+	Patch                    PatchMetadata             `json:"patch"`
 }
 
 type InitializationParameter struct {
@@ -43,6 +44,14 @@ type GitMetadata struct {
 	Branch    string `json:"branch"`
 	Sha       string `json:"sha"`
 	OriginUrl string `json:"origin_url"`
+}
+
+type PatchMetadata struct {
+	Sent           bool     `json:"sent"`
+	LFSFiles       []string `json:"lfs_files"`
+	LFSCount       int      `json:"lfs_count"`
+	UntrackedFiles []string `json:"untracked_giles"`
+	UntrackedCount int      `json:"untracked_count"`
 }
 
 type InitiateRunResult struct {
