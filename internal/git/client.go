@@ -144,6 +144,21 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		}
 	}
 
+	cmd = exec.Command(c.Binary, "ls-files", "--others", "--exclude-standard")
+	cmd.Dir = c.Dir
+
+	untracked, err := cmd.Output()
+	if err != nil {
+		// We can't determine untracked files
+		return PatchFile{}
+	}
+
+	untrackedFiles := strings.Fields(string(untracked))
+	untrackedMetadata := UntrackedFilesMetadata{
+		Files: untrackedFiles,
+		Count: len(untrackedFiles),
+	}
+
 	cmd = exec.Command(c.Binary, "diff", sha, "-p", "--binary")
 	cmd.Dir = c.Dir
 
@@ -158,7 +173,7 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		return PatchFile{}
 	}
 
-	outputPath := filepath.Join(destDir, ".patches", sha)
+	outputPath := filepath.Join(destDir, sha)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		// We can't write a patch
 		return PatchFile{}
@@ -167,21 +182,6 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 	if err = os.WriteFile(outputPath, patch, 0644); err != nil {
 		// We can't write a patch
 		return PatchFile{}
-	}
-
-	cmd = exec.Command(c.Binary, "ls-files", "--others", "--exclude-standard")
-	cmd.Dir = c.Dir
-
-	untracked, err := cmd.Output()
-	if err != nil {
-		// We can't determine untracked files
-		return PatchFile{}
-	}
-
-	untrackedFiles := strings.Fields(string(untracked))
-	untrackedMetadata := UntrackedFilesMetadata{
-		Files: untrackedFiles,
-		Count: len(untrackedFiles),
 	}
 
 	return PatchFile{

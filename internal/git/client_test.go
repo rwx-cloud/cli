@@ -264,7 +264,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, false, patchFile.Written)
 		})
@@ -273,7 +273,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, expected := repoFixture(t, "testdata/GeneratePatchFile-lfs")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, false, patchFile.Written)
 			require.ElementsMatch(t, strings.Split(expected, " "), patchFile.LFSChangedFiles.Files)
@@ -286,10 +286,10 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -300,10 +300,10 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -317,10 +317,10 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -334,10 +334,10 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(tempDir)
+			patchFile := client.GeneratePatchFile(client.Dir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)

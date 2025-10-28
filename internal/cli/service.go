@@ -130,6 +130,8 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	branch := s.GitClient.GetBranch()
 	originUrl := s.GitClient.GetOriginUrl()
 	patchFile := git.PatchFile{}
+	patchDir := filepath.Join(rwxDirectoryPath, ".patches")
+	defer os.RemoveAll(patchDir)
 
 	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
 	if rwxDirectoryPath != "" {
@@ -141,7 +143,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 
 		if patchable {
-			patchFile = s.GitClient.GeneratePatchFile(filepath.Join(rwxDirectoryPath, ".patches"))
+			patchFile = s.GitClient.GeneratePatchFile(patchDir)
 		}
 
 		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
