@@ -158,7 +158,7 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		return PatchFile{}
 	}
 
-	outputPath := filepath.Join(destDir, ".patches", sha)
+	outputPath := filepath.Join(destDir, sha)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		// We can't write a patch
 		return PatchFile{}

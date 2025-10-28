@@ -289,7 +289,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -320,7 +320,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
@@ -337,7 +337,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			patchFile := client.GeneratePatchFile(tempDir)
 
 			require.Equal(t, true, patchFile.Written)
-			require.Equal(t, filepath.Join(tempDir, ".patches", sha), patchFile.Path)
+			require.Equal(t, filepath.Join(tempDir, sha), patchFile.Path)
 
 			patch, err := os.ReadFile(patchFile.Path)
 			require.NoError(t, err)
