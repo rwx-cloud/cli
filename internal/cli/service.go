@@ -491,8 +491,12 @@ func (s Service) Login(cfg LoginConfig) error {
 			if tokenResult.Token == "" {
 				return errors.New("The code has been authorized, but there is no token. You can try again, but this is likely an issue with RWX Cloud. Please reach out at support@rwx.com.")
 			} else {
-				fmt.Fprint(s.Stdout, "Authorized!\n")
-				return accesstoken.Set(cfg.AccessTokenBackend, tokenResult.Token)
+				if err := accesstoken.Set(cfg.AccessTokenBackend, tokenResult.Token); err == nil {
+					fmt.Fprint(s.Stdout, "Authorized!\n")
+					return nil
+				} else {
+					return fmt.Errorf("An error occurred while storing the token: %w", err)
+				}
 			}
 		case "pending":
 			time.Sleep(cfg.PollInterval)
@@ -947,6 +951,11 @@ func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, req
 
 		// Skip if all tasks in this file are embedded runs
 		if doc.AllTasksAreEmbeddedRuns() {
+			return false
+		}
+
+		// Skip files that have custom base images
+		if doc.HasBase() && doc.TryReadStringAtPath("$.base.image") != "" && doc.TryReadStringAtPath("$.base.config") != "" {
 			return false
 		}
 
