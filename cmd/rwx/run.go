@@ -77,11 +77,13 @@ var (
 					RunURL           string
 					TargetedTaskKeys []string
 					DefinitionPath   string
+					Message          string
 				}{
 					RunId:            runResult.RunId,
 					RunURL:           runResult.RunURL,
 					TargetedTaskKeys: runResult.TargetedTaskKeys,
 					DefinitionPath:   runResult.DefinitionPath,
+					Message:          runResult.Message,
 				}
 				runResultJson, err := json.Marshal(jsonOutput)
 				if err != nil {
@@ -90,7 +92,7 @@ var (
 
 				fmt.Println(string(runResultJson))
 			} else {
-				fmt.Printf("Run is watchable at %s\n", runResult.RunURL)
+				fmt.Print(runResult.Message)
 			}
 
 			if Open {

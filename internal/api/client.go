@@ -151,10 +151,12 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 		SnakeRunURL           string   `json:"run_url"`
 		SnakeTargetedTaskKeys []string `json:"targeted_task_keys"`
 		SnakeDefinitionPath   string   `json:"definition_path"`
+		SnakeMessage          string   `json:"cli_message"`
 		CamelRunId            string   `json:"runId"`
 		CamelRunURL           string   `json:"runURL"`
 		CamelTargetedTaskKeys []string `json:"targetedTaskKeys"`
 		CamelDefinitionPath   string   `json:"definitionPath"`
+		CamelMessage          string   `json:"cliMessage"`
 	}{}
 
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
@@ -167,6 +169,7 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 			RunURL:           respBody.CamelRunURL,
 			TargetedTaskKeys: respBody.CamelTargetedTaskKeys,
 			DefinitionPath:   respBody.CamelDefinitionPath,
+			Message:          respBody.CamelMessage,
 		}, nil
 	} else {
 		return &InitiateRunResult{
@@ -174,6 +177,7 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 			RunURL:           respBody.SnakeRunURL,
 			TargetedTaskKeys: respBody.SnakeTargetedTaskKeys,
 			DefinitionPath:   respBody.SnakeDefinitionPath,
+			Message:          respBody.SnakeMessage,
 		}, nil
 	}
 }
