@@ -59,6 +59,7 @@ type InitiateRunResult struct {
 	RunURL           string
 	TargetedTaskKeys []string
 	DefinitionPath   string
+	Message          string
 }
 
 func (c InitiateRunConfig) Validate() error {
