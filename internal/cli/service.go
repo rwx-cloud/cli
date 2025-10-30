@@ -138,6 +138,10 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 		patchable := true
 
+		if featureFlag, _ := os.LookupEnv("RWX_PREVIEW_GIT_PATCH"); featureFlag == "" {
+			patchable = false
+		}
+
 		if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
 			patchable = false
 		}
