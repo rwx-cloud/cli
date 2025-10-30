@@ -87,8 +87,8 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			LFSChangedFiles: lfsChangedFiles,
 		}
 
-		t.Run("when env RWX_DISABLE_SYNC_LOCAL_CHANGES is set", func(t *testing.T) {
-			t.Setenv("RWX_DISABLE_SYNC_LOCAL_CHANGES", "1")
+		t.Run("when env RWX_DISABLE_GIT_PATCH is set", func(t *testing.T) {
+			t.Setenv("RWX_DISABLE_GIT_PATCH", "1")
 
 			// it launches a run but does not patch
 			rwxDir := initiateRun(t, patchFile, api.PatchMetadata{})

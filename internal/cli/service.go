@@ -138,7 +138,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 		patchable := true
 
-		if _, ok := os.LookupEnv("RWX_DISABLE_SYNC_LOCAL_CHANGES"); ok {
+		if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
 			patchable = false
 		}
 
