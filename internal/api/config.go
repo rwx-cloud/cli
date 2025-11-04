@@ -44,13 +44,14 @@ type GitMetadata struct {
 	Branch    string `json:"branch"`
 	Sha       string `json:"sha"`
 	OriginUrl string `json:"origin_url"`
+	//test
 }
 
 type PatchMetadata struct {
 	Sent           bool     `json:"sent"`
 	LFSFiles       []string `json:"lfs_files"`
 	LFSCount       int      `json:"lfs_count"`
-	UntrackedFiles []string `json:"untracked_giles"`
+	UntrackedFiles []string `json:"untracked_files"`
 	UntrackedCount int      `json:"untracked_count"`
 }
 
