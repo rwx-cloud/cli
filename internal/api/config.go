@@ -44,7 +44,6 @@ type GitMetadata struct {
 	Branch    string `json:"branch"`
 	Sha       string `json:"sha"`
 	OriginUrl string `json:"origin_url"`
-	//test
 }
 
 type PatchMetadata struct {
