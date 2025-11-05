@@ -133,7 +133,7 @@ statusloop:
 			finalPushResult = result
 			stopWaitingSpinner()
 			break statusloop
-		case "in_progress":
+		case "in_progress", "waiting":
 			// continue waiting
 		default:
 			stopWaitingSpinner()
