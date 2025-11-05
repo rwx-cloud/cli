@@ -90,7 +90,7 @@ func init() {
 		rwxHost = rwxHostEnv
 	}
 
-	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", os.Getenv("RWX_ACCESS_TOKEN"), "the access token for RWX")
+	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "enable debug output")
 	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 
