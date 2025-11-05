@@ -368,3 +368,15 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 		PollInterval: 1 * time.Second,
 	}, nil
 }
+
+type TransmogrifyDockerfileConfig struct {
+	Dockerfile io.Reader
+	Out        io.Writer
+}
+
+func NewTransmogrifyDockerfileConfig(dockerfile io.Reader, out io.Writer) (TransmogrifyDockerfileConfig, error) {
+	return TransmogrifyDockerfileConfig{
+		Dockerfile: dockerfile,
+		Out:        out,
+	}, nil
+}

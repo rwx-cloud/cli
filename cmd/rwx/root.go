@@ -106,4 +106,5 @@ func init() {
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(pushCmd)
+	rootCmd.AddCommand(transmogrifyCmd)
 }
