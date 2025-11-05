@@ -109,9 +109,7 @@ func init() {
 
 	cobra.OnInitialize(func() {
 		if AccessToken == "$RWX_ACCESS_TOKEN" {
-			if v := os.Getenv("RWX_ACCESS_TOKEN"); v != "" {
-				AccessToken = v
-			}
+			AccessToken = os.Getenv("RWX_ACCESS_TOKEN")
 		}
 	})
 }
