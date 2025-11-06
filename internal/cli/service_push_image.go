@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -53,21 +54,30 @@ func (s Service) PushImage(config PushImageConfig) error {
 		request.Image.Tags = append(request.Image.Tags, tag)
 	}
 
-	credentialsHost := request.Image.Registry
-	if credentialsHost == "registry.hub.docker.com/v2" {
-		credentialsHost = "index.docker.io"
-	}
+	request.Credentials.Username = os.Getenv("RWX_PUSH_USERNAME")
+	request.Credentials.Password = os.Getenv("RWX_PUSH_PASSWORD")
 
-	credentials, err := config.DockerCLI.GetAuthConfig(credentialsHost)
-	if err != nil {
-		return fmt.Errorf("unable to get credentials for registry %q from docker: %w", request.Image.Registry, err)
-	}
-	if credentials.Username == "" || credentials.Password == "" {
-		return fmt.Errorf("no credentials found for registry %q in docker config", request.Image.Registry)
-	}
+	if request.Credentials.Username == "" && request.Credentials.Password != "" {
+		return fmt.Errorf("RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
+	} else if request.Credentials.Username != "" && request.Credentials.Password == "" {
+		return fmt.Errorf("RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
+	} else if request.Credentials.Username == "" && request.Credentials.Password == "" {
+		credentialsHost := request.Image.Registry
+		if credentialsHost == "registry.hub.docker.com/v2" {
+			credentialsHost = "index.docker.io"
+		}
 
-	request.Credentials.Username = credentials.Username
-	request.Credentials.Password = credentials.Password
+		credentials, err := config.DockerCLI.GetAuthConfig(credentialsHost)
+		if err != nil {
+			return fmt.Errorf("unable to get credentials for registry %q from docker: %w", request.Image.Registry, err)
+		}
+		if credentials.Username == "" || credentials.Password == "" {
+			return fmt.Errorf("no credentials found for registry %q in docker config", request.Image.Registry)
+		}
+
+		request.Credentials.Username = credentials.Username
+		request.Credentials.Password = credentials.Password
+	}
 
 	stopStartSpinner := func() {}
 	if !config.JSON {
