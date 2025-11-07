@@ -352,8 +352,9 @@ func TestService_PushImage(t *testing.T) {
 
 		require.True(t, didOpenURL)
 
-		require.Contains(t, s.mockStdout.String(), "Image push succeeded! You can pull your image")
-		require.Contains(t, s.mockStderr.String(), "Starting image push of task \"some-task-id\" to 'registry.com/repo' with tags: latest, 17.1...")
+		require.Contains(t, s.mockStdout.String(), "Image push succeeded!")
+		require.Contains(t, s.mockStdout.String(), "Pushing image from task: some-task-id\nregistry.com/repo:latest\nregistry.com/repo:17.1\n")
+		require.Contains(t, s.mockStderr.String(), "Starting...")
 		require.Contains(t, s.mockStderr.String(), "Waiting for image push to finish...")
 	})
 
