@@ -306,4 +306,136 @@ func TestService_PushImage(t *testing.T) {
 		require.Contains(t, s.mockStderr.String(), "Starting...")
 		require.Contains(t, s.mockStderr.String(), "Waiting for image push to finish...")
 	})
+
+	t.Run("prefers environment variable credentials over docker credentials", func(t *testing.T) {
+		s := setupTest(t)
+
+		t.Setenv("RWX_PUSH_USERNAME", "env-username")
+		t.Setenv("RWX_PUSH_PASSWORD", "env-password")
+
+		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			require.Equal(t, "some-task-id", cfg.TaskID)
+			require.Equal(t, "registry.com", cfg.Image.Registry)
+			require.Equal(t, "repo", cfg.Image.Repository)
+			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
+			require.Equal(t, "env-username", cfg.Credentials.Username)
+			require.Equal(t, "env-password", cfg.Credentials.Password)
+
+			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
+		}
+		s.mockAPI.MockImagePushStatus = func(pushID string) (api.ImagePushStatusResult, error) {
+			require.Equal(t, "some-push-id", pushID)
+
+			return api.ImagePushStatusResult{Status: "succeeded"}, nil
+		}
+
+		didOpenURL := false
+		cfg := cli.PushImageConfig{
+			TaskID: "some-task-id",
+			References: []reference.Named{
+				ReferenceMustParse(t, "registry.com/repo:latest"),
+				ReferenceMustParse(t, "registry.com/repo:17.1"),
+			},
+			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
+			JSON:      false,
+			Wait:      true,
+			OpenURL: func(url string) error {
+				didOpenURL = true
+				require.Equal(t, "some-run-url", url)
+				return nil
+			},
+		}
+
+		err := s.service.PushImage(cfg)
+
+		require.NoError(t, err)
+
+		require.True(t, didOpenURL)
+
+		require.Contains(t, s.mockStdout.String(), "Image push succeeded! You can pull your image")
+		require.Contains(t, s.mockStderr.String(), "Starting image push of task \"some-task-id\" to 'registry.com/repo' with tags: latest, 17.1...")
+		require.Contains(t, s.mockStderr.String(), "Waiting for image push to finish...")
+	})
+
+	t.Run("errors if only RWX_PUSH_USERNAME is set", func(t *testing.T) {
+		s := setupTest(t)
+
+		t.Setenv("RWX_PUSH_USERNAME", "env-username")
+
+		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			require.Equal(t, "some-task-id", cfg.TaskID)
+			require.Equal(t, "registry.com", cfg.Image.Registry)
+			require.Equal(t, "repo", cfg.Image.Repository)
+			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
+			require.Equal(t, "env-username", cfg.Credentials.Username)
+			require.Equal(t, "env-password", cfg.Credentials.Password)
+
+			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
+		}
+		s.mockAPI.MockImagePushStatus = func(pushID string) (api.ImagePushStatusResult, error) {
+			require.Equal(t, "some-push-id", pushID)
+
+			return api.ImagePushStatusResult{Status: "succeeded"}, nil
+		}
+
+		cfg := cli.PushImageConfig{
+			TaskID: "some-task-id",
+			References: []reference.Named{
+				ReferenceMustParse(t, "registry.com/repo:latest"),
+				ReferenceMustParse(t, "registry.com/repo:17.1"),
+			},
+			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
+			JSON:      false,
+			Wait:      true,
+			OpenURL: func(url string) error {
+				require.Equal(t, "some-run-url", url)
+				return nil
+			},
+		}
+
+		err := s.service.PushImage(cfg)
+
+		require.ErrorContains(t, err, "RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
+	})
+
+	t.Run("errors if only RWX_PUSH_PASSWORD is set", func(t *testing.T) {
+		s := setupTest(t)
+
+		t.Setenv("RWX_PUSH_PASSWORD", "env-password")
+
+		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			require.Equal(t, "some-task-id", cfg.TaskID)
+			require.Equal(t, "registry.com", cfg.Image.Registry)
+			require.Equal(t, "repo", cfg.Image.Repository)
+			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
+			require.Equal(t, "env-username", cfg.Credentials.Username)
+			require.Equal(t, "env-password", cfg.Credentials.Password)
+
+			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
+		}
+		s.mockAPI.MockImagePushStatus = func(pushID string) (api.ImagePushStatusResult, error) {
+			require.Equal(t, "some-push-id", pushID)
+
+			return api.ImagePushStatusResult{Status: "succeeded"}, nil
+		}
+
+		cfg := cli.PushImageConfig{
+			TaskID: "some-task-id",
+			References: []reference.Named{
+				ReferenceMustParse(t, "registry.com/repo:latest"),
+				ReferenceMustParse(t, "registry.com/repo:17.1"),
+			},
+			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
+			JSON:      false,
+			Wait:      true,
+			OpenURL: func(url string) error {
+				require.Equal(t, "some-run-url", url)
+				return nil
+			},
+		}
+
+		err := s.service.PushImage(cfg)
+
+		require.ErrorContains(t, err, "RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
+	})
 }

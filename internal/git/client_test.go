@@ -14,14 +14,7 @@ import (
 func repoFixture(t *testing.T, fixturePath string) (string, string) {
 	t.Helper()
 
-	tempDir, err := os.MkdirTemp("", "gitrepo")
-	t.Cleanup(func() {
-		defer os.RemoveAll(tempDir)
-	})
-
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	tempDir := t.TempDir()
 
 	fixtureInfo, err := os.Stat(fixturePath)
 	if err != nil {
@@ -56,12 +49,7 @@ func TestGetBranch(t *testing.T) {
 	})
 
 	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "gitrepo")
-		defer os.RemoveAll(tempDir)
-
-		if err != nil {
-			t.Fatalf("failed to create temp dir: %v", err)
-		}
+		tempDir := t.TempDir()
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
 		branch := client.GetBranch()
@@ -70,7 +58,6 @@ func TestGetBranch(t *testing.T) {
 
 	t.Run("returns empty if we're in detached HEAD state", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetBranch-detached-head")
-		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: repo}
 		branch := client.GetBranch()
@@ -79,7 +66,6 @@ func TestGetBranch(t *testing.T) {
 
 	t.Run("returns a branch if we're on a branch", func(t *testing.T) {
 		repo, expected := repoFixture(t, "testdata/GetBranch-branch")
-		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: repo}
 		branch := client.GetBranch()
@@ -95,12 +81,7 @@ func TestGetCommit(t *testing.T) {
 	})
 
 	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "gitrepo")
-		defer os.RemoveAll(tempDir)
-
-		if err != nil {
-			t.Fatalf("failed to create temp dir: %v", err)
-		}
+		tempDir := t.TempDir()
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
 		commit := client.GetCommit()
@@ -109,7 +90,6 @@ func TestGetCommit(t *testing.T) {
 
 	t.Run("returns empty if remote is not set", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote")
-		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: repo}
 		commit := client.GetCommit()
@@ -118,7 +98,6 @@ func TestGetCommit(t *testing.T) {
 
 	t.Run("returns empty if remote origin is not set", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote-origin")
-		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		commit := client.GetCommit()
@@ -127,7 +106,6 @@ func TestGetCommit(t *testing.T) {
 
 	t.Run("returns empty if there is no common ancestor", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
-		defer os.RemoveAll(repo)
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		commit := client.GetCommit()
@@ -137,7 +115,6 @@ func TestGetCommit(t *testing.T) {
 	t.Run("when we're in detatched HEAD state", func(t *testing.T) {
 		t.Run("returns the common ancestor if we have the same HEAD", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
-			defer os.RemoveAll(repo)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
@@ -146,7 +123,6 @@ func TestGetCommit(t *testing.T) {
 
 		t.Run("returns the common ancestor if we've diverged", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
-			defer os.RemoveAll(repo)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
@@ -157,7 +133,6 @@ func TestGetCommit(t *testing.T) {
 	t.Run("when we have a branch checked out", func(t *testing.T) {
 		t.Run("returns the common ancestor if we have the same HEAD", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch")
-			defer os.RemoveAll(repo)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
@@ -166,7 +141,6 @@ func TestGetCommit(t *testing.T) {
 
 		t.Run("returns the common ancestor if we have diverged", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged")
-			defer os.RemoveAll(repo)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
@@ -175,7 +149,6 @@ func TestGetCommit(t *testing.T) {
 
 		t.Run("returns the common ancestor if we have diverged a lot", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged-a-lot")
-			defer os.RemoveAll(repo)
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
@@ -192,12 +165,7 @@ func TestGetOriginUrl(t *testing.T) {
 	})
 
 	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "gitrepo")
-		defer os.RemoveAll(tempDir)
-
-		if err != nil {
-			t.Fatalf("failed to create temp dir: %v", err)
-		}
+		tempDir := t.TempDir()
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
 		url := client.GetOriginUrl()
