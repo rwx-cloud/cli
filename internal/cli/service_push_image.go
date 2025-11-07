@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -81,8 +80,13 @@ func (s Service) PushImage(config PushImageConfig) error {
 
 	stopStartSpinner := func() {}
 	if !config.JSON {
+		fmt.Fprintf(s.Stdout, "Pushing image from task: %s\n", request.TaskID)
+		for _, tag := range request.Image.Tags {
+			fmt.Fprintf(s.Stdout, "%s/%s:%s\n", request.Image.Registry, request.Image.Repository, tag)
+		}
+
 		stopStartSpinner = spin(
-			fmt.Sprintf("Starting image push of task %q to '%s/%s' with tags: %s...", request.TaskID, request.Image.Registry, request.Image.Repository, strings.Join(request.Image.Tags, ", ")),
+			"Starting...",
 			s.StderrIsTTY,
 			s.Stderr,
 		)
@@ -107,7 +111,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 			return nil
 		} else {
 			fmt.Fprintln(s.Stdout, "Your image is being pushed. This may take some time for large images.")
-			fmt.Fprintf(s.Stdout, "To follow along, you can watch the run at %q.\n", result.RunURL)
+			fmt.Fprintf(s.Stdout, "To follow along, you can watch the run:\n%s\n", result.RunURL)
 			fmt.Fprintln(s.Stdout)
 			return nil
 		}
@@ -160,7 +164,7 @@ statusloop:
 					return fmt.Errorf("unable to encode output: %w", err)
 				}
 			} else {
-				fmt.Fprintf(s.Stdout, "Image push succeeded! You can pull your image from '%s/%s' with tags: %s\n", request.Image.Registry, request.Image.Repository, strings.Join(request.Image.Tags, ", "))
+				fmt.Fprintf(s.Stdout, "Image push succeeded!\n")
 				return nil
 			}
 		}
