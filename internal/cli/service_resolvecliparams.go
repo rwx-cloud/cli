@@ -32,18 +32,28 @@ func ResolveCliParams(yamlContent string) (string, error) {
 		return yamlContent, nil
 	}
 
-	gitParams := extractGitParams(doc)
+	gitParams, err := extractGitParams(doc)
+	if err != nil {
+		return "", err
+	}
 	if len(gitParams) == 0 {
 		return yamlContent, nil
 	}
 
-	err = doc.MergeAtPath("$.on", map[string]any{
-		"cli": map[string]any{
-			"init": gitParams,
-		},
-	})
-	if err != nil {
-		return "", err
+	if doc.hasPath("$.on.cli.init") {
+		err = doc.MergeAtPath("$.on.cli.init", gitParams)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		err = doc.MergeAtPath("$.on", map[string]any{
+			"cli": map[string]any{
+				"init": gitParams,
+			},
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	result := doc.String()
@@ -54,17 +64,17 @@ func ResolveCliParams(yamlContent string) (string, error) {
 	return result, nil
 }
 
-func extractGitParams(doc *YAMLDoc) map[string]any {
+func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 	result := make(map[string]any)
 
 	onNode, err := doc.getNodeAtPath("$.on")
 	if err != nil {
-		return result
+		return result, nil
 	}
 
 	mappingNode, ok := onNode.(*ast.MappingNode)
 	if !ok {
-		return result
+		return result, nil
 	}
 
 	for i := range mappingNode.Values {
@@ -73,28 +83,35 @@ func extractGitParams(doc *YAMLDoc) map[string]any {
 			continue
 		}
 
-		extractGitParamsFromTrigger(triggerEntry.Value, result)
+		err := extractGitParamsFromTrigger(triggerEntry.Value, result)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return result
+	return result, nil
 }
 
-func extractGitParamsFromTrigger(node ast.Node, result map[string]any) {
+func extractGitParamsFromTrigger(node ast.Node, result map[string]any) error {
 	triggerNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return
+		return nil
 	}
 
 	for i := range triggerNode.Values {
 		eventEntry := triggerNode.Values[i]
-		extractGitParamsFromEvent(eventEntry.Value, result)
+		err := extractGitParamsFromEvent(eventEntry.Value, result)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func extractGitParamsFromEvent(node ast.Node, result map[string]any) {
+func extractGitParamsFromEvent(node ast.Node, result map[string]any) error {
 	eventNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return
+		return nil
 	}
 
 	for i := range eventNode.Values {
@@ -103,14 +120,18 @@ func extractGitParamsFromEvent(node ast.Node, result map[string]any) {
 			continue
 		}
 
-		extractGitParamsFromInit(field.Value, result)
+		err := extractGitParamsFromInit(field.Value, result)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func extractGitParamsFromInit(node ast.Node, result map[string]any) {
+func extractGitParamsFromInit(node ast.Node, result map[string]any) error {
 	initNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return
+		return nil
 	}
 
 	for i := range initNode.Values {
@@ -119,7 +140,11 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) {
 		paramValue := initParam.Value.String()
 
 		if gitInitParams[paramName] && strings.Contains(paramValue, "event.git.") {
+			if existing, exists := result[paramName]; exists && existing != paramValue {
+				return errors.Errorf("conflict: param %q has conflicting values", paramName)
+			}
 			result[paramName] = paramValue
 		}
 	}
+	return nil
 }
