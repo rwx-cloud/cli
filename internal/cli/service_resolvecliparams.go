@@ -20,5 +20,9 @@ func ResolveCliParams(yamlContent string) (string, error) {
 		return "", errors.New("no git init params found in any trigger")
 	}
 
+	if doc.hasPath("$.on.cli.init") && strings.Contains(doc.TryReadStringAtPath("$.on.cli.init"), "event.git.") {
+		return yamlContent, nil
+	}
+
 	return yamlContent, nil
 }

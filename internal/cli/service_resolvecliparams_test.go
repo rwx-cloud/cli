@@ -77,6 +77,26 @@ tasks:
 		require.Equal(t, input, output)
 	})
 
+	t.Run("no changes when CLI already has git params", func(t *testing.T) {
+		input := `
+on:
+  cli:
+    init:
+      sha: ${{ event.git.sha }}
+  github:
+    push:
+      init:
+        ref: ${{ event.git.ref }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		output, err := ResolveCliParams(input)
+		require.NoError(t, err)
+		require.Equal(t, input, output)
+	})
+
 	t.Run("adds CLI trigger when another trigger has git params", func(t *testing.T) {
 		input := `
 on:
