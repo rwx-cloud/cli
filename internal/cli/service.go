@@ -188,6 +188,19 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil
 	}
 
+	modified, err := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to resolve CLI init params")
+	}
+
+	if modified {
+		fmt.Fprintf(s.Stderr, "Configured CLI trigger with git init params in %q\n\n", runDefinition[0].OriginalPath)
+
+		if err = reloadRunDefinitions(); err != nil {
+			return nil, err
+		}
+	}
+
 	addBaseIfNeeded, err := s.resolveOrUpdateBaseForFiles(runDefinition, BaseLayerSpec{}, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve base")
