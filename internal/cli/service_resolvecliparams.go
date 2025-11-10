@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 
 	"github.com/goccy/go-yaml/ast"
@@ -14,7 +15,29 @@ var gitInitParams = map[string]bool{
 	"tag":    true,
 }
 
-func ResolveCliParams(yamlContent string) (string, error) {
+func ResolveCliParamsForFile(filePath string) (bool, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return false, errors.Wrap(err, "unable to read file")
+	}
+
+	resolvedContent, err := resolveCliParams(string(content))
+	if err != nil {
+		return false, err
+	}
+
+	if resolvedContent != string(content) {
+		err = os.WriteFile(filePath, []byte(resolvedContent), 0644)
+		if err != nil {
+			return false, errors.Wrap(err, "unable to write file")
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func resolveCliParams(yamlContent string) (string, error) {
 	doc, err := ParseYAMLDoc(yamlContent)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse YAML")

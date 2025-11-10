@@ -1,14 +1,19 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestResolveCliParams(t *testing.T) {
+func TestResolveCliParamsForFile(t *testing.T) {
 	t.Run("errors when no on section exists", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 base:
   os: ubuntu 24.04
   tag: 1.2
@@ -17,13 +22,21 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		_, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
 		require.Error(t, err)
+		require.False(t, modified)
 		require.Contains(t, err.Error(), "no git init params found")
 	})
 
 	t.Run("errors when on section is empty", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 on:
 
 base:
@@ -34,13 +47,21 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		_, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
 		require.Error(t, err)
+		require.False(t, modified)
 		require.Contains(t, err.Error(), "no git init params found")
 	})
 
 	t.Run("errors when triggers only have non-git init params", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 on:
   github:
     push:
@@ -52,13 +73,21 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		_, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
 		require.Error(t, err)
+		require.False(t, modified)
 		require.Contains(t, err.Error(), "no git init params found")
 	})
 
 	t.Run("no changes when CLI trigger already has git init params", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 on:
   cli:
     init:
@@ -72,13 +101,24 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		output, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
-		require.Equal(t, input, output)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.False(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Equal(t, content, string(result))
 	})
 
 	t.Run("no changes when CLI already has git params", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 on:
   cli:
     init:
@@ -92,79 +132,85 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		output, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
-		require.Equal(t, input, output)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.False(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Equal(t, content, string(result))
 	})
 
 	t.Run("adds CLI trigger when another trigger has git params", func(t *testing.T) {
-		input := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		expected := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  cli:
-    init:
-      sha: ${{ event.git.sha }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		output, err := ResolveCliParams(input)
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
-		require.Equal(t, expected, output)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("merges git params into existing CLI trigger", func(t *testing.T) {
-		input := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  cli:
-    init:
-      foo: bar
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		expected := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  cli:
-    init:
-      foo: bar
-      sha: ${{ event.git.sha }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		output, err := ResolveCliParams(input)
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
-		require.Equal(t, expected, output)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+  cli:
+    init:
+      foo: bar
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "foo: bar")
+		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("errors on conflicting git param mappings", func(t *testing.T) {
-		input := `
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
 on:
   github:
     push:
@@ -179,47 +225,45 @@ tasks:
   - key: "test"
     run: echo 'hello world'
 `
-		_, err := ResolveCliParams(input)
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
 		require.Error(t, err)
+		require.False(t, modified)
 		require.Contains(t, err.Error(), "conflict")
 	})
 
 	t.Run("succeeds when multiple triggers have same git param mappings", func(t *testing.T) {
-		input := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  gitlab:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		expected := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  gitlab:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  cli:
-    init:
-      sha: ${{ event.git.sha }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		output, err := ResolveCliParams(input)
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
-		require.Equal(t, expected, output)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+  gitlab:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
 }
