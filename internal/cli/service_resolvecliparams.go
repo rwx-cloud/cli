@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
@@ -11,6 +13,10 @@ func ResolveCliParams(yamlContent string) (string, error) {
 	}
 
 	if !doc.hasPath("$.on") {
+		return "", errors.New("no git init params found in any trigger")
+	}
+
+	if !strings.Contains(yamlContent, "event.git.") {
 		return "", errors.New("no git init params found in any trigger")
 	}
 
