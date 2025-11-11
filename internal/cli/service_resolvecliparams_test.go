@@ -202,35 +202,6 @@ tasks:
 		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
 
-	t.Run("errors on conflicting git param mappings", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
-		require.NoError(t, err)
-		defer tmpFile.Close()
-
-		content := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-  gitlab:
-    push:
-      init:
-        sha: ${{ event.git.commit }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		_, err = tmpFile.WriteString(content)
-		require.NoError(t, err)
-
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, err)
-		require.False(t, modified)
-		require.Contains(t, err.Error(), "conflict")
-	})
-
 	t.Run("succeeds when multiple triggers have same git param mappings", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
@@ -316,7 +287,7 @@ tasks:
   - key: clone2
     call: git/clone 1.8.1
     with:
-      ref: ${{ init.branch }}
+      ref: ${{ init.sha }}
 `
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
@@ -421,5 +392,36 @@ tasks:
 		require.NoError(t, err)
 		require.Contains(t, string(result), "cli:")
 		require.Contains(t, string(result), "commit: ${{ event.git.sha }}")
+	})
+
+	t.Run("always maps to event.git.sha", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+        ref: ${{ event.git.ref }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "commit-sha: ${{ event.git.sha }}")
+		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
 	})
 }

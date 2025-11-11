@@ -11,10 +11,8 @@ import (
 )
 
 var gitInitParams = map[string]bool{
-	"sha":    true,
-	"ref":    true,
-	"branch": true,
-	"tag":    true,
+	"sha": true,
+	"ref": true,
 }
 
 func ResolveCliParamsForFile(filePath string) (bool, error) {
@@ -191,11 +189,9 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 		paramName := initParam.Key.String()
 		paramValue := initParam.Value.String()
 
-		if strings.Contains(paramValue, "event.git.") {
-			if existing, exists := newResult[paramName]; exists && existing != paramValue {
-				return nil, errors.Errorf("conflict: param %q has conflicting values", paramName)
-			}
-			newResult[paramName] = paramValue
+		if strings.Contains(paramValue, "event.git.ref") || strings.Contains(paramValue, "event.git.sha") {
+			// Always map to event.git.sha for CLI trigger
+			newResult[paramName] = "${{ event.git.sha }}"
 		}
 	}
 	return newResult, nil
@@ -273,6 +269,7 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[stri
 		newResult[k] = v
 	}
 
+	// Always map to event.git.sha for CLI trigger
 	targetValue := "${{ event.git.sha }}"
 	newResult[gitCloneRefParam] = targetValue
 

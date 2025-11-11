@@ -7,7 +7,7 @@ on:
         ref: ${{ event.git.ref }}
   cli:
     init:
-      ref: ${{ event.git.ref }}
+      ref: ${{ event.git.sha }}
 
 concurrency-pools:
   - id: rwx-cloud/cli:main
