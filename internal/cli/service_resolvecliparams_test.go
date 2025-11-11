@@ -14,10 +14,6 @@ func TestResolveCliParamsForFile(t *testing.T) {
 		defer tmpFile.Close()
 
 		content := `
-base:
-  os: ubuntu 24.04
-  tag: 1.2
-
 tasks:
   - key: "test"
     run: echo 'hello world'
@@ -37,10 +33,6 @@ tasks:
 
 		content := `
 on:
-
-base:
-  os: ubuntu 24.04
-  tag: 1.2
 
 tasks:
   - key: "test"
@@ -273,12 +265,6 @@ tasks:
 		defer tmpFile.Close()
 
 		content := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-
 tasks:
   - key: clone1
     call: git/clone 1.8.1
@@ -304,12 +290,6 @@ tasks:
 		defer tmpFile.Close()
 
 		content := `
-on:
-  github:
-    push:
-      init:
-        sha: ${{ event.git.sha }}
-
 tasks:
   - key: clone1
     call: git/clone 1.8.1
@@ -339,10 +319,6 @@ tasks:
 		defer tmpFile.Close()
 
 		content := `
-base:
-  os: ubuntu 24.04
-  tag: 1.2
-
 tasks:
   - key: clone
     call: git/clone 1.8.1
