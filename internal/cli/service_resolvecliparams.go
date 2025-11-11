@@ -15,23 +15,6 @@ var gitInitParams = map[string]bool{
 	"ref": true,
 }
 
-func prependOnSection(yamlContent string, params map[string]any) string {
-	var onSection strings.Builder
-	onSection.WriteString("on:\n  cli:\n    init:\n")
-
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-
-	for _, k := range keys {
-		onSection.WriteString(fmt.Sprintf("      %s: %s\n", k, params[k]))
-	}
-
-	return onSection.String() + yamlContent
-}
-
 func ResolveCliParamsForFile(filePath string) (bool, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -97,6 +80,23 @@ func resolveCliParams(yamlContent string) (string, error) {
 	}
 
 	return result, nil
+}
+
+func prependOnSection(yamlContent string, params map[string]any) string {
+	var onSection strings.Builder
+	onSection.WriteString("on:\n  cli:\n    init:\n")
+
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		onSection.WriteString(fmt.Sprintf("      %s: %s\n", k, params[k]))
+	}
+
+	return onSection.String() + yamlContent
 }
 
 func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
@@ -189,6 +189,46 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 	return result, nil
 }
 
+func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
+	tasksNode, err := doc.getNodeAtPath("$.tasks")
+	if err != nil {
+		return result, nil
+	}
+
+	sequenceNode, ok := tasksNode.(*ast.SequenceNode)
+	if !ok {
+		return result, nil
+	}
+
+	var gitCloneRefParam string
+
+	for _, taskNode := range sequenceNode.Values {
+		mappingNode, ok := taskNode.(*ast.MappingNode)
+		if !ok {
+			continue
+		}
+
+		paramName := extractGitCloneRefParam(mappingNode)
+		if paramName == "" {
+			continue
+		}
+
+		if gitCloneRefParam != "" && gitCloneRefParam != paramName {
+			return nil, errors.New("multiple git/clone packages use different ref init params")
+		}
+		gitCloneRefParam = paramName
+	}
+
+	if gitCloneRefParam == "" {
+		return result, nil
+	}
+
+	// Always map to event.git.sha for CLI trigger
+	result[gitCloneRefParam] = "${{ event.git.sha }}"
+
+	return result, nil
+}
+
 func extractGitCloneRefParam(taskNode *ast.MappingNode) string {
 	var isGitClone bool
 	var refValue string
@@ -234,44 +274,4 @@ func extractGitCloneRefParam(taskNode *ast.MappingNode) string {
 	}
 
 	return paramName
-}
-
-func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
-	tasksNode, err := doc.getNodeAtPath("$.tasks")
-	if err != nil {
-		return result, nil
-	}
-
-	sequenceNode, ok := tasksNode.(*ast.SequenceNode)
-	if !ok {
-		return result, nil
-	}
-
-	var gitCloneRefParam string
-
-	for _, taskNode := range sequenceNode.Values {
-		mappingNode, ok := taskNode.(*ast.MappingNode)
-		if !ok {
-			continue
-		}
-
-		paramName := extractGitCloneRefParam(mappingNode)
-		if paramName == "" {
-			continue
-		}
-
-		if gitCloneRefParam != "" && gitCloneRefParam != paramName {
-			return nil, errors.New("multiple git/clone packages use different ref init params")
-		}
-		gitCloneRefParam = paramName
-	}
-
-	if gitCloneRefParam == "" {
-		return result, nil
-	}
-
-	// Always map to event.git.sha for CLI trigger
-	result[gitCloneRefParam] = "${{ event.git.sha }}"
-
-	return result, nil
 }
