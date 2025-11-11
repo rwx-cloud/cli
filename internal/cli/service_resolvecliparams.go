@@ -121,6 +121,17 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 }
 
 func extractGitParamsFromTrigger(node ast.Node, result map[string]any) (map[string]any, error) {
+	if sequenceNode, ok := node.(*ast.SequenceNode); ok {
+		for _, element := range sequenceNode.Values {
+			var err error
+			result, err = extractGitParamsFromEvent(element, result)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return result, nil
+	}
+
 	triggerNode, ok := node.(*ast.MappingNode)
 	if !ok {
 		return result, nil
@@ -174,7 +185,7 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 		paramName := initParam.Key.String()
 		paramValue := initParam.Value.String()
 
-		if gitInitParams[paramName] && strings.Contains(paramValue, "event.git.") {
+		if strings.Contains(paramValue, "event.git.") {
 			if existing, exists := newResult[paramName]; exists && existing != paramValue {
 				return nil, errors.Errorf("conflict: param %q has conflicting values", paramName)
 			}
