@@ -8,7 +8,7 @@ import (
 )
 
 func TestResolveCliParamsForFile(t *testing.T) {
-	t.Run("errors when no on section exists", func(t *testing.T) {
+	t.Run("no changes when no on section exists", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
 		defer tmpFile.Close()
@@ -26,12 +26,11 @@ tasks:
 		require.NoError(t, err)
 
 		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, err)
+		require.NoError(t, err)
 		require.False(t, modified)
-		require.Contains(t, err.Error(), "no git init params found")
 	})
 
-	t.Run("errors when on section is empty", func(t *testing.T) {
+	t.Run("no changes when on section is empty", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
 		defer tmpFile.Close()
@@ -51,12 +50,11 @@ tasks:
 		require.NoError(t, err)
 
 		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, err)
+		require.NoError(t, err)
 		require.False(t, modified)
-		require.Contains(t, err.Error(), "no git init params found")
 	})
 
-	t.Run("errors when triggers only have non-git init params", func(t *testing.T) {
+	t.Run("no changes when triggers only have non-git init params", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
 		defer tmpFile.Close()
@@ -77,9 +75,8 @@ tasks:
 		require.NoError(t, err)
 
 		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, err)
+		require.NoError(t, err)
 		require.False(t, modified)
-		require.Contains(t, err.Error(), "no git init params found")
 	})
 
 	t.Run("no changes when CLI trigger already has git init params", func(t *testing.T) {
@@ -363,6 +360,36 @@ tasks:
 		require.NoError(t, err)
 		require.Contains(t, string(result), "cli:")
 		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+	})
+
+	t.Run("adds CLI trigger when git/clone exists but no on section", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+base:
+  os: ubuntu 24.04
+  tag: 1.2
+
+tasks:
+  - key: clone
+    call: git/clone 1.8.1
+    with:
+      ref: ${{ init.sha }}
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "on:")
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("adds CLI trigger when dispatch trigger has git params", func(t *testing.T) {

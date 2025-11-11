@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-yaml/ast"
@@ -43,14 +45,6 @@ func resolveCliParams(yamlContent string) (string, error) {
 		return "", errors.Wrap(err, "failed to parse YAML")
 	}
 
-	if !doc.hasPath("$.on") {
-		return "", errors.New("no git init params found in any trigger")
-	}
-
-	if !strings.Contains(yamlContent, "event.git.") {
-		return "", errors.New("no git init params found in any trigger")
-	}
-
 	if doc.hasPath("$.on.cli.init") && strings.Contains(doc.TryReadStringAtPath("$.on.cli.init"), "event.git.") {
 		return yamlContent, nil
 	}
@@ -63,20 +57,36 @@ func resolveCliParams(yamlContent string) (string, error) {
 		return yamlContent, nil
 	}
 
+	hasOnSection := doc.hasPath("$.on")
+
+	if !hasOnSection {
+		var onSection strings.Builder
+		onSection.WriteString("on:\n  cli:\n    init:\n")
+
+		keys := make([]string, 0, len(gitParams))
+		for k := range gitParams {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+
+		for _, k := range keys {
+			onSection.WriteString(fmt.Sprintf("      %s: %s\n", k, gitParams[k]))
+		}
+
+		return onSection.String() + yamlContent, nil
+	}
+
 	if doc.hasPath("$.on.cli.init") {
 		err = doc.MergeAtPath("$.on.cli.init", gitParams)
-		if err != nil {
-			return "", err
-		}
 	} else {
 		err = doc.MergeAtPath("$.on", map[string]any{
 			"cli": map[string]any{
 				"init": gitParams,
 			},
 		})
-		if err != nil {
-			return "", err
-		}
+	}
+	if err != nil {
+		return "", err
 	}
 
 	result := doc.String()
@@ -91,24 +101,20 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 	result := make(map[string]any)
 
 	onNode, err := doc.getNodeAtPath("$.on")
-	if err != nil {
-		return result, nil
-	}
+	if err == nil {
+		mappingNode, ok := onNode.(*ast.MappingNode)
+		if ok {
+			for i := range mappingNode.Values {
+				triggerEntry := mappingNode.Values[i]
+				if triggerEntry.Key.String() == "cli" {
+					continue
+				}
 
-	mappingNode, ok := onNode.(*ast.MappingNode)
-	if !ok {
-		return result, nil
-	}
-
-	for i := range mappingNode.Values {
-		triggerEntry := mappingNode.Values[i]
-		if triggerEntry.Key.String() == "cli" {
-			continue
-		}
-
-		result, err = extractGitParamsFromTrigger(triggerEntry.Value, result)
-		if err != nil {
-			return nil, err
+				result, err = extractGitParamsFromTrigger(triggerEntry.Value, result)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 
