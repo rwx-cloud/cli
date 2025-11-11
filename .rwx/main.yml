@@ -5,9 +5,6 @@ on:
       init:
         commit-sha: ${{ event.git.sha }}
         ref: ${{ event.git.ref }}
-  cli:
-    init:
-      ref: ${{ event.git.sha }}
 
 concurrency-pools:
   - id: rwx-cloud/cli:main
