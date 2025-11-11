@@ -14,6 +14,9 @@ on:
         commit: ${{ event.git.sha }}
         kind: ${{ event.dispatch.params.kind }}
         version: ${{ event.dispatch.params.version }}
+  cli:
+    init:
+      commit: ${{ event.git.sha }}
 
 concurrency-pools:
   - id: rwx-cloud/cli::release-${{ init.kind }}

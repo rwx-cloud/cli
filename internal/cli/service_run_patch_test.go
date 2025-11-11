@@ -33,7 +33,7 @@ func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata ap
 	definitionsFile := filepath.Join(rwxDir, "rwx.yml")
 	runConfig.MintFilePath = definitionsFile
 
-	definition := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+	definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 
 	err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
 	require.NoError(t, err)

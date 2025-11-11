@@ -52,7 +52,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				originUrl := "git@github.com:rwx-cloud/cli.git"
 				s.mockGit.MockGetOriginUrl = originUrl
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 				var receivedRwxDir []api.RwxDirectoryEntry
@@ -151,7 +151,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 
 				workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -215,7 +215,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 
 				workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -275,7 +275,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 				var receivedRwxDir []api.RwxDirectoryEntry
@@ -367,7 +367,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 
 				workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -431,7 +431,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 
 				workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -489,7 +489,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					}, nil
 				}
 
-				originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 				originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
 				var receivedSpecifiedFileContent string
 				var receivedRwxDir []api.RwxDirectoryEntry
@@ -577,7 +577,6 @@ func TestService_InitiatingRun(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 			resolveBaseLayerCalled := false
 
 			s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
@@ -596,7 +595,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n"
+			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 			var receivedSpecifiedFileContent string
 			var receivedRwxDirectoryFileContent string
 
@@ -630,8 +629,9 @@ func TestService_InitiatingRun(t *testing.T) {
 			require.NoError(t, err)
 
 			require.True(t, resolveBaseLayerCalled)
-			require.Equal(t, fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent), receivedSpecifiedFileContent)
-			require.Equal(t, fmt.Sprintf("%s\n%s", baseSpec, originalSpecifiedFileContent), receivedRwxDirectoryFileContent)
+			expectedContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+			require.Equal(t, expectedContent, receivedSpecifiedFileContent)
+			require.Equal(t, expectedContent, receivedRwxDirectoryFileContent)
 			require.Contains(t, s.mockStderr.String(), "Configured \".mint/foo.yml\" to run on ubuntu 24.04\n")
 		})
 
@@ -661,7 +661,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			originalSpecifiedFileContent := baseSpec + "tasks:\n  - key: foo\n    call: mint/setup-node\n"
+			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\n" + baseSpec + "tasks:\n  - key: foo\n    call: mint/setup-node\n"
 			var receivedSpecifiedFileContent string
 			var receivedRwxDirectoryFileContent string
 
@@ -695,8 +695,8 @@ func TestService_InitiatingRun(t *testing.T) {
 			require.NoError(t, err)
 
 			require.True(t, getPackageVersionsCalled)
-			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedSpecifiedFileContent)
-			require.Equal(t, baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedRwxDirectoryFileContent)
+			require.Equal(t, "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\n"+baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedSpecifiedFileContent)
+			require.Equal(t, "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\n"+baseSpec+"tasks:\n  - key: foo\n    call: mint/setup-node 1.2.3\n", receivedRwxDirectoryFileContent)
 			require.Contains(t, s.mockStderr.String(), "Configured package mint/setup-node to use version 1.2.3\n")
 		})
 	})
@@ -737,7 +737,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 			originalRwxDirFileContent := "tasks:\n  - key: mintdir\n    run: echo 'mintdir'\n" + baseSpec
 			var receivedSpecifiedFileContent string
 			var receivedRwxDir []api.RwxDirectoryEntry
@@ -814,7 +814,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				}, nil
 			}
 
-			originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 			var receivedSpecifiedFileContent string
 
 			workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
@@ -889,7 +889,7 @@ func TestService_InitiatingRun(t *testing.T) {
 			runConfig := cli.InitiateRunConfig{}
 			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
 
-			originalSpecifiedFileContent := "tasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
+			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 
 			workingDir := filepath.Join(s.tmp, "some", "path", "to", "working", "directory")
 			err := os.MkdirAll(workingDir, 0o755)
@@ -945,7 +945,7 @@ func TestService_InitiatingRun(t *testing.T) {
 		}
 
 		// Create a file with invalid YAML syntax that will cause base resolution to fail
-		originalSpecifiedFileContent := "# This is a comment\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+		originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\n# This is a comment\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 
 		mintDir := filepath.Join(s.tmp, ".mint")
 		err := os.MkdirAll(mintDir, 0o755)
@@ -964,5 +964,83 @@ func TestService_InitiatingRun(t *testing.T) {
 
 		// Verify that no success message was printed (since there were no successful updates)
 		require.NotContains(t, s.mockStderr.String(), "Configured")
+	})
+
+	t.Run("resolves CLI git init params", func(t *testing.T) {
+		s := setupTest(t)
+
+		runConfig := cli.InitiateRunConfig{}
+		baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+
+		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
+			return api.ResolveBaseLayerResult{
+				Os:   "ubuntu 24.04",
+				Tag:  "1.0",
+				Arch: "x86_64",
+			}, nil
+		}
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		s.mockGit.MockGetBranch = "main"
+		s.mockGit.MockGetCommit = "abc123"
+		s.mockGit.MockGetOriginUrl = "git@github.com:rwx-cloud/cli.git"
+
+		originalFileContent := `
+on:
+  github:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+
+tasks:
+  - key: foo
+    run: echo 'bar'
+` + baseSpec
+
+		workingDir := filepath.Join(s.tmp, "working")
+		err := os.MkdirAll(workingDir, 0o755)
+		require.NoError(t, err)
+
+		err = os.Chdir(workingDir)
+		require.NoError(t, err)
+
+		mintDir := filepath.Join(s.tmp, ".mint")
+		err = os.MkdirAll(mintDir, 0o755)
+		require.NoError(t, err)
+
+		testFile := filepath.Join(mintDir, "test.yml")
+		err = os.WriteFile(testFile, []byte(originalFileContent), 0o644)
+		require.NoError(t, err)
+
+		runConfig.MintFilePath = testFile
+		runConfig.RwxDirectory = ""
+
+		var receivedFileContent string
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			receivedFileContent = cfg.TaskDefinitions[0].FileContents
+			return &api.InitiateRunResult{
+				RunId:            "test-run-id",
+				RunURL:           "https://cloud.rwx.com/mint/rwx/runs/test-run-id",
+				TargetedTaskKeys: []string{},
+				DefinitionPath:   testFile,
+			}, nil
+		}
+
+		_, err = s.service.InitiateRun(runConfig)
+		require.NoError(t, err)
+
+		require.Contains(t, receivedFileContent, "cli:")
+		require.Contains(t, receivedFileContent, "sha: ${{ event.git.sha }}")
+		require.Contains(t, s.mockStderr.String(), "Configured CLI trigger with git init params")
+
+		modifiedContent, err := os.ReadFile(testFile)
+		require.NoError(t, err)
+		require.Contains(t, string(modifiedContent), "cli:")
 	})
 }
