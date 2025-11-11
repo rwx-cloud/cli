@@ -433,4 +433,37 @@ tasks:
 		require.Contains(t, string(result), "cli:")
 		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
 	})
+
+	t.Run("adds CLI trigger when multiple events on same trigger have git params", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        ref: ${{ event.git.ref }}
+    pull_request:
+      init:
+        sha: ${{ event.git.ref }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+	})
 }
