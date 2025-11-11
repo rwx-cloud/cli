@@ -106,13 +106,13 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 			continue
 		}
 
-		err := extractGitParamsFromTrigger(triggerEntry.Value, result)
+		result, err = extractGitParamsFromTrigger(triggerEntry.Value, result)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = extractGitParamsFromGitClone(doc, result)
+	result, err = extractGitParamsFromGitClone(doc, result)
 	if err != nil {
 		return nil, err
 	}
@@ -120,26 +120,27 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 	return result, nil
 }
 
-func extractGitParamsFromTrigger(node ast.Node, result map[string]any) error {
+func extractGitParamsFromTrigger(node ast.Node, result map[string]any) (map[string]any, error) {
 	triggerNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return nil
+		return result, nil
 	}
 
 	for i := range triggerNode.Values {
 		eventEntry := triggerNode.Values[i]
-		err := extractGitParamsFromEvent(eventEntry.Value, result)
+		var err error
+		result, err = extractGitParamsFromEvent(eventEntry.Value, result)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return result, nil
 }
 
-func extractGitParamsFromEvent(node ast.Node, result map[string]any) error {
+func extractGitParamsFromEvent(node ast.Node, result map[string]any) (map[string]any, error) {
 	eventNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return nil
+		return result, nil
 	}
 
 	for i := range eventNode.Values {
@@ -148,18 +149,24 @@ func extractGitParamsFromEvent(node ast.Node, result map[string]any) error {
 			continue
 		}
 
-		err := extractGitParamsFromInit(field.Value, result)
+		var err error
+		result, err = extractGitParamsFromInit(field.Value, result)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return result, nil
 }
 
-func extractGitParamsFromInit(node ast.Node, result map[string]any) error {
+func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]any, error) {
 	initNode, ok := node.(*ast.MappingNode)
 	if !ok {
-		return nil
+		return result, nil
+	}
+
+	newResult := make(map[string]any)
+	for k, v := range result {
+		newResult[k] = v
 	}
 
 	for i := range initNode.Values {
@@ -168,24 +175,24 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) error {
 		paramValue := initParam.Value.String()
 
 		if gitInitParams[paramName] && strings.Contains(paramValue, "event.git.") {
-			if existing, exists := result[paramName]; exists && existing != paramValue {
-				return errors.Errorf("conflict: param %q has conflicting values", paramName)
+			if existing, exists := newResult[paramName]; exists && existing != paramValue {
+				return nil, errors.Errorf("conflict: param %q has conflicting values", paramName)
 			}
-			result[paramName] = paramValue
+			newResult[paramName] = paramValue
 		}
 	}
-	return nil
+	return newResult, nil
 }
 
-func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) error {
+func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
 	tasksNode, err := doc.getNodeAtPath("$.tasks")
 	if err != nil {
-		return nil
+		return result, nil
 	}
 
 	sequenceNode, ok := tasksNode.(*ast.SequenceNode)
 	if !ok {
-		return nil
+		return result, nil
 	}
 
 	var gitCloneRefParam string
@@ -231,7 +238,7 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) error {
 
 					if gitInitParams[paramName] {
 						if gitCloneRefParam != "" && gitCloneRefParam != paramName {
-							return errors.New("multiple git/clone packages use different ref init params")
+							return nil, errors.New("multiple git/clone packages use different ref init params")
 						}
 						gitCloneRefParam = paramName
 					}
@@ -240,10 +247,17 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) error {
 		}
 	}
 
-	if gitCloneRefParam != "" {
-		targetValue := "${{ event.git.sha }}"
-		result[gitCloneRefParam] = targetValue
+	if gitCloneRefParam == "" {
+		return result, nil
 	}
 
-	return nil
+	newResult := make(map[string]any)
+	for k, v := range result {
+		newResult[k] = v
+	}
+
+	targetValue := "${{ event.git.sha }}"
+	newResult[gitCloneRefParam] = targetValue
+
+	return newResult, nil
 }
