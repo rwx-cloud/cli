@@ -112,6 +112,11 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 		}
 	}
 
+	err = extractGitParamsFromGitClone(doc, result)
+	if err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 
@@ -169,5 +174,76 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) error {
 			result[paramName] = paramValue
 		}
 	}
+	return nil
+}
+
+func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) error {
+	tasksNode, err := doc.getNodeAtPath("$.tasks")
+	if err != nil {
+		return nil
+	}
+
+	sequenceNode, ok := tasksNode.(*ast.SequenceNode)
+	if !ok {
+		return nil
+	}
+
+	var gitCloneRefParam string
+
+	for _, taskNode := range sequenceNode.Values {
+		mappingNode, ok := taskNode.(*ast.MappingNode)
+		if !ok {
+			continue
+		}
+
+		var isGitClone bool
+		var refValue string
+
+		for i := range mappingNode.Values {
+			entry := mappingNode.Values[i]
+			key := entry.Key.String()
+
+			if key == "call" && strings.HasPrefix(entry.Value.String(), "git/clone") {
+				isGitClone = true
+			}
+
+			if key == "with" {
+				withNode, ok := entry.Value.(*ast.MappingNode)
+				if !ok {
+					continue
+				}
+
+				for j := range withNode.Values {
+					withEntry := withNode.Values[j]
+					if withEntry.Key.String() == "ref" {
+						refValue = withEntry.Value.String()
+					}
+				}
+			}
+		}
+
+		if isGitClone && refValue != "" {
+			if strings.Contains(refValue, "init.") {
+				parts := strings.Split(refValue, "init.")
+				if len(parts) >= 2 {
+					paramName := strings.TrimSpace(parts[1])
+					paramName = strings.TrimRight(paramName, " })")
+
+					if gitInitParams[paramName] {
+						if gitCloneRefParam != "" && gitCloneRefParam != paramName {
+							return errors.New("multiple git/clone packages use different ref init params")
+						}
+						gitCloneRefParam = paramName
+					}
+				}
+			}
+		}
+	}
+
+	if gitCloneRefParam != "" {
+		targetValue := "${{ event.git.sha }}"
+		result[gitCloneRefParam] = targetValue
+	}
+
 	return nil
 }

@@ -266,4 +266,67 @@ tasks:
 		require.Contains(t, string(result), "cli:")
 		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
 	})
+
+	t.Run("detects git/clone package and maps ref to event.git.sha", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        # git/clone ref takes precedence over this mapping
+        commit-sha: ${{ event.git.sha }}
+
+tasks:
+  - key: clone
+    call: git/clone 1.8.1
+    with:
+      ref: ${{ init.ref }}
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+	})
+
+	t.Run("errors when multiple git/clone packages use different ref params", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        sha: ${{ event.git.sha }}
+
+tasks:
+  - key: clone1
+    call: git/clone 1.8.1
+    with:
+      ref: ${{ init.ref }}
+  - key: clone2
+    call: git/clone 1.8.1
+    with:
+      ref: ${{ init.branch }}
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.Error(t, err)
+		require.False(t, modified)
+		require.Contains(t, err.Error(), "multiple git/clone")
+	})
 }
