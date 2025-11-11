@@ -15,6 +15,23 @@ var gitInitParams = map[string]bool{
 	"ref": true,
 }
 
+func prependOnSection(yamlContent string, params map[string]any) string {
+	var onSection strings.Builder
+	onSection.WriteString("on:\n  cli:\n    init:\n")
+
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		onSection.WriteString(fmt.Sprintf("      %s: %s\n", k, params[k]))
+	}
+
+	return onSection.String() + yamlContent
+}
+
 func ResolveCliParamsForFile(filePath string) (bool, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -43,7 +60,8 @@ func resolveCliParams(yamlContent string) (string, error) {
 		return "", errors.Wrap(err, "failed to parse YAML")
 	}
 
-	if doc.hasPath("$.on.cli.init") && strings.Contains(doc.TryReadStringAtPath("$.on.cli.init"), "event.git.") {
+	// Skip if CLI init already has git event references
+	if cliInit := doc.TryReadStringAtPath("$.on.cli.init"); strings.Contains(cliInit, "event.git.") {
 		return yamlContent, nil
 	}
 
@@ -55,23 +73,9 @@ func resolveCliParams(yamlContent string) (string, error) {
 		return yamlContent, nil
 	}
 
-	hasOnSection := doc.hasPath("$.on")
-
-	if !hasOnSection {
-		var onSection strings.Builder
-		onSection.WriteString("on:\n  cli:\n    init:\n")
-
-		keys := make([]string, 0, len(gitParams))
-		for k := range gitParams {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-
-		for _, k := range keys {
-			onSection.WriteString(fmt.Sprintf("      %s: %s\n", k, gitParams[k]))
-		}
-
-		return onSection.String() + yamlContent, nil
+	// Create new 'on' section if it doesn't exist
+	if !doc.hasPath("$.on") {
+		return prependOnSection(yamlContent, gitParams), nil
 	}
 
 	if doc.hasPath("$.on.cli.init") {
@@ -142,9 +146,8 @@ func extractGitParamsFromTrigger(node ast.Node, result map[string]any) (map[stri
 	}
 
 	for i := range triggerNode.Values {
-		eventEntry := triggerNode.Values[i]
 		var err error
-		result, err = extractGitParamsFromEvent(eventEntry.Value, result)
+		result, err = extractGitParamsFromEvent(triggerNode.Values[i].Value, result)
 		if err != nil {
 			return nil, err
 		}
@@ -160,14 +163,8 @@ func extractGitParamsFromEvent(node ast.Node, result map[string]any) (map[string
 
 	for i := range eventNode.Values {
 		field := eventNode.Values[i]
-		if field.Key.String() != "init" {
-			continue
-		}
-
-		var err error
-		result, err = extractGitParamsFromInit(field.Value, result)
-		if err != nil {
-			return nil, err
+		if field.Key.String() == "init" {
+			return extractGitParamsFromInit(field.Value, result)
 		}
 	}
 	return result, nil
@@ -179,11 +176,6 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 		return result, nil
 	}
 
-	newResult := make(map[string]any)
-	for k, v := range result {
-		newResult[k] = v
-	}
-
 	for i := range initNode.Values {
 		initParam := initNode.Values[i]
 		paramName := initParam.Key.String()
@@ -191,10 +183,57 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 
 		if strings.Contains(paramValue, "event.git.ref") || strings.Contains(paramValue, "event.git.sha") {
 			// Always map to event.git.sha for CLI trigger
-			newResult[paramName] = "${{ event.git.sha }}"
+			result[paramName] = "${{ event.git.sha }}"
 		}
 	}
-	return newResult, nil
+	return result, nil
+}
+
+func extractGitCloneRefParam(taskNode *ast.MappingNode) string {
+	var isGitClone bool
+	var refValue string
+
+	for i := range taskNode.Values {
+		entry := taskNode.Values[i]
+		key := entry.Key.String()
+
+		if key == "call" && strings.HasPrefix(entry.Value.String(), "git/clone") {
+			isGitClone = true
+		}
+
+		if key == "with" {
+			withNode, ok := entry.Value.(*ast.MappingNode)
+			if !ok {
+				continue
+			}
+
+			for j := range withNode.Values {
+				withEntry := withNode.Values[j]
+				if withEntry.Key.String() == "ref" {
+					refValue = withEntry.Value.String()
+					break
+				}
+			}
+		}
+	}
+
+	if !isGitClone || refValue == "" || !strings.Contains(refValue, "init.") {
+		return ""
+	}
+
+	parts := strings.Split(refValue, "init.")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	paramName := strings.TrimSpace(parts[1])
+	paramName = strings.TrimRight(paramName, " })")
+
+	if !gitInitParams[paramName] {
+		return ""
+	}
+
+	return paramName
 }
 
 func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
@@ -216,62 +255,23 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[stri
 			continue
 		}
 
-		var isGitClone bool
-		var refValue string
-
-		for i := range mappingNode.Values {
-			entry := mappingNode.Values[i]
-			key := entry.Key.String()
-
-			if key == "call" && strings.HasPrefix(entry.Value.String(), "git/clone") {
-				isGitClone = true
-			}
-
-			if key == "with" {
-				withNode, ok := entry.Value.(*ast.MappingNode)
-				if !ok {
-					continue
-				}
-
-				for j := range withNode.Values {
-					withEntry := withNode.Values[j]
-					if withEntry.Key.String() == "ref" {
-						refValue = withEntry.Value.String()
-					}
-				}
-			}
+		paramName := extractGitCloneRefParam(mappingNode)
+		if paramName == "" {
+			continue
 		}
 
-		if isGitClone && refValue != "" {
-			if strings.Contains(refValue, "init.") {
-				parts := strings.Split(refValue, "init.")
-				if len(parts) >= 2 {
-					paramName := strings.TrimSpace(parts[1])
-					paramName = strings.TrimRight(paramName, " })")
-
-					if gitInitParams[paramName] {
-						if gitCloneRefParam != "" && gitCloneRefParam != paramName {
-							return nil, errors.New("multiple git/clone packages use different ref init params")
-						}
-						gitCloneRefParam = paramName
-					}
-				}
-			}
+		if gitCloneRefParam != "" && gitCloneRefParam != paramName {
+			return nil, errors.New("multiple git/clone packages use different ref init params")
 		}
+		gitCloneRefParam = paramName
 	}
 
 	if gitCloneRefParam == "" {
 		return result, nil
 	}
 
-	newResult := make(map[string]any)
-	for k, v := range result {
-		newResult[k] = v
-	}
-
 	// Always map to event.git.sha for CLI trigger
-	targetValue := "${{ event.git.sha }}"
-	newResult[gitCloneRefParam] = targetValue
+	result[gitCloneRefParam] = "${{ event.git.sha }}"
 
-	return newResult, nil
+	return result, nil
 }
