@@ -10,11 +10,6 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
-var gitInitParams = map[string]bool{
-	"sha": true,
-	"ref": true,
-}
-
 func ResolveCliParamsForFile(filePath string) (bool, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -279,10 +274,6 @@ func extractGitCloneRefParam(taskNode *ast.MappingNode) string {
 
 	paramName := strings.TrimSpace(parts[1])
 	paramName = strings.TrimRight(paramName, " })")
-
-	if !gitInitParams[paramName] {
-		return ""
-	}
 
 	return paramName
 }
