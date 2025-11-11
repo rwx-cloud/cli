@@ -424,4 +424,37 @@ tasks:
 		require.Contains(t, string(result), "commit-sha: ${{ event.git.sha }}")
 		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
 	})
+
+	t.Run("extracts git params from conditional init params", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      - if: ${{ init.deploy }}
+        init:
+          ref: ${{ event.git.ref }}
+      - if: ${{ init.test }}
+        init:
+          ref: ${{ event.git.ref }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		modified, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.True(t, modified)
+
+		result, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(result), "cli:")
+		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+	})
 }

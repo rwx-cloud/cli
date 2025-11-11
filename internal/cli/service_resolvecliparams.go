@@ -156,6 +156,17 @@ func extractGitParamsFromTrigger(node ast.Node, result map[string]any) (map[stri
 }
 
 func extractGitParamsFromEvent(node ast.Node, result map[string]any) (map[string]any, error) {
+	if sequenceNode, ok := node.(*ast.SequenceNode); ok {
+		for _, element := range sequenceNode.Values {
+			var err error
+			result, err = extractGitParamsFromEvent(element, result)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return result, nil
+	}
+
 	eventNode, ok := node.(*ast.MappingNode)
 	if !ok {
 		return result, nil
