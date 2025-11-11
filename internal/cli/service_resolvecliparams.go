@@ -208,13 +208,25 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[stri
 
 	var gitCloneRefParam string
 
-	for _, taskNode := range sequenceNode.Values {
-		mappingNode, ok := taskNode.(*ast.MappingNode)
-		if !ok {
+	for i := range sequenceNode.Values {
+		callValue := doc.TryReadStringAtPath(fmt.Sprintf("$.tasks[%d].call", i))
+		if !strings.HasPrefix(callValue, "git/clone") {
 			continue
 		}
 
-		paramName := extractGitCloneRefParam(mappingNode)
+		refValue := doc.TryReadStringAtPath(fmt.Sprintf("$.tasks[%d].with.ref", i))
+		if refValue == "" || !strings.Contains(refValue, "init.") {
+			continue
+		}
+
+		parts := strings.Split(refValue, "init.")
+		if len(parts) < 2 {
+			continue
+		}
+
+		paramName := strings.TrimSpace(parts[1])
+		paramName = strings.TrimRight(paramName, " })")
+
 		if paramName == "" {
 			continue
 		}
@@ -233,47 +245,4 @@ func extractGitParamsFromGitClone(doc *YAMLDoc, result map[string]any) (map[stri
 	result[gitCloneRefParam] = "${{ event.git.sha }}"
 
 	return result, nil
-}
-
-func extractGitCloneRefParam(taskNode *ast.MappingNode) string {
-	var isGitClone bool
-	var refValue string
-
-	for i := range taskNode.Values {
-		entry := taskNode.Values[i]
-		key := entry.Key.String()
-
-		if key == "call" && strings.HasPrefix(entry.Value.String(), "git/clone") {
-			isGitClone = true
-		}
-
-		if key == "with" {
-			withNode, ok := entry.Value.(*ast.MappingNode)
-			if !ok {
-				continue
-			}
-
-			for j := range withNode.Values {
-				withEntry := withNode.Values[j]
-				if withEntry.Key.String() == "ref" {
-					refValue = withEntry.Value.String()
-					break
-				}
-			}
-		}
-	}
-
-	if !isGitClone || refValue == "" || !strings.Contains(refValue, "init.") {
-		return ""
-	}
-
-	parts := strings.Split(refValue, "init.")
-	if len(parts) < 2 {
-		return ""
-	}
-
-	paramName := strings.TrimSpace(parts[1])
-	paramName = strings.TrimRight(paramName, " })")
-
-	return paramName
 }
