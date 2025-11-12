@@ -72,8 +72,6 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 	})
 
 	t.Run("when the run is patchable", func(t *testing.T) {
-		t.Setenv("RWX_PREVIEW_GIT_PATCH", "1")
-
 		untrackedFiles := git.UntrackedFilesMetadata{
 			Files: []string{"foo.txt"},
 			Count: 1,
@@ -91,17 +89,6 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 
 		t.Run("when env RWX_DISABLE_GIT_PATCH is set", func(t *testing.T) {
 			t.Setenv("RWX_DISABLE_GIT_PATCH", "1")
-
-			// it launches a run but does not patch
-			rwxDir := initiateRun(t, patchFile, api.PatchMetadata{})
-
-			for _, entry := range rwxDir {
-				require.False(t, strings.Contains(entry.Path, ".patches/"))
-			}
-		})
-
-		t.Run("when the feature flag is not set", func(t *testing.T) {
-			t.Setenv("RWX_PREVIEW_GIT_PATCH", "")
 
 			// it launches a run but does not patch
 			rwxDir := initiateRun(t, patchFile, api.PatchMetadata{})
