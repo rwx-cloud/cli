@@ -50,8 +50,8 @@ var (
 			if (len(args) > 0 && fileFlag.Changed) || len(args) > 1 {
 				return fmt.Errorf(
 					"positional arguments are not supported for task targeting.\n"+
-						"Use --task to specify task targets instead.\n"+
-						"For example: rwx run <file> --task <task>",
+						"Use --target to specify task targets instead.\n"+
+						"For example: rwx run <file> --target <task>",
 				)
 			}
 
@@ -141,7 +141,7 @@ var (
 func init() {
 	runCmd.Flags().BoolVar(&NoCache, "no-cache", false, "do not read or write to the cache")
 	runCmd.Flags().StringArrayVar(&InitParameters, flagInit, []string{}, "initialization parameters for the run, available in the `init` context. Can be specified multiple times")
-	runCmd.Flags().StringArrayVar(&TargetedTasks, "task", []string{}, "task to target for execution. Can be specified multiple times")
+	runCmd.Flags().StringArrayVar(&TargetedTasks, "target", []string{}, "task to target for execution. Can be specified multiple times")
 	runCmd.Flags().StringVarP(&MintFilePath, "file", "f", "", "an RWX config file to use for sourcing task definitions (required)")
 	_ = runCmd.Flags().MarkHidden("file")
 	addRwxDirFlag(runCmd)
