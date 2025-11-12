@@ -38,16 +38,16 @@ func resolveCliParams(yamlContent string) (string, error) {
 		return "", errors.Wrap(err, "failed to parse YAML")
 	}
 
-	// Skip if CLI init already has git event references
-	if cliInit := doc.TryReadStringAtPath("$.on.cli.init"); strings.Contains(cliInit, "event.git.") {
-		return yamlContent, nil
-	}
-
 	gitParams, err := extractGitParams(doc)
 	if err != nil {
 		return "", err
 	}
 	if len(gitParams) == 0 {
+		return yamlContent, nil
+	}
+
+	// Skip if CLI init already has git event references
+	if cliInit := doc.TryReadStringAtPath("$.on.cli.init"); strings.Contains(cliInit, "event.git.") {
 		return yamlContent, nil
 	}
 
