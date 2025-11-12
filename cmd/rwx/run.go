@@ -143,7 +143,7 @@ func init() {
 	runCmd.Flags().StringArrayVar(&InitParameters, flagInit, []string{}, "initialization parameters for the run, available in the `init` context. Can be specified multiple times")
 	runCmd.Flags().StringArrayVar(&TargetedTasks, "task", []string{}, "task to target for execution. Can be specified multiple times")
 	runCmd.Flags().StringVarP(&MintFilePath, "file", "f", "", "an RWX config file to use for sourcing task definitions (required)")
-	runCmd.Flags().MarkHidden("file")
+	_ = runCmd.Flags().MarkHidden("file")
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
