@@ -97,6 +97,20 @@ func prependOnSection(yamlContent string, params map[string]any) string {
 func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 	result := make(map[string]any)
 
+	result, err := extractGitParamsFromTriggers(doc, result)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err = extractGitParamsFromGitClone(doc, result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func extractGitParamsFromTriggers(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
 	onNode, err := doc.getNodeAtPath("$.on")
 	if err == nil {
 		mappingNode, ok := onNode.(*ast.MappingNode)
@@ -113,11 +127,6 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 				}
 			}
 		}
-	}
-
-	result, err = extractGitParamsFromGitClone(doc, result)
-	if err != nil {
-		return nil, err
 	}
 
 	return result, nil
