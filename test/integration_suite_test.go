@@ -67,4 +67,35 @@ func TestMintRun(t *testing.T) {
 		require.Contains(t, result.stderr, "You have specified a task target with an equals sign: \"init=foo\".")
 		require.Contains(t, result.stderr, "You may have meant to specify --init \"init=foo\".")
 	})
+
+	t.Run("accepts --task flag for targeting tasks", func(t *testing.T) {
+		input := input{
+			args: []string{"run", "--access-token", "fake-for-test", "./hello-world.mint.yaml", "--task", "task1"},
+		}
+
+		result := runMint(t, input)
+
+		require.NotContains(t, result.stderr, "unknown flag")
+	})
+
+	t.Run("accepts multiple --task flags", func(t *testing.T) {
+		input := input{
+			args: []string{"run", "--access-token", "fake-for-test", "./hello-world.mint.yaml", "--task", "task1", "--task", "task2"},
+		}
+
+		result := runMint(t, input)
+
+		require.NotContains(t, result.stderr, "unknown flag")
+	})
+
+	t.Run("errors if --file is used with positional task argument", func(t *testing.T) {
+		input := input{
+			args: []string{"run", "--access-token", "fake-for-test", "--file", "./hello-world.mint.yaml", "task1"},
+		}
+
+		result := runMint(t, input)
+
+		require.Equal(t, 1, result.exitCode)
+		require.Contains(t, result.stderr, "positional arguments are not supported")
+	})
 }
