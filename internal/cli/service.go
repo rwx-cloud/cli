@@ -197,6 +197,13 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 	}
 
+	for _, gitParam := range result.GitParams {
+		if _, exists := cfg.InitParameters[gitParam]; exists {
+			patchFile = git.PatchFile{}
+			break
+		}
+	}
+
 	addBaseIfNeeded, err := s.resolveOrUpdateBaseForFiles(runDefinition, BaseLayerSpec{}, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve base")
