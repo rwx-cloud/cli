@@ -21,8 +21,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.False(t, result.Rewritten)
 	})
 
@@ -41,8 +41,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.False(t, result.Rewritten)
 	})
 
@@ -66,8 +66,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.False(t, result.Rewritten)
 	})
 
@@ -93,8 +93,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.False(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -124,8 +124,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.False(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -152,8 +152,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -184,8 +184,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -217,8 +217,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -249,8 +249,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -278,10 +278,10 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.Error(t, err)
 		require.False(t, result.Rewritten)
-		require.Contains(t, result.Error.Error(), "multiple git/clone")
+		require.Contains(t, err.Error(), "multiple git/clone")
 	})
 
 	t.Run("uses init expression when one git/clone has hardcoded ref", func(t *testing.T) {
@@ -303,8 +303,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -328,8 +328,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -360,8 +360,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -390,8 +390,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -424,8 +424,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())
@@ -456,8 +456,8 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		result := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, result.Error)
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
 		require.True(t, result.Rewritten)
 
 		fileContent, err := os.ReadFile(tmpFile.Name())

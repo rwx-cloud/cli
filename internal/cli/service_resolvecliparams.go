@@ -13,29 +13,28 @@ import (
 type ResolveCliParamsResult struct {
 	Rewritten bool
 	GitParams []string
-	Error     error
 }
 
-func ResolveCliParamsForFile(filePath string) ResolveCliParamsResult {
+func ResolveCliParamsForFile(filePath string) (ResolveCliParamsResult, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return ResolveCliParamsResult{Error: errors.Wrap(err, "unable to read file")}
+		return ResolveCliParamsResult{}, errors.Wrap(err, "unable to read file")
 	}
 
 	resolvedContent, gitParams, err := resolveCliParams(string(content))
 	if err != nil {
-		return ResolveCliParamsResult{GitParams: gitParams, Error: err}
+		return ResolveCliParamsResult{GitParams: gitParams}, err
 	}
 
 	if resolvedContent != string(content) {
 		err = os.WriteFile(filePath, []byte(resolvedContent), 0644)
 		if err != nil {
-			return ResolveCliParamsResult{GitParams: gitParams, Error: errors.Wrap(err, "unable to write file")}
+			return ResolveCliParamsResult{GitParams: gitParams}, errors.Wrap(err, "unable to write file")
 		}
-		return ResolveCliParamsResult{Rewritten: true, GitParams: gitParams}
+		return ResolveCliParamsResult{Rewritten: true, GitParams: gitParams}, nil
 	}
 
-	return ResolveCliParamsResult{Rewritten: false, GitParams: gitParams}
+	return ResolveCliParamsResult{Rewritten: false, GitParams: gitParams}, nil
 }
 
 func resolveCliParams(yamlContent string) (string, []string, error) {

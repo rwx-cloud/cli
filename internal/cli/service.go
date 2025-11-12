@@ -184,9 +184,9 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil
 	}
 
-	result := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
-	if result.Error != nil {
-		return nil, errors.Wrap(result.Error, "unable to resolve CLI init params")
+	result, err := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to resolve CLI init params")
 	}
 
 	if result.Rewritten {
