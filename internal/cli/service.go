@@ -184,12 +184,12 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil
 	}
 
-	modified, err := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to resolve CLI init params")
+	result := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
+	if result.Error != nil {
+		return nil, errors.Wrap(result.Error, "unable to resolve CLI init params")
 	}
 
-	if modified {
+	if result.Rewritten {
 		fmt.Fprintf(s.Stderr, "Configured CLI trigger with git init params in %q\n\n", runDefinition[0].OriginalPath)
 
 		if err = reloadRunDefinitions(); err != nil {

@@ -21,9 +21,9 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.False(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.False(t, result.Rewritten)
 	})
 
 	t.Run("no changes when on section is empty", func(t *testing.T) {
@@ -41,9 +41,9 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.False(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.False(t, result.Rewritten)
 	})
 
 	t.Run("no changes when triggers only have non-git init params", func(t *testing.T) {
@@ -66,9 +66,9 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.False(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.False(t, result.Rewritten)
 	})
 
 	t.Run("no changes when CLI trigger already has git init params", func(t *testing.T) {
@@ -93,13 +93,13 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.False(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.False(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Equal(t, content, string(result))
+		require.Equal(t, content, string(fileContent))
 	})
 
 	t.Run("no changes when CLI already has git params", func(t *testing.T) {
@@ -124,13 +124,13 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.False(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.False(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Equal(t, content, string(result))
+		require.Equal(t, content, string(fileContent))
 	})
 
 	t.Run("adds CLI trigger when another trigger has git params", func(t *testing.T) {
@@ -152,14 +152,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("merges git params into existing CLI trigger", func(t *testing.T) {
@@ -184,14 +184,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "foo: bar")
-		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "foo: bar")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("succeeds when multiple triggers have same git param mappings", func(t *testing.T) {
@@ -217,14 +217,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("detects git/clone package and maps ref to event.git.sha", func(t *testing.T) {
@@ -249,14 +249,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
 	})
 
 	t.Run("errors when multiple git/clone packages use different ref params", func(t *testing.T) {
@@ -278,10 +278,10 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.Error(t, err)
-		require.False(t, modified)
-		require.Contains(t, err.Error(), "multiple git/clone")
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.Error(t, result.Error)
+		require.False(t, result.Rewritten)
+		require.Contains(t, result.Error.Error(), "multiple git/clone")
 	})
 
 	t.Run("uses init expression when one git/clone has hardcoded ref", func(t *testing.T) {
@@ -303,14 +303,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
 	})
 
 	t.Run("adds CLI trigger when git/clone exists but no on section", func(t *testing.T) {
@@ -328,15 +328,15 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "on:")
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "on:")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
 	})
 
 	t.Run("adds CLI trigger when dispatch trigger has git params", func(t *testing.T) {
@@ -360,14 +360,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "commit: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "commit: ${{ event.git.sha }}")
 	})
 
 	t.Run("always maps to event.git.sha", func(t *testing.T) {
@@ -390,15 +390,15 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "commit-sha: ${{ event.git.sha }}")
-		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "commit-sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
 	})
 
 	t.Run("extracts git params from conditional init params", func(t *testing.T) {
@@ -424,14 +424,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
 	})
 
 	t.Run("adds CLI trigger when multiple events on same trigger have git params", func(t *testing.T) {
@@ -456,14 +456,14 @@ tasks:
 		_, err = tmpFile.WriteString(content)
 		require.NoError(t, err)
 
-		modified, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, modified)
+		result := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, result.Error)
+		require.True(t, result.Rewritten)
 
-		result, err := os.ReadFile(tmpFile.Name())
+		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
-		require.Contains(t, string(result), "cli:")
-		require.Contains(t, string(result), "ref: ${{ event.git.sha }}")
-		require.Contains(t, string(result), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "cli:")
+		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
 	})
 }
