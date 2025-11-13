@@ -1,0 +1,20 @@
+on:
+  cron:
+    - key: update-rwx-packages
+      schedule: "0 11 * * *"
+  cli:
+    init:
+      commit-sha: ${{ event.git.sha }}
+
+base:
+  os: ubuntu 24.04
+  tag: 1.2
+
+tasks:
+  - key: update-rwx-packages
+    call: rwx/update-packages-github 1.1.1
+    with:
+      repository: https://github.com/rwx-cloud/cli
+      ref: ${{ init.commit-sha }}
+      github-access-token: ${{ github['rwx-cloud'].token }}
+
