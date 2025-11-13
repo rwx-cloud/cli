@@ -10,63 +10,69 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
-func ResolveCliParamsForFile(filePath string) (bool, error) {
+type ResolveCliParamsResult struct {
+	Rewritten bool
+	GitParams []string
+}
+
+func ResolveCliParamsForFile(filePath string) (ResolveCliParamsResult, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return false, errors.Wrap(err, "unable to read file")
+		return ResolveCliParamsResult{}, errors.Wrap(err, "unable to read file")
 	}
 
-	resolvedContent, err := resolveCliParams(string(content))
+	resolvedContent, gitParams, err := resolveCliParams(string(content))
 	if err != nil {
-		return false, err
+		return ResolveCliParamsResult{GitParams: gitParams}, err
 	}
 
 	if resolvedContent != string(content) {
 		err = os.WriteFile(filePath, []byte(resolvedContent), 0644)
 		if err != nil {
-			return false, errors.Wrap(err, "unable to write file")
+			return ResolveCliParamsResult{GitParams: gitParams}, errors.Wrap(err, "unable to write file")
 		}
-		return true, nil
+		return ResolveCliParamsResult{Rewritten: true, GitParams: gitParams}, nil
 	}
 
-	return false, nil
+	return ResolveCliParamsResult{Rewritten: false, GitParams: gitParams}, nil
 }
 
-func resolveCliParams(yamlContent string) (string, error) {
+func resolveCliParams(yamlContent string) (string, []string, error) {
 	doc, err := ParseYAMLDoc(yamlContent)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse YAML")
+		return "", nil, errors.Wrap(err, "failed to parse YAML")
+	}
+
+	gitParamsMap, err := extractGitParams(doc)
+	gitParamNames := getGitParamNames(gitParamsMap)
+	if err != nil {
+		return "", gitParamNames, err
+	}
+	if len(gitParamsMap) == 0 {
+		return yamlContent, gitParamNames, nil
 	}
 
 	// Skip if CLI init already has git event references
 	if cliInit := doc.TryReadStringAtPath("$.on.cli.init"); strings.Contains(cliInit, "event.git.") {
-		return yamlContent, nil
-	}
-
-	gitParams, err := extractGitParams(doc)
-	if err != nil {
-		return "", err
-	}
-	if len(gitParams) == 0 {
-		return yamlContent, nil
+		return yamlContent, gitParamNames, nil
 	}
 
 	// Create new 'on' section if it doesn't exist
 	if !doc.hasPath("$.on") {
-		return prependOnSection(yamlContent, gitParams), nil
+		return prependOnSection(yamlContent, gitParamsMap), gitParamNames, nil
 	}
 
 	if doc.hasPath("$.on.cli.init") {
-		err = doc.MergeAtPath("$.on.cli.init", gitParams)
+		err = doc.MergeAtPath("$.on.cli.init", gitParamsMap)
 	} else {
 		err = doc.MergeAtPath("$.on", map[string]any{
 			"cli": map[string]any{
-				"init": gitParams,
+				"init": gitParamsMap,
 			},
 		})
 	}
 	if err != nil {
-		return "", err
+		return "", gitParamNames, err
 	}
 
 	result := doc.String()
@@ -74,7 +80,19 @@ func resolveCliParams(yamlContent string) (string, error) {
 		result = "\n" + result
 	}
 
-	return result, nil
+	return result, gitParamNames, nil
+}
+
+func getGitParamNames(params map[string]any) []string {
+	if len(params) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(params))
+	for k := range params {
+		names = append(names, k)
+	}
+	slices.Sort(names)
+	return names
 }
 
 func prependOnSection(yamlContent string, params map[string]any) string {
@@ -97,6 +115,20 @@ func prependOnSection(yamlContent string, params map[string]any) string {
 func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 	result := make(map[string]any)
 
+	result, err := extractGitParamsFromTriggers(doc, result)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err = extractGitParamsFromGitClone(doc, result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func extractGitParamsFromTriggers(doc *YAMLDoc, result map[string]any) (map[string]any, error) {
 	onNode, err := doc.getNodeAtPath("$.on")
 	if err == nil {
 		mappingNode, ok := onNode.(*ast.MappingNode)
@@ -113,11 +145,6 @@ func extractGitParams(doc *YAMLDoc) (map[string]any, error) {
 				}
 			}
 		}
-	}
-
-	result, err = extractGitParamsFromGitClone(doc, result)
-	if err != nil {
-		return nil, err
 	}
 
 	return result, nil
