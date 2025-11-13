@@ -106,6 +106,7 @@ func init() {
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(imageCmd)
+	rootCmd.AddCommand(pushCmd)
 
 	cobra.OnInitialize(func() {
 		if AccessToken == "$RWX_ACCESS_TOKEN" {
