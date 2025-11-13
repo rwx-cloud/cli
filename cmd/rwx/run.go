@@ -21,6 +21,7 @@ var (
 	Json           bool
 	RwxDirectory   string
 	MintFilePath   string
+	TargetedTasks  []string
 	NoCache        bool
 	Open           bool
 	Debug          bool
@@ -45,12 +46,20 @@ var (
 				}
 			}
 
+			fileFlag := cmd.Flags().Lookup("file")
+			if (len(args) > 0 && fileFlag.Changed) || len(args) > 1 {
+				return fmt.Errorf(
+					"positional arguments are not supported for task targeting.\n"+
+						"Use --target to specify task targets instead.\n"+
+						"For example: rwx run <file> --target <task>",
+				)
+			}
+
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var targetedTasks []string
-			if len(args) >= 0 {
-				targetedTasks = args
+			if len(args) == 1 {
+				MintFilePath = args[0]
 			}
 
 			initParams, err := ParseInitParameters(InitParameters)
@@ -64,7 +73,7 @@ var (
 				RwxDirectory:   RwxDirectory,
 				MintFilePath:   MintFilePath,
 				NoCache:        NoCache,
-				TargetedTasks:  targetedTasks,
+				TargetedTasks:  TargetedTasks,
 				Title:          Title,
 			})
 			if err != nil {
@@ -125,14 +134,16 @@ var (
 
 		},
 		Short: "Start a new run",
-		Use:   "run [flags] [task]",
+		Use:   "run [file] [flags]",
 	}
 )
 
 func init() {
 	runCmd.Flags().BoolVar(&NoCache, "no-cache", false, "do not read or write to the cache")
 	runCmd.Flags().StringArrayVar(&InitParameters, flagInit, []string{}, "initialization parameters for the run, available in the `init` context. Can be specified multiple times")
+	runCmd.Flags().StringArrayVar(&TargetedTasks, "target", []string{}, "task to target for execution. Can be specified multiple times")
 	runCmd.Flags().StringVarP(&MintFilePath, "file", "f", "", "an RWX config file to use for sourcing task definitions (required)")
+	_ = runCmd.Flags().MarkHidden("file")
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
