@@ -21,7 +21,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 1.6.10
+    call: git/clone 1.8.1
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
