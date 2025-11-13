@@ -40,7 +40,7 @@ func TestService_Whoami(t *testing.T) {
 			}
 
 			err := s.service.Whoami(cli.WhoamiConfig{
-				Json: true,
+				Json: false,
 			})
 
 			require.NoError(t, err)
