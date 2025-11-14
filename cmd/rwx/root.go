@@ -53,7 +53,11 @@ var (
 				return errors.Wrap(err, "unable to initialize CLI")
 			}
 
-			dockerCli, err := docker.New()
+			dockerCli, err := docker.New(docker.Config{
+				Registry:           rwxHost,
+				AccessToken:        AccessToken,
+				AccessTokenBackend: accessTokenBackend,
+			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize Docker client")
 			}

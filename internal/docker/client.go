@@ -12,7 +12,22 @@ import (
 	"github.com/docker/cli/cli/flags"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/rwx-cloud/cli/internal/accesstoken"
+	"github.com/rwx-cloud/cli/internal/errors"
 )
+
+type Config struct {
+	Registry           string
+	AccessToken        string
+	AccessTokenBackend accesstoken.Backend
+}
+
+func (c Config) Validate() error {
+	if c.Registry == "" {
+		return errors.New("missing registry")
+	}
+	return nil
+}
 
 type Client interface {
 	GetAuthConfig(string) (cliTypes.AuthConfig, error)
@@ -70,7 +85,16 @@ func (r realDockerCLI) Password() string {
 	return r.password
 }
 
-func New() (Client, error) {
+func New(cfg Config) (Client, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	password, err := accesstoken.Get(cfg.AccessTokenBackend, cfg.AccessToken)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to retrieve access token")
+	}
+
 	cli, err := command.NewDockerCli()
 	if err != nil {
 		return nil, fmt.Errorf("unable to make a new docker CLI: %w", err)
@@ -82,8 +106,8 @@ func New() (Client, error) {
 
 	return realDockerCLI{
 		DockerCli: cli,
-		registry:  "",
-		password:  "",
+		registry:  cfg.Registry,
+		password:  password,
 	}, nil
 }
 

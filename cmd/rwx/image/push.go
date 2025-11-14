@@ -16,7 +16,7 @@ var (
 	PushCmd *cobra.Command
 )
 
-func Init(requireAccessToken func() error, service cli.Service) {
+func InitPush(requireAccessToken func() error, getService func() cli.Service) {
 	PushCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -33,9 +33,9 @@ func Init(requireAccessToken func() error, service cli.Service) {
 				return err
 			}
 
-			return service.PushImage(config)
+			return getService().PushImage(config)
 		},
-		Short: "Push an OCI image",
+		Short: "Push an rwx task to an OCI reference",
 		Use:   "push <task-id> --to <reference> [--to <reference>] [--json] [--open] [--no-wait]",
 	}
 
