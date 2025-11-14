@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/rwx-cloud/cli/cmd/rwx/image"
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +16,8 @@ var imageCmd = &cobra.Command{
 var pushCmd *cobra.Command
 
 func init() {
-	image.InitPush(requireAccessToken, service)
-	image.InitBuild(requireAccessToken, ParseInitParameters, service)
+	image.InitPush(requireAccessToken, func() cli.Service { return service })
+	image.InitBuild(requireAccessToken, ParseInitParameters, func() cli.Service { return service })
 	imageCmd.AddCommand(image.PushCmd)
 	imageCmd.AddCommand(image.BuildCmd)
 

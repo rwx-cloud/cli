@@ -19,7 +19,7 @@ var (
 	BuildCmd *cobra.Command
 )
 
-func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), service cli.Service) {
+func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), getService func() cli.Service) {
 	BuildCmd = &cobra.Command{
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +45,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				Timeout:        buildTimeout,
 			}
 
-			return service.BuildImage(config)
+			return getService().BuildImage(config)
 		},
 		Short: "Launch a targeted rwx run and pull its result as an OCI image",
 		Use:   "build <file> --target <task-key> [flags]",
