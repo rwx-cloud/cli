@@ -66,7 +66,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 			credentialsHost = "index.docker.io"
 		}
 
-		credentials, err := config.DockerCLI.GetAuthConfig(credentialsHost)
+		credentials, err := s.DockerCLI.GetAuthConfig(credentialsHost)
 		if err != nil {
 			return fmt.Errorf("unable to get credentials for registry %q from docker: %w", request.Image.Registry, err)
 		}

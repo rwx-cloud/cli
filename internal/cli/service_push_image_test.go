@@ -8,7 +8,6 @@ import (
 	"github.com/docker/cli/cli/config/types"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,10 +28,9 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "b.registry.com/repo-one:tag-two"),
 				ReferenceMustParse(t, "c.registry.com/repo-one:tag-three"),
 			},
-			DockerCLI: &mocks.DockerClient{},
-			JSON:      false,
-			Wait:      true,
-			OpenURL:   func(url string) error { return nil },
+			JSON:    false,
+			Wait:    true,
+			OpenURL: func(url string) error { return nil },
 		}
 
 		err := s.service.PushImage(cfg)
@@ -51,10 +49,9 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo-two:tag-two"),
 				ReferenceMustParse(t, "registry.com/repo-three:tag-three"),
 			},
-			DockerCLI: &mocks.DockerClient{},
-			JSON:      false,
-			Wait:      true,
-			OpenURL:   func(url string) error { return nil },
+			JSON:    false,
+			Wait:    true,
+			OpenURL: func(url string) error { return nil },
 		}
 
 		err := s.service.PushImage(cfg)
@@ -65,17 +62,15 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("supports dockerhub", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
+		}
 
 		cfg := cli.PushImageConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "postgres:latest"),
 				ReferenceMustParse(t, "postgres:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
-				},
 			},
 			JSON:    false,
 			Wait:    true,
@@ -96,17 +91,15 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("support other registries", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
+		}
 
 		cfg := cli.PushImageConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
-				},
 			},
 			JSON:    false,
 			Wait:    true,
@@ -127,6 +120,9 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("fails when starting the push fails", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -143,11 +139,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -168,6 +159,9 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("when the push status errors", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -190,11 +184,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -219,6 +208,9 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("when the push ultimately fails", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -241,11 +233,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -270,6 +257,9 @@ func TestService_PushImage(t *testing.T) {
 
 	t.Run("when the push ultimately succeeds", func(t *testing.T) {
 		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -292,11 +282,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -325,6 +310,9 @@ func TestService_PushImage(t *testing.T) {
 		t.Setenv("RWX_PUSH_USERNAME", "env-username")
 		t.Setenv("RWX_PUSH_PASSWORD", "env-password")
 
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -347,11 +335,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -379,6 +362,9 @@ func TestService_PushImage(t *testing.T) {
 
 		t.Setenv("RWX_PUSH_USERNAME", "env-username")
 
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -400,11 +386,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
@@ -424,6 +405,9 @@ func TestService_PushImage(t *testing.T) {
 
 		t.Setenv("RWX_PUSH_PASSWORD", "env-password")
 
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -445,11 +429,6 @@ func TestService_PushImage(t *testing.T) {
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
-			},
-			DockerCLI: &mocks.DockerClient{
-				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
-					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
-				},
 			},
 			JSON: false,
 			Wait: true,
