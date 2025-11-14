@@ -34,7 +34,8 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 	defer cancel()
 
 	var taskID string
-	for {
+	succeeded := false
+	for !succeeded {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout waiting for build to complete after %s\n\nThe build may still be running. Check the status at: %s", config.Timeout, runResult.RunURL)
@@ -57,7 +58,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		case api.TaskStatusSucceeded:
 			taskID = result.TaskID
 			fmt.Fprintf(s.Stdout, "Build succeeded!\n\n")
-			goto pullImage
+			succeeded = true
 		case api.TaskStatusFailed, "failure":
 			if result.ErrorMessage != "" {
 				return fmt.Errorf("build failed: %s", result.ErrorMessage)
@@ -68,7 +69,6 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		}
 	}
 
-pullImage:
 	whoamiResult, err := s.APIClient.Whoami()
 	if err != nil {
 		return fmt.Errorf("failed to get organization info: %w\nTry running `rwx login` again", err)
