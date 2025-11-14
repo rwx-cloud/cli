@@ -57,7 +57,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().BoolVar(&buildNoCache, "no-cache", false, "do not read or write to the cache")
 	BuildCmd.Flags().StringVar(&buildTargetTaskKey, "target", "", "task key to build (required)")
 	BuildCmd.Flags().StringArrayVar(&buildTags, "tag", []string{}, "tag the built image (can be specified multiple times)")
-	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 10*time.Minute, "timeout for waiting for the build to complete")
+	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
 
 	_ = BuildCmd.MarkFlagRequired("target")
 }
