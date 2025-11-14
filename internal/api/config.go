@@ -259,3 +259,21 @@ type StartImagePushResult struct {
 type ImagePushStatusResult struct {
 	Status string `json:"status"`
 }
+
+type TaskStatusConfig struct {
+	RunID   string
+	TaskKey string
+}
+
+const (
+	TaskStatusPending   = "pending"
+	TaskStatusSucceeded = "success"
+	TaskStatusFailed    = "failed"
+)
+
+type TaskStatusResult struct {
+	Status       string `json:"status"`
+	TaskID       string `json:"task_id"`
+	BackoffMs    int    `json:"backoff_ms"`
+	ErrorMessage string `json:"error_message"`
+}
