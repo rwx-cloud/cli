@@ -105,6 +105,7 @@ func init() {
 	rootCmd.AddCommand(resolveCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(imageCmd)
 	rootCmd.AddCommand(pushCmd)
 
 	cobra.OnInitialize(func() {
