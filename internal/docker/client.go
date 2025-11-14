@@ -18,10 +18,14 @@ type Client interface {
 	GetAuthConfig(string) (cliTypes.AuthConfig, error)
 	Pull(context.Context, string, cliTypes.AuthConfig) error
 	Tag(context.Context, string, string) error
+	Registry() string
+	Password() string
 }
 
 type realDockerCLI struct {
 	*command.DockerCli
+	registry string
+	password string
 }
 
 func (r realDockerCLI) GetAuthConfig(registry string) (cliTypes.AuthConfig, error) {
@@ -58,6 +62,14 @@ func (r realDockerCLI) Tag(ctx context.Context, source, target string) error {
 	return nil
 }
 
+func (r realDockerCLI) Registry() string {
+	return r.registry
+}
+
+func (r realDockerCLI) Password() string {
+	return r.password
+}
+
 func New() (Client, error) {
 	cli, err := command.NewDockerCli()
 	if err != nil {
@@ -68,7 +80,11 @@ func New() (Client, error) {
 		return nil, fmt.Errorf("unable to initialize the docker CLI: %w", err)
 	}
 
-	return realDockerCLI{cli}, nil
+	return realDockerCLI{
+		DockerCli: cli,
+		registry:  "",
+		password:  "",
+	}, nil
 }
 
 func encodeAuthConfig(authConfig cliTypes.AuthConfig) (string, error) {

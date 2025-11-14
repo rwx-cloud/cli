@@ -22,6 +22,7 @@ type APIClient interface {
 	ResolveBaseLayer(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
 	StartImagePush(cfg api.StartImagePushConfig) (api.StartImagePushResult, error)
 	ImagePushStatus(pushID string) (api.ImagePushStatusResult, error)
+	TaskStatus(api.TaskStatusConfig) (api.TaskStatusResult, error)
 }
 
 var _ APIClient = api.Client{}

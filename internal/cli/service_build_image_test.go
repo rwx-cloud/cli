@@ -1,0 +1,432 @@
+package cli_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/docker/cli/cli/config/types"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/stretchr/testify/require"
+)
+
+func setupBuildImageTest(t *testing.T, s *testSetup) {
+	err := os.WriteFile("test.yml", []byte("base:\n  os: ubuntu 24.04\n  tag: 1.0\ntasks:\n  - key: build-task\n    run: echo 'building'\n"), 0o644)
+	require.NoError(t, err)
+
+	s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
+		return api.ResolveBaseLayerResult{Os: "ubuntu 24.04", Tag: "1.0", Arch: "x86_64"}, nil
+	}
+
+	s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+		return &api.PackageVersionsResult{
+			LatestMajor: map[string]string{},
+			LatestMinor: map[string]map[string]string{},
+		}, nil
+	}
+
+	s.mockGit.MockGetBranch = "main"
+	s.mockGit.MockGetCommit = "abc123"
+	s.mockGit.MockGetOriginUrl = "git@github.com:test/test.git"
+}
+
+func TestService_BuildImage(t *testing.T) {
+	t.Run("successful build with no tags", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			require.Equal(t, "test.yml", cfg.TaskDefinitions[0].Path)
+			require.True(t, cfg.UseCache)
+			require.Equal(t, []string{"build-task"}, cfg.TargetedTaskKeys)
+
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		callCount := 0
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			require.Equal(t, "run-123", cfg.RunID)
+			require.Equal(t, "build-task", cfg.TaskKey)
+
+			callCount++
+			if callCount == 1 {
+				return api.TaskStatusResult{
+					Status:    api.TaskStatusPending,
+					BackoffMs: 0,
+				}, nil
+			}
+
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
+			require.Equal(t, "my-org", authConfig.Username)
+			require.Equal(t, "test-password", authConfig.Password)
+			require.Equal(t, "cloud.rwx.com", authConfig.ServerAddress)
+			return nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{"key": "value"},
+			MintFilePath:   "test.yml",
+			NoCache:        false,
+			TargetTaskKey:  "build-task",
+			Tags:           []string{},
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.NoError(t, err)
+		require.Contains(t, s.mockStdout.String(), "Building image for build-task")
+		require.Contains(t, s.mockStdout.String(), "Run URL: https://cloud.rwx.com/runs/run-123")
+		require.Contains(t, s.mockStdout.String(), "Build succeeded!")
+		require.Contains(t, s.mockStdout.String(), "Pulling image: cloud.rwx.com/my-org:task-456")
+		require.Contains(t, s.mockStdout.String(), "Image pulled successfully!")
+	})
+
+	t.Run("successful build with tags", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
+			return nil
+		}
+
+		taggedRefs := []string{}
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", source)
+			taggedRefs = append(taggedRefs, target)
+			return nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{"key": "value"},
+			MintFilePath:   "test.yml",
+			NoCache:        false,
+			TargetTaskKey:  "build-task",
+			Tags:           []string{"latest", "v1.0.0"},
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{
+			"latest",
+			"v1.0.0",
+		}, taggedRefs)
+		require.Contains(t, s.mockStdout.String(), "Tagging image as: latest")
+		require.Contains(t, s.mockStdout.String(), "Tagging image as: v1.0.0")
+	})
+
+	t.Run("fails when run initiation fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return nil, fmt.Errorf("failed to initiate run")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to initiate run")
+	})
+
+	t.Run("fails when task status polling fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{}, fmt.Errorf("failed to get task status")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get build status")
+		require.Contains(t, err.Error(), "failed to get task status")
+	})
+
+	t.Run("fails when build fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status:       api.TaskStatusFailed,
+				ErrorMessage: "build failed: compilation error",
+			}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "build failed: build failed: compilation error", err.Error())
+	})
+
+	t.Run("fails when build fails without error message", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusFailed,
+			}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "build failed", err.Error())
+	})
+
+	t.Run("fails when whoami fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return nil, fmt.Errorf("unauthorized")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
+		require.Contains(t, err.Error(), "Try running `rwx login` again")
+	})
+
+	t.Run("fails when image pull fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return fmt.Errorf("failed to pull image: not found")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to pull image")
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("fails when image tagging fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return nil
+		}
+
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			return fmt.Errorf("failed to tag image")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Tags:           []string{"latest"},
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to tag image as latest")
+	})
+
+	t.Run("returns unknown status error for unexpected status", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: "unknown-status",
+			}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "unknown build status: unknown-status", err.Error())
+	})
+}
