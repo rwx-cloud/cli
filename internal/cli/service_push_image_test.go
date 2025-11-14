@@ -8,21 +8,9 @@ import (
 	"github.com/docker/cli/cli/config/types"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
-
-type mockDockerAuthConfigurator struct {
-	config types.AuthConfig
-	err    error
-}
-
-func (m mockDockerAuthConfigurator) GetAuthConfig(host string) (types.AuthConfig, error) {
-	if m.err != nil {
-		return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: %w", host, m.err)
-	}
-
-	return m.config, nil
-}
 
 func ReferenceMustParse(t *testing.T, ref string) reference.Named {
 	parsed, err := reference.ParseNormalizedNamed(ref)
@@ -41,7 +29,7 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "b.registry.com/repo-one:tag-two"),
 				ReferenceMustParse(t, "c.registry.com/repo-one:tag-three"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{},
+			DockerCLI: &mocks.DockerClient{},
 			JSON:      false,
 			Wait:      true,
 			OpenURL:   func(url string) error { return nil },
@@ -63,7 +51,7 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo-two:tag-two"),
 				ReferenceMustParse(t, "registry.com/repo-three:tag-three"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{},
+			DockerCLI: &mocks.DockerClient{},
 			JSON:      false,
 			Wait:      true,
 			OpenURL:   func(url string) error { return nil },
@@ -84,10 +72,14 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "postgres:latest"),
 				ReferenceMustParse(t, "postgres:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{err: fmt.Errorf("no credentials available")},
-			JSON:      false,
-			Wait:      true,
-			OpenURL:   func(url string) error { return nil },
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
+				},
+			},
+			JSON:    false,
+			Wait:    true,
+			OpenURL: func(url string) error { return nil },
 		}
 
 		err := s.service.PushImage(cfg)
@@ -111,10 +103,14 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{err: fmt.Errorf("no credentials available")},
-			JSON:      false,
-			Wait:      true,
-			OpenURL:   func(url string) error { return nil },
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
+				},
+			},
+			JSON:    false,
+			Wait:    true,
+			OpenURL: func(url string) error { return nil },
 		}
 
 		err := s.service.PushImage(cfg)
@@ -148,9 +144,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				require.Fail(t, "open url should not be called when the push does not start")
 				return nil
@@ -191,9 +191,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -238,9 +242,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -285,9 +293,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -336,9 +348,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -385,9 +401,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				require.Equal(t, "some-run-url", url)
 				return nil
@@ -426,9 +446,13 @@ func TestService_PushImage(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			DockerCLI: mockDockerAuthConfigurator{config: types.AuthConfig{Username: "my-username", Password: "my-password"}},
-			JSON:      false,
-			Wait:      true,
+			DockerCLI: &mocks.DockerClient{
+				GetAuthConfigFunc: func(host string) (types.AuthConfig, error) {
+					return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+				},
+			},
+			JSON: false,
+			Wait: true,
 			OpenURL: func(url string) error {
 				require.Equal(t, "some-run-url", url)
 				return nil

@@ -8,7 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/dockercli"
+	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
@@ -328,7 +328,7 @@ func (r ResolvePackagesResult) HasChanges() bool {
 type PushImageConfig struct {
 	TaskID       string
 	References   []reference.Named
-	DockerCLI    dockercli.AuthConfigurator
+	DockerCLI    docker.Client
 	JSON         bool
 	Wait         bool
 	OpenURL      func(url string) error
@@ -353,7 +353,7 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 		parsedReferences = append(parsedReferences, ref)
 	}
 
-	dockerCli, err := dockercli.New()
+	dockerCli, err := docker.New()
 	if err != nil {
 		return PushImageConfig{}, err
 	}
