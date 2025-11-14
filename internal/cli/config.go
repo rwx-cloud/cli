@@ -366,3 +366,23 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 		PollInterval: 1 * time.Second,
 	}, nil
 }
+
+type BuildImageConfig struct {
+	InitParameters map[string]string
+	RwxDirectory   string
+	MintFilePath   string
+	NoCache        bool
+	TargetTaskKey  string
+	Tags           []string
+	Timeout        time.Duration
+}
+
+func (c BuildImageConfig) Validate() error {
+	if c.MintFilePath == "" {
+		return errors.New("the path to a run definition must be provided")
+	}
+	if c.TargetTaskKey == "" {
+		return errors.New("a target task key must be provided")
+	}
+	return nil
+}

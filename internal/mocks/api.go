@@ -20,6 +20,7 @@ type API struct {
 	MockMcpGetRunTestFailures  func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
 	MockStartImagePush         func(api.StartImagePushConfig) (api.StartImagePushResult, error)
 	MockImagePushStatus        func(string) (api.ImagePushStatusResult, error)
+	MockTaskStatus             func(api.TaskStatusConfig) (api.TaskStatusResult, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -132,4 +133,12 @@ func (c *API) ImagePushStatus(pushID string) (api.ImagePushStatusResult, error) 
 	}
 
 	return api.ImagePushStatusResult{}, errors.New("MockImagePushStatus was not configured")
+}
+
+func (c *API) TaskStatus(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+	if c.MockTaskStatus != nil {
+		return c.MockTaskStatus(cfg)
+	}
+
+	return api.TaskStatusResult{}, errors.New("MockTaskStatus was not configured")
 }
