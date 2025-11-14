@@ -8,6 +8,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
@@ -52,6 +53,11 @@ var (
 				return errors.Wrap(err, "unable to initialize CLI")
 			}
 
+			dockerCli, err := docker.New()
+			if err != nil {
+				return errors.Wrap(err, "unable to initialize Docker client")
+			}
+
 			service, err = cli.NewService(cli.Config{
 				APIClient: c,
 				SSHClient: new(ssh.Client),
@@ -59,6 +65,7 @@ var (
 					Binary: "git",
 					Dir:    dir,
 				},
+				DockerCLI:   dockerCli,
 				Stdout:      os.Stdout,
 				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:      os.Stderr,

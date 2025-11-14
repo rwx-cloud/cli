@@ -12,15 +12,16 @@ import (
 )
 
 type testSetup struct {
-	config     cli.Config
-	service    cli.Service
-	mockAPI    *mocks.API
-	mockSSH    *mocks.SSH
-	mockGit    *mocks.Git
-	mockStdout *strings.Builder
-	mockStderr *strings.Builder
-	tmp        string
-	originalWd string
+	config      cli.Config
+	service     cli.Service
+	mockAPI     *mocks.API
+	mockSSH     *mocks.SSH
+	mockGit     *mocks.Git
+	mockDocker  *mocks.DockerClient
+	mockStdout  *strings.Builder
+	mockStderr  *strings.Builder
+	tmp         string
+	originalWd  string
 }
 
 func setupTest(t *testing.T) *testSetup {
@@ -40,6 +41,7 @@ func setupTest(t *testing.T) *testSetup {
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
 	setup.mockGit = new(mocks.Git)
+	setup.mockDocker = new(mocks.DockerClient)
 	setup.mockStdout = &strings.Builder{}
 	setup.mockStderr = &strings.Builder{}
 
@@ -47,6 +49,7 @@ func setupTest(t *testing.T) *testSetup {
 		APIClient:   setup.mockAPI,
 		SSHClient:   setup.mockSSH,
 		GitClient:   setup.mockGit,
+		DockerCLI:   setup.mockDocker,
 		Stdout:      setup.mockStdout,
 		StdoutIsTTY: false,
 		Stderr:      setup.mockStderr,

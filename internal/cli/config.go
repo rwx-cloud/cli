@@ -8,7 +8,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/dockercli"
+	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
@@ -17,6 +17,7 @@ type Config struct {
 	APIClient   APIClient
 	SSHClient   SSHClient
 	GitClient   GitClient
+	DockerCLI   docker.Client
 	Stdout      io.Writer
 	StdoutIsTTY bool
 	Stderr      io.Writer
@@ -34,6 +35,10 @@ func (c Config) Validate() error {
 
 	if c.GitClient == nil {
 		return errors.New("missing Git client constructor")
+	}
+
+	if c.DockerCLI == nil {
+		return errors.New("missing Docker client")
 	}
 
 	if c.Stdout == nil {
@@ -328,7 +333,6 @@ func (r ResolvePackagesResult) HasChanges() bool {
 type PushImageConfig struct {
 	TaskID       string
 	References   []reference.Named
-	DockerCLI    dockercli.AuthConfigurator
 	JSON         bool
 	Wait         bool
 	OpenURL      func(url string) error
@@ -353,15 +357,9 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 		parsedReferences = append(parsedReferences, ref)
 	}
 
-	dockerCli, err := dockercli.New()
-	if err != nil {
-		return PushImageConfig{}, err
-	}
-
 	return PushImageConfig{
 		TaskID:       taskID,
 		References:   parsedReferences,
-		DockerCLI:    dockerCli,
 		JSON:         json,
 		Wait:         wait,
 		OpenURL:      openURL,
