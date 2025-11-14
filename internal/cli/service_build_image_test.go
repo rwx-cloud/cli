@@ -60,7 +60,7 @@ func TestService_BuildImage(t *testing.T) {
 			if callCount == 1 {
 				return api.TaskStatusResult{
 					Status:    api.TaskStatusPending,
-					BackoffMs: 100,
+					BackoffMs: 0,
 				}, nil
 			}
 
@@ -398,58 +398,6 @@ func TestService_BuildImage(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to tag image as latest")
-	})
-
-	t.Run("handles pending status with zero backoff", func(t *testing.T) {
-		s := setupTest(t)
-		setupBuildImageTest(t, s)
-		s.mockDocker.RegistryValue = "cloud.rwx.com"
-		s.mockDocker.PasswordValue = "test-password"
-
-		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
-			return &api.InitiateRunResult{
-				RunId:  "run-123",
-				RunURL: "https://cloud.rwx.com/runs/run-123",
-			}, nil
-		}
-
-		callCount := 0
-		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
-			callCount++
-			if callCount == 1 {
-				return api.TaskStatusResult{
-					Status:    api.TaskStatusPending,
-					BackoffMs: 0,
-				}, nil
-			}
-
-			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
-				TaskID: "task-456",
-			}, nil
-		}
-
-		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
-			return &api.WhoamiResult{
-				OrganizationSlug: "my-org",
-			}, nil
-		}
-
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
-			return nil
-		}
-
-		cfg := cli.BuildImageConfig{
-			InitParameters: map[string]string{},
-			MintFilePath:   "test.yml",
-			TargetTaskKey:  "build-task",
-			Timeout:        1 * time.Second,
-		}
-
-		err := s.service.BuildImage(cfg)
-
-		require.NoError(t, err)
-		require.Contains(t, s.mockStdout.String(), "Build status: pending, waiting 1ms")
 	})
 
 	t.Run("returns unknown status error for unexpected status", func(t *testing.T) {

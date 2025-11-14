@@ -52,9 +52,6 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		switch result.Status {
 		case api.TaskStatusPending:
 			backoffMs := result.BackoffMs
-			if backoffMs == 0 {
-				backoffMs = 1
-			}
 			fmt.Fprintf(s.Stdout, "Build status: %s, waiting %dms...\n", result.Status, backoffMs)
 			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
 		case api.TaskStatusSucceeded:
