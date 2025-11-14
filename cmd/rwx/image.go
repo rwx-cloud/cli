@@ -15,8 +15,10 @@ var imageCmd = &cobra.Command{
 var pushCmd *cobra.Command
 
 func init() {
-	image.Init(requireAccessToken, service)
+	image.InitPush(requireAccessToken, service)
+	image.InitBuild(requireAccessToken, ParseInitParameters, service)
 	imageCmd.AddCommand(image.PushCmd)
+	imageCmd.AddCommand(image.BuildCmd)
 
 	// for backcompat
 	pushCmd = &cobra.Command{
