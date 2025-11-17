@@ -427,7 +427,7 @@ tasks:
 		require.False(t, result.Rewritten)
 	})
 
-	t.Run("adds CLI trigger when multiple events on same trigger have git params", func(t *testing.T) {
+	t.Run("errors when multiple events use different param names for event.git.sha", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
 		defer tmpFile.Close()
@@ -450,13 +450,8 @@ tasks:
 		require.NoError(t, err)
 
 		result, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, result.Rewritten)
-
-		fileContent, err := os.ReadFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.Contains(t, string(fileContent), "cli:")
-		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
-		require.Contains(t, string(fileContent), "other-sha: ${{ event.git.sha }}")
+		require.Error(t, err)
+		require.False(t, result.Rewritten)
+		require.Contains(t, err.Error(), "multiple event triggers")
 	})
 }
