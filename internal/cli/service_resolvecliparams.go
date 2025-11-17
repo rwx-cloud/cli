@@ -214,9 +214,16 @@ func extractGitParamsFromInit(node ast.Node, result map[string]any) (map[string]
 		paramName := initParam.Key.String()
 		paramValue := initParam.Value.String()
 
-		if strings.Contains(paramValue, "event.git.ref") || strings.Contains(paramValue, "event.git.sha") {
-			// Always map to event.git.sha for CLI trigger
-			result[paramName] = "${{ event.git.sha }}"
+		if strings.Contains(paramValue, "event.git.sha") {
+			targetValue := "${{ event.git.sha }}"
+
+			for existingKey, existingValue := range result {
+				if existingValue == targetValue && existingKey != paramName {
+					return nil, errors.New("multiple event triggers use different init param names for event.git.sha")
+				}
+			}
+
+			result[paramName] = targetValue
 		}
 	}
 	return result, nil

@@ -130,7 +130,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 
 			definitionsFile := filepath.Join(rwxDir, "rwx.yml")
 
-			definition := "on:\n  github:\n    push:\n      init:\n        ref: ${{ event.git.ref }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+			definition := "on:\n  github:\n    push:\n      init:\n        sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 
 			err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
 			require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 				RwxDirectory: rwxDir,
 				MintFilePath: definitionsFile,
 				InitParameters: map[string]string{
-					"ref": "main", // a git param is passed by --init
+					"sha": "3e76c8295cd0ce4decbf7b56253c902ce296cb25", // a git param is passed by --init
 				},
 			}
 
