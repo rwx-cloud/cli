@@ -1,11 +1,13 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/docker/cli/cli/command"
 	cliTypes "github.com/docker/cli/cli/config/types"
@@ -15,6 +17,16 @@ import (
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
 )
+
+type pullProgress struct {
+	Status         string `json:"status"`
+	ID             string `json:"id"`
+	Progress       string `json:"progress"`
+	ProgressDetail struct {
+		Current int64 `json:"current"`
+		Total   int64 `json:"total"`
+	} `json:"progressDetail"`
+}
 
 type Config struct {
 	Registry           string
@@ -61,12 +73,52 @@ func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cli
 	}
 	defer responseBody.Close()
 
-	_, err = io.Copy(io.Discard, responseBody)
-	if err != nil {
+	scanner := bufio.NewScanner(responseBody)
+	for scanner.Scan() {
+		var progress pullProgress
+		if err := json.Unmarshal(scanner.Bytes(), &progress); err != nil {
+			continue
+		}
+
+		if err := displayProgress(r.Out(), &progress); err != nil {
+			continue
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("error reading pull response: %w", err)
 	}
 
 	return nil
+}
+
+func displayProgress(out io.Writer, progress *pullProgress) error {
+	switch {
+	case strings.HasPrefix(progress.Status, "Pulling from"):
+		_, err := fmt.Fprintf(out, "%s\n", progress.Status)
+		return err
+	case progress.Status == "Downloading" || progress.Status == "Extracting":
+		if progress.ID != "" && progress.Progress != "" {
+			_, err := fmt.Fprintf(out, "%s: %s %s\n", truncateID(progress.ID), progress.Status, progress.Progress)
+			return err
+		}
+	case progress.Status == "Download complete" || progress.Status == "Pull complete" || progress.Status == "Already exists":
+		if progress.ID != "" {
+			_, err := fmt.Fprintf(out, "%s: %s\n", truncateID(progress.ID), progress.Status)
+			return err
+		}
+	case progress.Status == "Digest:" || progress.Status == "Status:":
+		_, err := fmt.Fprintf(out, "%s %s\n", progress.Status, progress.ID)
+		return err
+	}
+	return nil
+}
+
+func truncateID(id string) string {
+	if len(id) > 12 {
+		return id[:12]
+	}
+	return id
 }
 
 func (r realDockerCLI) Tag(ctx context.Context, source, target string) error {
