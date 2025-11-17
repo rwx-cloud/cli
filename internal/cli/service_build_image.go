@@ -28,7 +28,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 
 	fmt.Fprintf(s.Stdout, "Building image for %s\n", config.TargetTaskKey)
 	fmt.Fprintf(s.Stdout, "Run URL: %s\n\n", runResult.RunURL)
-	fmt.Fprintf(s.Stdout, "Polling for build completion...\n")
+	fmt.Fprintf(s.Stdout, "Polling for build completion")
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
@@ -53,11 +53,11 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		switch result.Status {
 		case api.TaskStatusPending:
 			backoffMs := result.BackoffMs
-			fmt.Fprintf(s.Stdout, "Build status: %s, waiting %dms...\n", result.Status, backoffMs)
+			fmt.Fprintf(s.Stdout, ".")
 			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
 		case api.TaskStatusSucceeded:
 			taskID = result.TaskID
-			fmt.Fprintf(s.Stdout, "Build succeeded!\n\n")
+			fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
 			succeeded = true
 		case api.TaskStatusFailed, "failure":
 			if result.ErrorMessage != "" {

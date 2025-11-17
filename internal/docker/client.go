@@ -73,7 +73,6 @@ func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cli
 	}
 	defer responseBody.Close()
 
-	// Parse and display progress
 	scanner := bufio.NewScanner(responseBody)
 	for scanner.Scan() {
 		var progress pullProgress
@@ -81,7 +80,6 @@ func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cli
 			continue
 		}
 
-		// Display progress updates
 		if err := displayProgress(r.Out(), &progress); err != nil {
 			continue
 		}
