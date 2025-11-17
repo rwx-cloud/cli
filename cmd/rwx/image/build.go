@@ -47,7 +47,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 
 			return getService().BuildImage(config)
 		},
-		Short: "Launch a targeted rwx run and pull its result as an OCI image",
+		Short: "Launch a targeted RWX run and pull its result as an OCI image",
 		Use:   "build <file> --target <task-key> [flags]",
 	}
 

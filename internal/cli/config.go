@@ -386,3 +386,16 @@ func (c BuildImageConfig) Validate() error {
 	}
 	return nil
 }
+
+type PullImageConfig struct {
+	TaskID  string
+	Tags    []string
+	Timeout time.Duration
+}
+
+func (c PullImageConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}

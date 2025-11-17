@@ -1,0 +1,236 @@
+package cli_test
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/docker/cli/cli/config/types"
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/stretchr/testify/require"
+)
+
+func TestService_PullImage(t *testing.T) {
+	t.Run("successful pull with no tags", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
+			require.Equal(t, "my-org", authConfig.Username)
+			require.Equal(t, "test-password", authConfig.Password)
+			require.Equal(t, "cloud.rwx.com", authConfig.ServerAddress)
+			return nil
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Tags:    []string{},
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.NoError(t, err)
+		require.Contains(t, s.mockStdout.String(), "Pulling image: cloud.rwx.com/my-org:task-456")
+		require.Contains(t, s.mockStdout.String(), "Image pulled successfully!")
+	})
+
+	t.Run("successful pull with tags", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
+			return nil
+		}
+
+		taggedRefs := []string{}
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", source)
+			taggedRefs = append(taggedRefs, target)
+			return nil
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Tags:    []string{"latest", "v1.0.0"},
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{
+			"latest",
+			"v1.0.0",
+		}, taggedRefs)
+		require.Contains(t, s.mockStdout.String(), "Tagging image as: latest")
+		require.Contains(t, s.mockStdout.String(), "Tagging image as: v1.0.0")
+	})
+
+	t.Run("fails when config is invalid", func(t *testing.T) {
+		s := setupTest(t)
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "",
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "task ID must be provided")
+	})
+
+	t.Run("fails when whoami fails", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return nil, fmt.Errorf("unauthorized")
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
+		require.Contains(t, err.Error(), "Try running `rwx login` again")
+	})
+
+	t.Run("fails when image pull fails", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return fmt.Errorf("failed to pull image: not found")
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to pull image")
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("fails when pull times out", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return context.DeadlineExceeded
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "timeout while pulling image after 1s")
+		require.Contains(t, err.Error(), "The image may still be available at: cloud.rwx.com/my-org:task-456")
+	})
+
+	t.Run("fails when image tagging fails", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return nil
+		}
+
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			return fmt.Errorf("failed to tag image")
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Tags:    []string{"latest"},
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to tag image as latest")
+	})
+
+	t.Run("fails when tagging times out", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return nil
+		}
+
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			return context.DeadlineExceeded
+		}
+
+		cfg := cli.PullImageConfig{
+			TaskID:  "task-456",
+			Tags:    []string{"latest"},
+			Timeout: 1 * time.Second,
+		}
+
+		err := s.service.PullImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "timeout while tagging image after 1s")
+	})
+}
