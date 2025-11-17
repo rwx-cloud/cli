@@ -115,7 +115,7 @@ on:
   github:
     push:
       init:
-        ref: ${{ event.git.ref }}
+        commit-sha: ${{ event.git.sha }}
 
 tasks:
   - key: "test"
@@ -370,37 +370,6 @@ tasks:
 		require.Contains(t, string(fileContent), "commit: ${{ event.git.sha }}")
 	})
 
-	t.Run("always maps to event.git.sha", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
-		require.NoError(t, err)
-		defer tmpFile.Close()
-
-		content := `
-on:
-  github:
-    push:
-      init:
-        commit-sha: ${{ event.git.sha }}
-        ref: ${{ event.git.ref }}
-
-tasks:
-  - key: "test"
-    run: echo 'hello world'
-`
-		_, err = tmpFile.WriteString(content)
-		require.NoError(t, err)
-
-		result, err := ResolveCliParamsForFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.True(t, result.Rewritten)
-
-		fileContent, err := os.ReadFile(tmpFile.Name())
-		require.NoError(t, err)
-		require.Contains(t, string(fileContent), "cli:")
-		require.Contains(t, string(fileContent), "commit-sha: ${{ event.git.sha }}")
-		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
-	})
-
 	t.Run("extracts git params from conditional init params", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
@@ -412,10 +381,10 @@ on:
     push:
       - if: ${{ init.deploy }}
         init:
-          ref: ${{ event.git.ref }}
+          sha: ${{ event.git.sha }}
       - if: ${{ init.test }}
         init:
-          ref: ${{ event.git.ref }}
+          sha: ${{ event.git.sha }}
 
 tasks:
   - key: "test"
@@ -431,7 +400,31 @@ tasks:
 		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
 		require.Contains(t, string(fileContent), "cli:")
-		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
+	})
+
+	t.Run("does not extract git params from event.git.ref", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        ref: ${{ event.git.ref }}
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.False(t, result.Rewritten)
 	})
 
 	t.Run("adds CLI trigger when multiple events on same trigger have git params", func(t *testing.T) {
@@ -444,10 +437,10 @@ on:
   github:
     push:
       init:
-        ref: ${{ event.git.ref }}
+        sha: ${{ event.git.sha }}
     pull_request:
       init:
-        sha: ${{ event.git.ref }}
+        other-sha: ${{ event.git.sha }}
 
 tasks:
   - key: "test"
@@ -463,7 +456,7 @@ tasks:
 		fileContent, err := os.ReadFile(tmpFile.Name())
 		require.NoError(t, err)
 		require.Contains(t, string(fileContent), "cli:")
-		require.Contains(t, string(fileContent), "ref: ${{ event.git.sha }}")
 		require.Contains(t, string(fileContent), "sha: ${{ event.git.sha }}")
+		require.Contains(t, string(fileContent), "other-sha: ${{ event.git.sha }}")
 	})
 }
