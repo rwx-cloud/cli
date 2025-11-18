@@ -197,6 +197,24 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 	}
 
+	cliHasGitParams := len(result.GitParams) > 0 || result.Rewritten
+	if !cliHasGitParams {
+		content, err := os.ReadFile(runDefinition[0].OriginalPath)
+		if err == nil {
+			doc, err := ParseYAMLDoc(string(content))
+			if err == nil {
+				cliInit := doc.TryReadStringAtPath("$.on.cli.init")
+				if strings.Contains(cliInit, "event.git.") {
+					cliHasGitParams = true
+				}
+			}
+		}
+	}
+
+	if !cliHasGitParams {
+		patchFile = git.PatchFile{}
+	}
+
 	for _, gitParam := range result.GitParams {
 		if _, exists := cfg.InitParameters[gitParam]; exists {
 			patchFile = git.PatchFile{}

@@ -162,5 +162,46 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 		})
+
+		t.Run("when cli trigger has no git params", func(t *testing.T) {
+			s := setupTest(t)
+			s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
+			s.mockGit.MockGeneratePatchFile = patchFile
+
+			rwxDir := filepath.Join(s.tmp, ".rwx")
+			err := os.MkdirAll(rwxDir, 0o755)
+			require.NoError(t, err)
+
+			definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+
+			definition := "on:\n  cli:\n    init:\n      foo: bar\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+
+			err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+			require.NoError(t, err)
+
+			runConfig := cli.InitiateRunConfig{
+				RwxDirectory: rwxDir,
+				MintFilePath: definitionsFile,
+			}
+
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
+					LatestMajor: make(map[string]string),
+					LatestMinor: make(map[string]map[string]string),
+				}, nil
+			}
+			s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+				require.False(t, cfg.Patch.Sent)
+				return &api.InitiateRunResult{
+					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					TargetedTaskKeys: []string{},
+					DefinitionPath:   ".mint/mint.yml",
+				}, nil
+			}
+
+			_, err = s.service.InitiateRun(runConfig)
+			require.NoError(t, err)
+		})
 	})
 }
