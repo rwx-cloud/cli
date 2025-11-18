@@ -58,15 +58,22 @@ func TestService_BuildImage(t *testing.T) {
 
 			callCount++
 			if callCount == 1 {
+				backoffMs := 0
 				return api.TaskStatusResult{
-					Status:    api.TaskStatusPending,
-					BackoffMs: 0,
+					Status: &api.TaskStatus{Result: "no_result"},
+					Polling: api.PollingResult{
+						Completed: false,
+						BackoffMs: &backoffMs,
+					},
 				}, nil
 			}
 
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
+				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -118,8 +125,11 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
+				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -224,8 +234,10 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status:       api.TaskStatusFailed,
-				ErrorMessage: "build failed: compilation error",
+				Status: &api.TaskStatus{Result: "failed"},
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -239,7 +251,7 @@ func TestService_BuildImage(t *testing.T) {
 		err := s.service.BuildImage(cfg)
 
 		require.Error(t, err)
-		require.Equal(t, "build failed: build failed: compilation error", err.Error())
+		require.Equal(t, "build failed", err.Error())
 	})
 
 	t.Run("fails when build fails without error message", func(t *testing.T) {
@@ -255,7 +267,10 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusFailed,
+				Status: &api.TaskStatus{Result: "failed"},
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -285,8 +300,11 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
+				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -323,8 +341,11 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
+				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -367,8 +388,11 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
+				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -413,7 +437,10 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: "unknown-status",
+				Status: &api.TaskStatus{Result: "unknown-status"},
+				Polling: api.PollingResult{
+					Completed: true,
+				},
 			}, nil
 		}
 
@@ -427,6 +454,73 @@ func TestService_BuildImage(t *testing.T) {
 		err := s.service.BuildImage(cfg)
 
 		require.Error(t, err)
-		require.Equal(t, "unknown build status: unknown-status", err.Error())
+		require.Equal(t, "build failed", err.Error())
+	})
+
+	t.Run("fails when status is nil", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: nil,
+				Polling: api.PollingResult{
+					Completed: true,
+				},
+			}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "build failed", err.Error())
+	})
+
+	t.Run("fails when backoff instructions aren't included", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: &api.TaskStatus{Result: "pending"},
+				Polling: api.PollingResult{
+					Completed: false,
+					BackoffMs: nil,
+				},
+			}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "build failed", err.Error())
 	})
 }
