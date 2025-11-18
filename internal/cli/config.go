@@ -368,14 +368,15 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 }
 
 type BuildImageConfig struct {
-	InitParameters map[string]string
-	RwxDirectory   string
-	MintFilePath   string
-	NoCache        bool
-	NoPull         bool
-	TargetTaskKey  string
-	Tags           []string
-	Timeout        time.Duration
+	InitParameters   map[string]string
+	RwxDirectory     string
+	MintFilePath     string
+	NoCache          bool
+	NoPull           bool
+	TargetTaskKey    string
+	Tags             []string
+	PushToReferences []string
+	Timeout          time.Duration
 }
 
 func (c BuildImageConfig) Validate() error {

@@ -108,5 +108,27 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		}
 	}
 
+	if len(config.PushToReferences) > 0 {
+		fmt.Fprintf(s.Stdout, "\n")
+
+		pushConfig, err := NewPushImageConfig(
+			taskID,
+			config.PushToReferences,
+			false,
+			true,
+			func(url string) error {
+				fmt.Fprintf(s.Stdout, "Run URL: %s\n", url)
+				return nil
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := s.PushImage(pushConfig); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
