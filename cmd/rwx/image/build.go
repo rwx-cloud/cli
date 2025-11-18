@@ -9,14 +9,15 @@ import (
 )
 
 var (
-	buildInitParameters []string
-	buildRwxDirectory   string
-	buildMintFilePath   string
-	buildNoCache        bool
-	buildNoPull         bool
-	buildTargetTaskKey  string
-	buildTags           []string
-	buildTimeout        time.Duration
+	buildInitParameters  []string
+	buildRwxDirectory    string
+	buildMintFilePath    string
+	buildNoCache         bool
+	buildNoPull          bool
+	buildTargetTaskKey   string
+	buildTags            []string
+	buildPushToReferences []string
+	buildTimeout         time.Duration
 
 	BuildCmd *cobra.Command
 )
@@ -46,14 +47,15 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 			}
 
 			config := cli.BuildImageConfig{
-				InitParameters: initParams,
-				RwxDirectory:   buildRwxDirectory,
-				MintFilePath:   buildMintFilePath,
-				NoCache:        buildNoCache,
-				NoPull:         buildNoPull,
-				TargetTaskKey:  buildTargetTaskKey,
-				Tags:           buildTags,
-				Timeout:        buildTimeout,
+				InitParameters:   initParams,
+				RwxDirectory:     buildRwxDirectory,
+				MintFilePath:     buildMintFilePath,
+				NoCache:          buildNoCache,
+				NoPull:           buildNoPull,
+				TargetTaskKey:    buildTargetTaskKey,
+				Tags:             buildTags,
+				PushToReferences: buildPushToReferences,
+				Timeout:          buildTimeout,
 			}
 
 			return getService().BuildImage(config)
@@ -69,6 +71,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().BoolVar(&buildNoPull, "no-pull", false, "do not pull the image after building")
 	BuildCmd.Flags().StringVar(&buildTargetTaskKey, "target", "", "task key to build (required)")
 	BuildCmd.Flags().StringArrayVar(&buildTags, "tag", []string{}, "tag the built image (can be specified multiple times)")
+	BuildCmd.Flags().StringArrayVar(&buildPushToReferences, "push-to", []string{}, "push the built image to the specified OCI reference (can be specified multiple times)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
 
 	_ = BuildCmd.MarkFlagRequired("target")

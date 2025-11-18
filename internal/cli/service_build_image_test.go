@@ -582,4 +582,122 @@ func TestService_BuildImage(t *testing.T) {
 		require.NotContains(t, s.mockStdout.String(), "Image pulled successfully")
 		require.NotContains(t, s.mockStdout.String(), "Tagging image")
 	})
+
+	t.Run("successful build with push-to references", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+				TaskID:  "task-456",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
+			return nil
+		}
+
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "registry-user", Password: "registry-pass"}, nil
+		}
+
+		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			require.Equal(t, "task-456", cfg.TaskID)
+			require.Equal(t, "registry.com", cfg.Image.Registry)
+			require.Equal(t, "myrepo", cfg.Image.Repository)
+			require.ElementsMatch(t, []string{"latest", "v1.0"}, cfg.Image.Tags)
+			return api.StartImagePushResult{PushID: "push-123", RunURL: "https://cloud.rwx.com/push/push-123"}, nil
+		}
+
+		s.mockAPI.MockImagePushStatus = func(pushID string) (api.ImagePushStatusResult, error) {
+			require.Equal(t, "push-123", pushID)
+			return api.ImagePushStatusResult{Status: "succeeded"}, nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters:   map[string]string{"key": "value"},
+			MintFilePath:     "test.yml",
+			NoCache:          false,
+			TargetTaskKey:    "build-task",
+			Tags:             []string{},
+			PushToReferences: []string{"registry.com/myrepo:latest", "registry.com/myrepo:v1.0"},
+			Timeout:          1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.NoError(t, err)
+		require.Contains(t, s.mockStdout.String(), "Build succeeded!")
+		require.Contains(t, s.mockStdout.String(), "Image pulled successfully!")
+		require.Contains(t, s.mockStdout.String(), "Pushing image from task: task-456")
+		require.Contains(t, s.mockStdout.String(), "Run URL: https://cloud.rwx.com/push/push-123")
+		require.Contains(t, s.mockStdout.String(), "Image push succeeded!")
+	})
+
+	t.Run("fails when push fails", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+		s.mockDocker.PasswordValue = "test-password"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+				TaskID:  "task-456",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			return nil
+		}
+
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{}, fmt.Errorf("no credentials available")
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters:   map[string]string{},
+			MintFilePath:     "test.yml",
+			TargetTaskKey:    "build-task",
+			PushToReferences: []string{"registry.com/myrepo:latest"},
+			Timeout:          1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no credentials available")
+	})
 }
