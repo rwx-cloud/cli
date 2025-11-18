@@ -12,6 +12,7 @@ var (
 	buildRwxDirectory   string
 	buildMintFilePath   string
 	buildNoCache        bool
+	buildNoPull         bool
 	buildTargetTaskKey  string
 	buildTags           []string
 	buildTimeout        time.Duration
@@ -40,6 +41,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				RwxDirectory:   buildRwxDirectory,
 				MintFilePath:   buildMintFilePath,
 				NoCache:        buildNoCache,
+				NoPull:         buildNoPull,
 				TargetTaskKey:  buildTargetTaskKey,
 				Tags:           buildTags,
 				Timeout:        buildTimeout,
@@ -55,6 +57,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().StringVarP(&buildMintFilePath, "file", "f", "", "an RWX config file to use for sourcing task definitions (required)")
 	BuildCmd.Flags().StringVarP(&buildRwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 	BuildCmd.Flags().BoolVar(&buildNoCache, "no-cache", false, "do not read or write to the cache")
+	BuildCmd.Flags().BoolVar(&buildNoPull, "no-pull", false, "do not pull the image after building")
 	BuildCmd.Flags().StringVar(&buildTargetTaskKey, "target", "", "task key to build (required)")
 	BuildCmd.Flags().StringArrayVar(&buildTags, "tag", []string{}, "tag the built image (can be specified multiple times)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
