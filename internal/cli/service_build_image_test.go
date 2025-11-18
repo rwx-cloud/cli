@@ -538,8 +538,9 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
-				Status: api.TaskStatusSucceeded,
-				TaskID: "task-456",
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+				TaskID:  "task-456",
+				Polling: api.PollingResult{Completed: true},
 			}, nil
 		}
 
@@ -566,7 +567,6 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			NoPull:         true,
-			Tags:           []string{"latest"},
 			Timeout:        1 * time.Second,
 		}
 

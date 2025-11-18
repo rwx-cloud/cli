@@ -1,6 +1,7 @@
 package image
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rwx-cloud/cli/internal/cli"
@@ -24,7 +25,15 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd = &cobra.Command{
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return requireAccessToken()
+			if err := requireAccessToken(); err != nil {
+				return err
+			}
+
+			if buildNoPull && len(buildTags) > 0 {
+				return fmt.Errorf("cannot use --tag with --no-pull: no image will be pulled to tag")
+			}
+
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {

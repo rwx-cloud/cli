@@ -55,6 +55,19 @@ func runMint(t *testing.T, input input) result {
 	}
 }
 
+func TestImageBuild(t *testing.T) {
+	t.Run("fails when --tag is used with --no-pull", func(t *testing.T) {
+		input := input{
+			args: []string{"image", "build", "--access-token", "fake-for-test", "--target", "test-task", "--no-pull", "--tag", "my-tag", "test.yml"},
+		}
+
+		result := runMint(t, input)
+
+		require.Equal(t, 1, result.exitCode)
+		require.Contains(t, result.stderr, "cannot use --tag with --no-pull")
+	})
+}
+
 func TestMintRun(t *testing.T) {
 	t.Run("errors if an init parameter is specified without a flag", func(t *testing.T) {
 		input := input{
