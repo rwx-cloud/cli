@@ -75,6 +75,11 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 	registry := s.DockerCLI.Registry()
 	imageRef := fmt.Sprintf("%s/%s:%s", registry, whoamiResult.OrganizationSlug, taskID)
 
+	if config.NoPull {
+		fmt.Fprintf(s.Stdout, "Image available at: %s\n", imageRef)
+		return nil
+	}
+
 	fmt.Fprintf(s.Stdout, "Pulling image: %s\n", imageRef)
 
 	authConfig := cliTypes.AuthConfig{

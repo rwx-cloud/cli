@@ -372,6 +372,7 @@ type BuildImageConfig struct {
 	RwxDirectory   string
 	MintFilePath   string
 	NoCache        bool
+	NoPull         bool
 	TargetTaskKey  string
 	Tags           []string
 	Timeout        time.Duration

@@ -523,4 +523,63 @@ func TestService_BuildImage(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
 	})
+
+	t.Run("skips pull when no-pull flag is set", func(t *testing.T) {
+		s := setupTest(t)
+		setupBuildImageTest(t, s)
+		s.mockDocker.RegistryValue = "cloud.rwx.com"
+
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunId:  "run-123",
+				RunURL: "https://cloud.rwx.com/runs/run-123",
+			}, nil
+		}
+
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status: api.TaskStatusSucceeded,
+				TaskID: "task-456",
+			}, nil
+		}
+
+		s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{
+				OrganizationSlug: "my-org",
+			}, nil
+		}
+
+		pullCalled := false
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+			pullCalled = true
+			return nil
+		}
+
+		tagCalled := false
+		s.mockDocker.TagFunc = func(ctx context.Context, source, target string) error {
+			tagCalled = true
+			return nil
+		}
+
+		cfg := cli.BuildImageConfig{
+			InitParameters: map[string]string{},
+			MintFilePath:   "test.yml",
+			TargetTaskKey:  "build-task",
+			NoPull:         true,
+			Tags:           []string{"latest"},
+			Timeout:        1 * time.Second,
+		}
+
+		err := s.service.BuildImage(cfg)
+
+		require.NoError(t, err)
+		require.False(t, pullCalled, "Pull should not be called when NoPull is true")
+		require.False(t, tagCalled, "Tag should not be called when NoPull is true")
+		require.Contains(t, s.mockStdout.String(), "Building image for build-task")
+		require.Contains(t, s.mockStdout.String(), "Build succeeded!")
+		require.Contains(t, s.mockStdout.String(), "Image available at: cloud.rwx.com/my-org:task-456")
+		require.NotContains(t, s.mockStdout.String(), "Pulling image")
+		require.NotContains(t, s.mockStdout.String(), "Image pulled successfully")
+		require.NotContains(t, s.mockStdout.String(), "Tagging image")
+	})
 }
