@@ -266,14 +266,20 @@ type TaskStatusConfig struct {
 }
 
 const (
-	TaskStatusPending   = "pending"
-	TaskStatusSucceeded = "success"
-	TaskStatusFailed    = "failed"
+	TaskStatusSucceeded = "succeeded"
 )
 
+type PollingResult struct {
+	Completed bool `json:"completed"`
+	BackoffMs *int `json:"backoff_ms,omitempty"`
+}
+
+type TaskStatus struct {
+	Result string `json:"result"`
+}
+
 type TaskStatusResult struct {
-	Status       string `json:"status"`
-	TaskID       string `json:"task_id"`
-	BackoffMs    int    `json:"backoff_ms"`
-	ErrorMessage string `json:"error_message"`
+	Status  *TaskStatus   `json:"status,omitempty"`
+	TaskID  string        `json:"task_id,omitempty"`
+	Polling PollingResult `json:"polling"`
 }

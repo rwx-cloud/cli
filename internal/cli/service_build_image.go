@@ -50,22 +50,20 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 			return fmt.Errorf("failed to get build status: %w", err)
 		}
 
-		switch result.Status {
-		case api.TaskStatusPending:
-			backoffMs := result.BackoffMs
-			fmt.Fprintf(s.Stdout, ".")
-			time.Sleep(time.Duration(backoffMs) * time.Millisecond)
-		case api.TaskStatusSucceeded:
-			taskID = result.TaskID
-			fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
-			succeeded = true
-		case api.TaskStatusFailed, "failure":
-			if result.ErrorMessage != "" {
-				return fmt.Errorf("build failed: %s", result.ErrorMessage)
+		if result.Polling.Completed {
+			if result.Status != nil && result.Status.Result == api.TaskStatusSucceeded {
+				taskID = result.TaskID
+				fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
+				succeeded = true
+			} else {
+				return fmt.Errorf("build failed")
 			}
-			return fmt.Errorf("build failed")
-		default:
-			return fmt.Errorf("unknown build status: %s", result.Status)
+		} else {
+			if result.Polling.BackoffMs == nil {
+				return fmt.Errorf("build failed")
+			}
+			fmt.Fprintf(s.Stdout, ".")
+			time.Sleep(time.Duration(*result.Polling.BackoffMs) * time.Millisecond)
 		}
 	}
 
