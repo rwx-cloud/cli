@@ -98,8 +98,14 @@ func (s Service) PushImage(config PushImageConfig) error {
 		return err
 	}
 
+	if !config.JSON {
+		fmt.Fprintf(s.Stdout, "Run URL: %s\n", result.RunURL)
+	}
+
 	if err := config.OpenURL(result.RunURL); err != nil {
-		fmt.Fprintf(s.Stderr, "Warning: unable to open the run in your browser. You can manually visit the run at %q.\n", result.RunURL)
+		if err.Error() != "" {
+			fmt.Fprintf(s.Stderr, "Warning: unable to open the run in your browser.\n")
+		}
 	}
 
 	if !config.Wait {
@@ -111,7 +117,6 @@ func (s Service) PushImage(config PushImageConfig) error {
 			return nil
 		} else {
 			fmt.Fprintln(s.Stdout, "Your image is being pushed. This may take some time for large images.")
-			fmt.Fprintf(s.Stdout, "To follow along, you can watch the run:\n%s\n", result.RunURL)
 			fmt.Fprintln(s.Stdout)
 			return nil
 		}
