@@ -99,7 +99,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 	}
 
 	if !config.JSON {
-		fmt.Fprintf(s.Stdout, "Run URL: %s\n", result.RunURL)
+		fmt.Fprintf(s.Stdout, "Starting RWX run to push image: %s\n", result.RunURL)
 	}
 
 	if err := config.OpenURL(result.RunURL); err != nil {
