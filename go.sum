@@ -82,6 +82,8 @@ github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre
 github.com/go-sql-driver/mysql v1.3.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/goccy/go-yaml v1.18.1-0.20250612065507-74d4101d4035 h1:UU/CLVwugfMJM16Ph3Qu1+kPg116OpM6lLRjGQGqlQ8=
 github.com/goccy/go-yaml v1.18.1-0.20250612065507-74d4101d4035/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
+github.com/goccy/go-yaml v1.18.1-0.20251021012708-90e852559132 h1:nemFsaWbhEUwUFBc0f91dIW36wlRPLtDYh2HFqsgWUc=
+github.com/goccy/go-yaml v1.18.1-0.20251021012708-90e852559132/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
 github.com/gogo/protobuf v1.0.0/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe/go.mod h1:8vg3r2VgvsThLBIFL93Qb5yWzgyZWhEmBwUJWevAkK0=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
