@@ -119,11 +119,15 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	}
 
 	var rwxDirectory []RwxDirectoryEntry
-	runDefinitionPath := cfg.MintFilePath
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to find .rwx directory")
+	}
+
+	runDefinitionPath, err := FindRunDefinitionFile(cfg.MintFilePath, rwxDirectoryPath)
+	if err != nil {
+		return nil, err
 	}
 
 	sha := s.GitClient.GetCommit()

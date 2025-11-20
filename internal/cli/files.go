@@ -20,6 +20,35 @@ type MintYAMLFile struct {
 	Doc   *YAMLDoc
 }
 
+func FindRunDefinitionFile(filePath string, rwxDirectoryPath string) (string, error) {
+	// If path is absolute, use it as-is
+	if filepath.IsAbs(filePath) {
+		if _, err := os.Stat(filePath); err != nil {
+			return "", fmt.Errorf("run definition file %q not found", filePath)
+		}
+		return filePath, nil
+	}
+
+	// First, try the path relative to pwd
+	if _, err := os.Stat(filePath); err == nil {
+		return filePath, nil
+	}
+
+	// If not found and we have an rwx directory, try {rwx_dir}/{filename}
+	if rwxDirectoryPath != "" {
+		candidatePath := filepath.Join(rwxDirectoryPath, filePath)
+		if _, err := os.Stat(candidatePath); err == nil {
+			return candidatePath, nil
+		}
+	}
+
+	// File not found in either location
+	if rwxDirectoryPath != "" {
+		return "", fmt.Errorf("run definition file %q not found in current directory or in %q", filePath, rwxDirectoryPath)
+	}
+	return "", fmt.Errorf("run definition file %q not found", filePath)
+}
+
 // findRwxDirectoryPath returns a configured directory, if it exists, or walks up
 // from the working directory to find a .rwx directory. If the found path is not
 // a directory or is not readable, an error is returned.
