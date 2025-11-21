@@ -162,7 +162,9 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		rwxDirectory = rwxDirectoryEntries
 	}
 
-	runDefinition, err := rwxDirectoryEntriesFromPaths([]string{runDefinitionPath})
+	// Convert to relative path for display purposes (e.g., run title)
+	relativeRunDefinitionPath := relativePathFromWd(runDefinitionPath)
+	runDefinition, err := rwxDirectoryEntriesFromPaths([]string{relativeRunDefinitionPath})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read provided files")
 	}
@@ -173,9 +175,9 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 	// reloadRunDefinitions reloads run definitions after modifying the file.
 	reloadRunDefinitions := func() error {
-		runDefinition, err = rwxDirectoryEntriesFromPaths([]string{runDefinitionPath})
+		runDefinition, err = rwxDirectoryEntriesFromPaths([]string{relativeRunDefinitionPath})
 		if err != nil {
-			return errors.Wrapf(err, "unable to reload %q", runDefinitionPath)
+			return errors.Wrapf(err, "unable to reload %q", relativeRunDefinitionPath)
 		}
 		if rwxDirectoryPath != "" {
 			rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
