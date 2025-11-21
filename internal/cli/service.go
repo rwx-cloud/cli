@@ -134,36 +134,47 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	branch := s.GitClient.GetBranch()
 	originUrl := s.GitClient.GetOriginUrl()
 	patchFile := git.PatchFile{}
+
+	// When there's no .rwx directory, create a temporary one for patches and to set run.dir
+	var tempRwxDir string
+	if rwxDirectoryPath == "" {
+		tempRwxDir, err = os.MkdirTemp("", ".rwx-*")
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to create temporary .rwx directory")
+		}
+		defer os.RemoveAll(tempRwxDir)
+		rwxDirectoryPath = tempRwxDir
+	}
+
 	patchDir := filepath.Join(rwxDirectoryPath, ".patches")
 	defer os.RemoveAll(patchDir)
 
-	// It's possible (when no directory is specified) that there is no .rwx directory found during traversal
-	if rwxDirectoryPath != "" {
-
-		patchable := true
-
-		if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
-			patchable = false
-		}
-
-		if patchable {
-			patchFile = s.GitClient.GeneratePatchFile(patchDir)
-		}
-
-		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
-		if err != nil {
-			if errors.Is(err, errors.ErrFileNotExists) {
-				return nil, fmt.Errorf("You specified --dir %q, but %q could not be found", cfg.RwxDirectory, cfg.RwxDirectory)
-			}
-
-			return nil, err
-		}
-
-		rwxDirectory = rwxDirectoryEntries
+	// Generate patches if enabled
+	patchable := true
+	if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
+		patchable = false
 	}
 
 	// Convert to relative path for display purposes (e.g., run title)
 	relativeRunDefinitionPath := relativePathFromWd(runDefinitionPath)
+
+	if patchable {
+		patchFile = s.GitClient.GeneratePatchFile(patchDir)
+	}
+
+	// Load directory entries
+	entries, err := rwxDirectoryEntries(rwxDirectoryPath)
+	if err != nil {
+		if errors.Is(err, errors.ErrFileNotExists) && tempRwxDir == "" {
+			// User explicitly specified a directory that doesn't exist
+			return nil, fmt.Errorf("You specified --dir %q, but %q could not be found", cfg.RwxDirectory, cfg.RwxDirectory)
+		}
+
+		return nil, errors.Wrapf(err, "unable to load directory %q", rwxDirectoryPath)
+	}
+
+	rwxDirectory = entries
+
 	runDefinition, err := rwxDirectoryEntriesFromPaths([]string{relativeRunDefinitionPath})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read provided files")
@@ -179,14 +190,12 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		if err != nil {
 			return errors.Wrapf(err, "unable to reload %q", relativeRunDefinitionPath)
 		}
-		if rwxDirectoryPath != "" {
-			rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
-			if err != nil && !errors.Is(err, errors.ErrFileNotExists) {
-				return errors.Wrapf(err, "unable to reload rwx directory %q", rwxDirectoryPath)
-			}
-
-			rwxDirectory = rwxDirectoryEntries
+		rwxDirectoryEntries, err := rwxDirectoryEntries(rwxDirectoryPath)
+		if err != nil && !errors.Is(err, errors.ErrFileNotExists) {
+			return errors.Wrapf(err, "unable to reload rwx directory %q", rwxDirectoryPath)
 		}
+
+		rwxDirectory = rwxDirectoryEntries
 		return nil
 	}
 

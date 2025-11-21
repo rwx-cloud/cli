@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rwx-cloud/cli/internal/api"
@@ -234,7 +235,10 @@ func TestService_InitiatingRun(t *testing.T) {
 				s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 					require.Len(t, cfg.TaskDefinitions, 1)
 					require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
-					require.Len(t, cfg.RwxDirectory, 0)
+					// When no .rwx directory is specified, a temporary directory is created
+					require.Len(t, cfg.RwxDirectory, 1)
+					require.Equal(t, ".", cfg.RwxDirectory[0].Path)
+					require.Equal(t, "dir", cfg.RwxDirectory[0].Type)
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
@@ -247,6 +251,16 @@ func TestService_InitiatingRun(t *testing.T) {
 
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
+
+				// Verify temp .rwx directory was cleaned up
+				tmpDir := os.TempDir()
+				entries, err := os.ReadDir(tmpDir)
+				require.NoError(t, err)
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), ".rwx-") {
+						t.Errorf("temp .rwx directory should be cleaned up after InitiateRun, but found: %s", entry.Name())
+					}
+				}
 
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.False(t, resolveBaseLayerCalled)
@@ -450,7 +464,10 @@ func TestService_InitiatingRun(t *testing.T) {
 				s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 					require.Len(t, cfg.TaskDefinitions, 1)
 					require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
-					require.Len(t, cfg.RwxDirectory, 0)
+					// When no .rwx directory is specified, a temporary directory is created
+					require.Len(t, cfg.RwxDirectory, 1)
+					require.Equal(t, ".", cfg.RwxDirectory[0].Path)
+					require.Equal(t, "dir", cfg.RwxDirectory[0].Type)
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
@@ -463,6 +480,16 @@ func TestService_InitiatingRun(t *testing.T) {
 
 				_, err = s.service.InitiateRun(runConfig)
 				require.NoError(t, err)
+
+				// Verify temp .rwx directory was cleaned up
+				tmpDir := os.TempDir()
+				entries, err := os.ReadDir(tmpDir)
+				require.NoError(t, err)
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), ".rwx-") {
+						t.Errorf("temp .rwx directory should be cleaned up after InitiateRun, but found: %s", entry.Name())
+					}
+				}
 
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.False(t, resolveBaseLayerCalled)
