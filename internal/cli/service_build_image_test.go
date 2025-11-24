@@ -98,6 +98,7 @@ func TestService_BuildImage(t *testing.T) {
 			TargetTaskKey:  "build-task",
 			Tags:           []string{},
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -158,6 +159,7 @@ func TestService_BuildImage(t *testing.T) {
 			TargetTaskKey:  "build-task",
 			Tags:           []string{"latest", "v1.0.0"},
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -184,6 +186,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -212,6 +215,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -246,6 +250,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -279,6 +284,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -317,6 +323,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -364,6 +371,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -416,6 +424,7 @@ func TestService_BuildImage(t *testing.T) {
 			TargetTaskKey:  "build-task",
 			Tags:           []string{"latest"},
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -449,6 +458,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -482,6 +492,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -516,6 +527,7 @@ func TestService_BuildImage(t *testing.T) {
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -568,6 +580,7 @@ func TestService_BuildImage(t *testing.T) {
 			TargetTaskKey:  "build-task",
 			NoPull:         true,
 			Timeout:        1 * time.Second,
+			OpenURL:        func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -640,6 +653,7 @@ func TestService_BuildImage(t *testing.T) {
 			Tags:             []string{},
 			PushToReferences: []string{"registry.com/myrepo:latest", "registry.com/myrepo:v1.0"},
 			Timeout:          1 * time.Second,
+			OpenURL:          func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)
@@ -693,6 +707,7 @@ func TestService_BuildImage(t *testing.T) {
 			TargetTaskKey:    "build-task",
 			PushToReferences: []string{"registry.com/myrepo:latest"},
 			Timeout:          1 * time.Second,
+			OpenURL:          func(string) error { return nil },
 		}
 
 		err := s.service.BuildImage(cfg)

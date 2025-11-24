@@ -377,6 +377,7 @@ type BuildImageConfig struct {
 	Tags             []string
 	PushToReferences []string
 	Timeout          time.Duration
+	OpenURL          func(string) error
 }
 
 func (c BuildImageConfig) Validate() error {

@@ -29,6 +29,10 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 	fmt.Fprintf(s.Stdout, "Building image for %s\n", config.TargetTaskKey)
 	fmt.Fprintf(s.Stdout, "Run URL: %s\n\n", runResult.RunURL)
 
+	if err := config.OpenURL(runResult.RunURL); err != nil {
+		return fmt.Errorf("failed to open URL: %w", err)
+	}
+
 	stopSpinner := spin(
 		"Polling for build completion...",
 		s.StderrIsTTY,
