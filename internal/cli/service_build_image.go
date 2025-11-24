@@ -28,16 +28,11 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 
 	fmt.Fprintf(s.Stdout, "Building image for %s\n", config.TargetTaskKey)
 	fmt.Fprintf(s.Stdout, "Run URL: %s\n\n", runResult.RunURL)
-
 	if err := config.OpenURL(runResult.RunURL); err != nil {
 		return fmt.Errorf("failed to open URL: %w", err)
 	}
 
-	stopSpinner := spin(
-		"Polling for build completion...",
-		s.StderrIsTTY,
-		s.Stderr,
-	)
+	fmt.Fprintf(s.Stdout, "Polling for build completion")
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
@@ -47,7 +42,6 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 	for !succeeded {
 		select {
 		case <-ctx.Done():
-			stopSpinner()
 			return fmt.Errorf("timeout waiting for build to complete after %s\n\nThe build may still be running. Check the status at: %s", config.Timeout, runResult.RunURL)
 		default:
 		}
@@ -57,25 +51,22 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 			TaskKey: config.TargetTaskKey,
 		})
 		if err != nil {
-			stopSpinner()
 			return fmt.Errorf("failed to get build status: %w", err)
 		}
 
 		if result.Polling.Completed {
 			if result.Status != nil && result.Status.Result == api.TaskStatusSucceeded {
 				taskID = result.TaskID
-				stopSpinner()
 				fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
 				succeeded = true
 			} else {
-				stopSpinner()
 				return fmt.Errorf("build failed")
 			}
 		} else {
 			if result.Polling.BackoffMs == nil {
-				stopSpinner()
 				return fmt.Errorf("build failed")
 			}
+			fmt.Fprintf(s.Stdout, ".")
 			time.Sleep(time.Duration(*result.Polling.BackoffMs) * time.Millisecond)
 		}
 	}
