@@ -5,19 +5,21 @@ import (
 	"time"
 
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 )
 
 var (
-	buildInitParameters  []string
-	buildRwxDirectory    string
-	buildMintFilePath    string
-	buildNoCache         bool
-	buildNoPull          bool
-	buildTargetTaskKey   string
-	buildTags            []string
+	buildInitParameters   []string
+	buildRwxDirectory     string
+	buildMintFilePath     string
+	buildNoCache          bool
+	buildNoPull           bool
+	buildTargetTaskKey    string
+	buildTags             []string
 	buildPushToReferences []string
-	buildTimeout         time.Duration
+	buildTimeout          time.Duration
+	buildOpen             bool
 
 	BuildCmd *cobra.Command
 )
@@ -46,6 +48,11 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				return err
 			}
 
+			openURL := open.Run
+			if !buildOpen {
+				openURL = func(input string) error { return nil }
+			}
+
 			config := cli.BuildImageConfig{
 				InitParameters:   initParams,
 				RwxDirectory:     buildRwxDirectory,
@@ -56,6 +63,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				Tags:             buildTags,
 				PushToReferences: buildPushToReferences,
 				Timeout:          buildTimeout,
+				OpenURL:          openURL,
 			}
 
 			return getService().BuildImage(config)
@@ -73,6 +81,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().StringArrayVar(&buildTags, "tag", []string{}, "tag the built image (can be specified multiple times)")
 	BuildCmd.Flags().StringArrayVar(&buildPushToReferences, "push-to", []string{}, "push the built image to the specified OCI reference (can be specified multiple times)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
+	BuildCmd.Flags().BoolVar(&buildOpen, "open", false, "open the build URL in the default browser once the build starts")
 
 	_ = BuildCmd.MarkFlagRequired("target")
 }
