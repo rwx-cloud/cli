@@ -198,15 +198,22 @@ func spin(message string, tty bool, out io.Writer) func() {
 		return indicator.Stop
 	} else {
 		ticker := time.NewTicker(1 * time.Second)
+		done := make(chan struct{})
 		fmt.Fprintln(out, message)
 		go func() {
-			for range ticker.C {
-				fmt.Fprintf(out, ".")
+			for {
+				select {
+				case <-ticker.C:
+					fmt.Fprintf(out, ".")
+				case <-done:
+					return
+				}
 			}
 		}()
 
 		return func() {
 			ticker.Stop()
+			close(done)
 			fmt.Fprintln(out)
 		}
 	}
