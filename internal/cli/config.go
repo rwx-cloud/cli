@@ -350,7 +350,7 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 
 	parsedReferences := make([]reference.Named, 0, len(references))
 	for _, refStr := range references {
-		ref, err := reference.ParseNamed(refStr)
+		ref, err := reference.ParseNormalizedNamed(refStr)
 		if err != nil {
 			return PushImageConfig{}, errors.Wrapf(err, "invalid OCI reference: %s", refStr)
 		}
