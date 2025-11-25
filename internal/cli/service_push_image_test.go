@@ -82,7 +82,7 @@ func TestService_PushImage(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(
 			t,
-			"unable to get credentials for registry \"registry.hub.docker.com/v2\" from docker: "+
+			"unable to get credentials for registry \"registry-1.docker.io\" from docker: "+
 				"failed to get auth config for host \"index.docker.io\": "+
 				"no credentials available",
 			err.Error(),

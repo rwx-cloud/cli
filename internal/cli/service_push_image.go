@@ -28,7 +28,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 	for _, ref := range config.References {
 		registry := reference.Domain(ref)
 		if registry == "docker.io" {
-			registry = "registry.hub.docker.com/v2"
+			registry = "registry-1.docker.io"
 		}
 
 		repository := reference.Path(ref)
@@ -62,7 +62,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 		return fmt.Errorf("RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
 	} else if request.Credentials.Username == "" && request.Credentials.Password == "" {
 		credentialsHost := request.Image.Registry
-		if credentialsHost == "registry.hub.docker.com/v2" {
+		if credentialsHost == "registry-1.docker.io" {
 			credentialsHost = "index.docker.io"
 		}
 
