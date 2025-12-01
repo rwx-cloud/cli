@@ -26,7 +26,7 @@ func (c *Client) GetBranch() string {
 }
 
 func (c *Client) GetCommit() string {
-	cmd := exec.Command(c.Binary, "merge-base", "HEAD", "origin/HEAD")
+	cmd := exec.Command(c.Binary, "rev-list", "HEAD")
 	cmd.Dir = c.Dir
 
 	out, err := cmd.Output()
@@ -34,7 +34,20 @@ func (c *Client) GetCommit() string {
 		return ""
 	}
 
-	return strings.TrimSpace(string(out))
+	for _, commit := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if commit == "" {
+			continue
+		}
+
+		cmd = exec.Command(c.Binary, "merge-base", "--is-ancestor", commit, "origin/HEAD")
+		cmd.Dir = c.Dir
+
+		if cmd.Run() == nil {
+			return commit
+		}
+	}
+
+	return ""
 }
 
 func (c *Client) GetOriginUrl() string {
