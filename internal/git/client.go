@@ -39,7 +39,7 @@ func (c *Client) GetCommit() string {
 			continue
 		}
 
-		cmd = exec.Command(c.Binary, "merge-base", "--is-ancestor", commit, "origin/HEAD")
+		cmd = exec.Command(c.Binary, "fetch", "origin", commit, "--depth=1")
 		cmd.Dir = c.Dir
 
 		if cmd.Run() == nil {
