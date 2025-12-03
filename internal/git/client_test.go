@@ -112,22 +112,12 @@ func TestGetCommit(t *testing.T) {
 		require.Equal(t, "", commit)
 	})
 
-	t.Run("when we're in detatched HEAD state", func(t *testing.T) {
-		t.Run("returns the common ancestor if we have the same HEAD", func(t *testing.T) {
-			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
+	t.Run("returns HEAD when in detached HEAD state", func(t *testing.T) {
+		repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
 
-			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
-			require.Equal(t, expected, commit)
-		})
-
-		t.Run("returns the common ancestor if we've diverged", func(t *testing.T) {
-			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
-
-			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
-			require.Equal(t, expected, commit)
-		})
+		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+		commit := client.GetCommit()
+		require.Equal(t, expected, commit)
 	})
 
 	t.Run("when we have a branch checked out", func(t *testing.T) {
