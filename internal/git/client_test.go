@@ -222,7 +222,8 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 
 		t.Run("when we can't determine a diff", func(t *testing.T) {
-			client := &git.Client{Binary: "git", Dir: ""}
+			tempDir := t.TempDir()
+			client := &git.Client{Binary: "git", Dir: tempDir}
 			patchFile := client.GeneratePatchFile("")
 
 			require.Equal(t, false, patchFile.Written)
