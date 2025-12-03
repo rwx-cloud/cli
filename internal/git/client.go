@@ -26,6 +26,18 @@ func (c *Client) GetBranch() string {
 }
 
 func (c *Client) GetCommit() string {
+	if c.GetBranch() == "" {
+		cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
+		cmd.Dir = c.Dir
+
+		out, err := cmd.Output()
+		if err != nil {
+			return ""
+		}
+
+		return strings.TrimSpace(string(out))
+	}
+
 	// Map known commits to their remote ref
 	cmd := exec.Command(c.Binary, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes/origin")
 	cmd.Dir = c.Dir
