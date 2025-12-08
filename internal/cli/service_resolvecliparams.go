@@ -63,7 +63,18 @@ func resolveCliParams(yamlContent string) (string, []string, error) {
 	}
 
 	if doc.hasPath("$.on.cli.init") {
-		err = doc.MergeAtPath("$.on.cli.init", gitParamsMap)
+		// Don't overwrite existing git params
+		existingCliInit, initErr := doc.getNodeAtPath("$.on.cli.init")
+		if initErr == nil {
+			if mappingNode, ok := existingCliInit.(*ast.MappingNode); ok {
+				for _, v := range mappingNode.Values {
+					delete(gitParamsMap, v.Key.String())
+				}
+			}
+		}
+		if len(gitParamsMap) > 0 {
+			err = doc.MergeAtPath("$.on.cli.init", gitParamsMap)
+		}
 	} else {
 		err = doc.MergeAtPath("$.on", map[string]any{
 			"cli": map[string]any{
