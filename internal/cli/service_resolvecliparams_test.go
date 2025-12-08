@@ -427,6 +427,37 @@ tasks:
 		require.False(t, result.Rewritten)
 	})
 
+	t.Run("does not overwrite existing CLI init param with hardcoded value", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+
+		content := `
+on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+  cli:
+    init:
+      commit-sha: HEAD
+
+tasks:
+  - key: "test"
+    run: echo 'hello world'
+`
+		_, err = tmpFile.WriteString(content)
+		require.NoError(t, err)
+
+		result, err := ResolveCliParamsForFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.False(t, result.Rewritten)
+
+		fileContent, err := os.ReadFile(tmpFile.Name())
+		require.NoError(t, err)
+		require.Contains(t, string(fileContent), "commit-sha: HEAD")
+	})
+
 	t.Run("errors when multiple events use different param names for event.git.sha", func(t *testing.T) {
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.yml")
 		require.NoError(t, err)
