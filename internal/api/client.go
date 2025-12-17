@@ -580,6 +580,67 @@ func (c Client) TaskStatus(cfg TaskStatusConfig) (TaskStatusResult, error) {
 	return result, nil
 }
 
+func (c Client) GetLogArchiveRequest(taskId string) (LogArchiveRequestResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/log_downloads/%s", url.PathEscape(taskId))
+	result := LogArchiveRequestResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (c Client) DownloadLogs(request LogArchiveRequestResult) ([]byte, error) {
+	formData := url.Values{}
+	formData.Set("token", request.Token)
+	formData.Set("filename", request.Filename)
+	formData.Set("contents", request.Contents)
+	encodedBody := formData.Encode()
+
+	req, err := http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/octet-stream")
+
+	// Use http.DefaultClient directly since the logs will come from a task server URL rather than Cloud
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		errMsg := extractErrorMessage(resp.Body)
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("Unable to download logs - %s", resp.Status)
+		}
+		return nil, errors.New(errMsg)
+	}
+
+	zipBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read response body")
+	}
+
+	return zipBytes, nil
+}
+
 func decodeResponseJSON(resp *http.Response, result any) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if result == nil {

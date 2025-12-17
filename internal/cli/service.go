@@ -569,6 +569,42 @@ func (s Service) Whoami(cfg WhoamiConfig) error {
 	return nil
 }
 
+func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
+	defer s.outputLatestVersionMessage()
+	err := cfg.Validate()
+	if err != nil {
+		return errors.Wrap(err, "validation failed")
+	}
+
+	logArchiveRequest, err := s.APIClient.GetLogArchiveRequest(cfg.TaskID)
+	if err != nil {
+		if errors.Is(err, api.ErrNotFound) {
+			return errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID))
+		}
+		return errors.Wrap(err, "unable to fetch log archive request")
+	}
+
+	zipBytes, err := s.APIClient.DownloadLogs(logArchiveRequest)
+	if err != nil {
+		return errors.Wrap(err, "unable to download logs")
+	}
+
+	outputPath := filepath.Join(cfg.OutputDir, logArchiveRequest.Filename)
+
+	if _, err := os.Stat(outputPath); err == nil {
+		fmt.Fprintf(s.Stdout, "Overwriting existing file at %s\n", outputPath)
+	}
+
+	if err := os.WriteFile(outputPath, zipBytes, 0644); err != nil {
+		return errors.Wrapf(err, "unable to write log file to %s", outputPath)
+	}
+
+	fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", outputPath)
+	fmt.Fprintf(s.Stdout, "\nTo extract the logs, run:\n")
+	fmt.Fprintf(s.Stdout, "  tar -xf %s -C %s\n", outputPath, cfg.OutputDir)
+	return nil
+}
+
 func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -379,5 +380,133 @@ func TestAPIClient_ImagePushStatus(t *testing.T) {
 		result, err := c.ImagePushStatus("abc123")
 		require.NoError(t, err)
 		require.Equal(t, "in_progress", result.Status)
+	})
+}
+
+func TestAPIClient_GetLogArchiveRequest(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		body := struct {
+			URL      string `json:"url"`
+			Token    string `json:"token"`
+			Filename string `json:"filename"`
+			Contents string `json:"contents"`
+		}{
+			URL:      "https://example.com/logs/download",
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.zip",
+			Contents: `{"key":"value"}`,
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-123", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetLogArchiveRequest("task-123")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/logs/download", result.URL)
+		require.Equal(t, "jwt-token-123", result.Token)
+		require.Equal(t, "task-123-logs.zip", result.Filename)
+		require.Equal(t, `{"key":"value"}`, result.Contents)
+	})
+
+	t.Run("handles 404 not found", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-999", req.URL.Path)
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Task not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetLogArchiveRequest("task-999")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+}
+
+func TestAPIClient_DownloadLogs(t *testing.T) {
+	t.Run("makes POST request with correct body and returns zip contents", func(t *testing.T) {
+		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodPost, r.Method)
+			require.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
+
+			err := r.ParseForm()
+			require.NoError(t, err)
+			require.Equal(t, "jwt-token-123", r.Form.Get("token"))
+			require.Equal(t, "task-123-logs.zip", r.Form.Get("filename"))
+			require.Equal(t, `{"key":"value"}`, r.Form.Get("contents"))
+
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(zipContents)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadLogs(api.LogArchiveRequestResult{
+			URL:      server.URL,
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.zip",
+			Contents: `{"key":"value"}`,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, zipContents, result)
+	})
+
+	t.Run("returns error on non-2xx response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte(`{"error": "Internal server error"}`))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadLogs(api.LogArchiveRequestResult{
+			URL:      server.URL,
+			Token:    "token",
+			Filename: "logs.zip",
+			Contents: "{}",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Internal server error")
+	})
+
+	t.Run("returns error on request failure", func(t *testing.T) {
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadLogs(api.LogArchiveRequestResult{
+			URL:      "http://invalid-host-that-does-not-exist-12345.com",
+			Token:    "token",
+			Filename: "logs.zip",
+			Contents: "{}",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "HTTP request failed")
 	})
 }
