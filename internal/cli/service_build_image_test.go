@@ -17,8 +17,8 @@ func setupBuildImageTest(t *testing.T, s *testSetup) {
 	err := os.WriteFile("test.yml", []byte("base:\n  os: ubuntu 24.04\n  tag: 1.0\ntasks:\n  - key: build-task\n    run: echo 'building'\n"), 0o644)
 	require.NoError(t, err)
 
-	s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-		return api.ResolveBaseLayerResult{Os: "ubuntu 24.04", Tag: "1.0", Arch: "x86_64"}, nil
+	s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+		return api.DefaultBaseResult{Image: "ubuntu:24.04", Config: "rwx/base 1.0.0", Arch: "x86_64"}, nil
 	}
 
 	s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {

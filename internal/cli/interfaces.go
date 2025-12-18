@@ -19,7 +19,7 @@ type APIClient interface {
 	Whoami() (*api.WhoamiResult, error)
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)
-	ResolveBaseLayer(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
+	GetDefaultBase() (api.DefaultBaseResult, error)
 	StartImagePush(cfg api.StartImagePushConfig) (api.StartImagePushResult, error)
 	ImagePushStatus(pushID string) (api.ImagePushStatusResult, error)
 	TaskStatus(api.TaskStatusConfig) (api.TaskStatusResult, error)

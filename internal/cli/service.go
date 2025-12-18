@@ -1,19 +1,14 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
-	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,9 +21,9 @@ import (
 	"github.com/rwx-cloud/cli/internal/versions"
 
 	"github.com/briandowns/spinner"
+	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/sync/errgroup"
 )
 
 const DefaultArch = "x86_64"
@@ -219,18 +214,14 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 	}
 
-	addBaseIfNeeded, err := s.resolveOrUpdateBaseForFiles(runDefinition, BaseLayerSpec{}, false)
+	addBaseIfNeeded, err := s.insertDefaultBaseIfMissing(runDefinition)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve base")
 	}
 
 	if len(addBaseIfNeeded.UpdatedRunFiles) > 0 {
 		update := addBaseIfNeeded.UpdatedRunFiles[0]
-		if update.ResolvedBase.Os == "" {
-			return nil, errors.New("unable to determine OS")
-		}
-
-		fmt.Fprintf(s.Stderr, "Configured %q to run on %s\n\n", update.OriginalPath, update.ResolvedBase.Os)
+		fmt.Fprintf(s.Stderr, "Configured %q to run on %s\n\n", update.OriginalPath, update.ResolvedBase.Image)
 
 		if err = reloadRunDefinitions(); err != nil {
 			return nil, err
@@ -818,36 +809,30 @@ func (s Service) resolveOrUpdatePackagesForFiles(mintFiles []*MintYAMLFile, upda
 	return replacements, nil
 }
 
-func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
+func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "validation failed")
+		return InsertDefaultBaseResult{}, errors.Wrap(err, "validation failed")
 	}
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .rwx directory")
+		return InsertDefaultBaseResult{}, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
-		return ResolveBaseResult{}, err
+		return InsertDefaultBaseResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
-		return ResolveBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
+		return InsertDefaultBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
-	requestedSpec := BaseLayerSpec{
-		Os:   cfg.Os,
-		Tag:  cfg.Tag,
-		Arch: cfg.Arch,
-	}
-
-	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, requestedSpec, false)
+	result, err := s.insertDefaultBaseIfMissing(yamlFiles)
 	if err != nil {
-		return ResolveBaseResult{}, err
+		return InsertDefaultBaseResult{}, err
 	}
 
 	if len(yamlFiles) == 0 {
@@ -858,7 +843,7 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 		if len(result.UpdatedRunFiles) > 0 {
 			fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
 			for _, runFile := range result.UpdatedRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s, tag %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Os, runFile.ResolvedBase.Tag)
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
 			}
 			if len(result.ErroredRunFiles) > 0 {
 				fmt.Fprintln(s.Stdout)
@@ -876,113 +861,49 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 	return result, nil
 }
 
-func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
-	defer s.outputLatestVersionMessage()
-	err := cfg.Validate()
+func (s Service) insertDefaultBaseIfMissing(mintFiles []RwxDirectoryEntry) (InsertDefaultBaseResult, error) {
+	runFiles, err := s.getFilesForBaseInsert(mintFiles)
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "validation failed")
-	}
-
-	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
-	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "unable to find .rwx directory")
-	}
-
-	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
-	if err != nil {
-		return ResolveBaseResult{}, err
-	}
-
-	if len(yamlFiles) == 0 {
-		errmsg := "no files provided, and no yaml files found"
-		if rwxDirectoryPath != "" {
-			errmsg = fmt.Sprintf("%s in directory %s", errmsg, rwxDirectoryPath)
-		}
-
-		return ResolveBaseResult{}, errors.New(errmsg)
-	}
-
-	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, BaseLayerSpec{}, true)
-	if err != nil {
-		return ResolveBaseResult{}, err
-	}
-
-	if !result.HasChanges() {
-		fmt.Fprintln(s.Stdout, "All base OS tags are up-to-date.")
-	} else {
-		if len(result.UpdatedRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Updated base for the following run definitions:")
-			for _, runFile := range result.UpdatedRunFiles {
-				if runFile.Spec.Tag != "" {
-					fmt.Fprintf(s.Stdout, "\t%s tag %s → tag %s\n", relativePathFromWd(runFile.OriginalPath), runFile.OriginalBase.Tag, runFile.ResolvedBase.Tag)
-				} else {
-					fmt.Fprintf(s.Stdout, "\t%s → tag %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Tag)
-				}
-				if len(result.ErroredRunFiles) > 0 {
-					fmt.Println()
-				}
-			}
-		}
-
-		if len(result.ErroredRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Failed to updated base for the following run definitions:")
-			for _, runFile := range result.ErroredRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
-			}
-		}
-	}
-
-	return result, nil
-}
-
-func (s Service) resolveOrUpdateBaseForFiles(mintFiles []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) (ResolveBaseResult, error) {
-	runFiles, err := s.getFilesForBaseResolveOrUpdate(mintFiles, requestedSpec, update)
-	if err != nil {
-		return ResolveBaseResult{}, err
+		return InsertDefaultBaseResult{}, err
 	}
 
 	if len(runFiles) == 0 {
-		return ResolveBaseResult{}, nil
+		return InsertDefaultBaseResult{}, nil
 	}
 
-	specToResolved, err := s.resolveBaseSpecs(runFiles)
+	defaultBaseSpec, err := s.getDefaultBaseSpec()
 	if err != nil {
-		return ResolveBaseResult{}, errors.Wrap(err, "unable to resolve base specs")
+		return InsertDefaultBaseResult{}, errors.Wrap(err, "unable to get default base spec")
 	}
 
-	// Inject base config in file
 	erroredRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
 	updatedRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
 	for _, runFile := range runFiles {
-		resolvedBase, found := specToResolved[runFile.Spec]
-		if !found {
-			continue
-		}
-		runFile.ResolvedBase = resolvedBase
+		runFile.ResolvedBase = defaultBaseSpec
 
 		err := s.writeRunFileWithBase(runFile)
 		if err != nil {
 			runFile.Error = err
 			erroredRunFiles = append(erroredRunFiles, runFile)
-		} else if runFile.HasChanges() {
+		} else {
 			updatedRunFiles = append(updatedRunFiles, runFile)
 		}
 	}
 
-	return ResolveBaseResult{
+	return InsertDefaultBaseResult{
 		ErroredRunFiles: erroredRunFiles,
 		UpdatedRunFiles: updatedRunFiles,
 	}, nil
 }
 
-func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) ([]BaseLayerRunFile, error) {
+func (s Service) getFilesForBaseInsert(entries []RwxDirectoryEntry) ([]BaseLayerRunFile, error) {
 	yamlFiles := filterYAMLFilesForModification(entries, func(doc *YAMLDoc) bool {
 		if !doc.HasTasks() {
 			return false
 		}
 
-		// Skip files that already define a 'base' with at least 'os' and 'tag'
-		if !update && doc.HasBase() && doc.TryReadStringAtPath("$.base.os") != "" && doc.TryReadStringAtPath("$.base.tag") != "" {
+		// Skip files that already define a 'base'
+		if doc.HasBase() {
 			return false
 		}
 
@@ -991,167 +912,29 @@ func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, req
 			return false
 		}
 
-		// Skip files that have custom base images
-		if doc.HasBase() && doc.TryReadStringAtPath("$.base.image") != "" && doc.TryReadStringAtPath("$.base.config") != "" {
-			return false
-		}
-
 		return true
 	})
 
 	runFiles := make([]BaseLayerRunFile, 0)
 	for _, yamlFile := range yamlFiles {
-		spec := BaseLayerSpec{
-			Os:   yamlFile.Doc.TryReadStringAtPath("$.base.os"),
-			Tag:  yamlFile.Doc.TryReadStringAtPath("$.base.tag"),
-			Arch: yamlFile.Doc.TryReadStringAtPath("$.base.arch"),
-		}
-
-		runFiles = append(runFiles, BaseLayerRunFile{
-			OriginalBase: spec,
-			Spec:         requestedSpec.Merge(spec),
-			OriginalPath: yamlFile.Entry.OriginalPath,
-		})
+		runFiles = append(runFiles, BaseLayerRunFile{OriginalPath: yamlFile.Entry.OriginalPath})
 	}
 
 	return runFiles, nil
 }
 
-func extractMajorVersion(v string) string {
-	parts := strings.Split(v, ".")
-	if len(parts) > 1 {
-		return parts[0]
-	}
-	return v
-}
+func (s Service) getDefaultBaseSpec() (BaseSpec, error) {
+	result, err := s.APIClient.GetDefaultBase()
 
-func flattenPathMap(pathMap map[string][]string) []string {
-	var result []string
-	for _, paths := range pathMap {
-		result = append(result, paths...)
-	}
-	slices.Sort(result)
-	return slices.Compact(result)
-}
-
-func (s Service) logUnknownBaseTag(tag string, paths []string) {
-	paths = Map(paths, func(p string) string {
-		return relativePathFromWd(p)
-	})
-	fmt.Fprintf(s.Stderr, "Unknown base tag %s for run definitions: %s\n",
-		tag, strings.Join(paths, ", "))
-}
-
-func (s Service) resolveBaseSpecs(runFiles []BaseLayerRunFile) (map[BaseLayerSpec]BaseLayerSpec, error) {
-	// Group run files by unique specs to minimize API calls
-	type specGroup struct {
-		OriginalBases map[BaseLayerSpec]struct{}
-		RunFilePaths  map[string][]string
-		ResolvedSpec  BaseLayerSpec
+	if err != nil {
+		return BaseSpec{}, errors.Wrap(err, "unable to get default base")
 	}
 
-	// Maps normalized specs (what we'll resolve) to their group data
-	specGroups := make(map[BaseLayerSpec]*specGroup)
-
-	// Maps original specs to their normalized form for lookup.
-	// This is the original _spec_, not the _original base_, which is
-	// an important distinction when defaults are provided via CLI args.
-	originalToNormalized := make(map[BaseLayerSpec]BaseLayerSpec)
-
-	// Group by normalized specs
-	for _, runFile := range runFiles {
-		normalizedSpec := runFile.Spec
-		normalizedSpec.Tag = extractMajorVersion(normalizedSpec.Tag)
-
-		originalToNormalized[runFile.Spec] = normalizedSpec
-
-		// Update or create the spec group
-		group, exists := specGroups[normalizedSpec]
-		if !exists {
-			group = &specGroup{
-				OriginalBases: make(map[BaseLayerSpec]struct{}),
-				RunFilePaths:  make(map[string][]string),
-			}
-			specGroups[normalizedSpec] = group
-		}
-
-		// Add the original base
-		group.OriginalBases[runFile.OriginalBase] = struct{}{}
-
-		// Group paths by original tag for better error reporting
-		originalTag := runFile.OriginalBase.Tag
-		group.RunFilePaths[originalTag] = append(group.RunFilePaths[originalTag], runFile.OriginalPath)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	errs, _ := errgroup.WithContext(ctx)
-	errs.SetLimit(3)
-
-	// Process each unique spec
-	var mu sync.Mutex
-	for normalizedSpec, group := range specGroups {
-		errs.Go(func() error {
-			result, err := s.APIClient.ResolveBaseLayer(api.ResolveBaseLayerConfig{
-				Os:   normalizedSpec.Os,
-				Arch: normalizedSpec.Arch,
-				Tag:  normalizedSpec.Tag,
-			})
-
-			if err != nil {
-				if errors.Is(err, api.ErrNotFound) {
-					// For not found errors, we report all paths in the group but don't error out
-					allPaths := flattenPathMap(group.RunFilePaths)
-					s.logUnknownBaseTag(normalizedSpec.Tag, allPaths)
-					return nil
-				}
-				return errors.Wrapf(err, "unable to resolve base layer %+v", normalizedSpec)
-			}
-
-			resolvedSpec := BaseLayerSpec{
-				Os:   result.Os,
-				Tag:  result.Tag,
-				Arch: result.Arch,
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-			group.ResolvedSpec = resolvedSpec
-
-			// Check each original base against the resolved version
-			for origBase := range maps.Keys(group.OriginalBases) {
-				// Only compare versions if they're in the same major version group
-				if extractMajorVersion(origBase.Tag) == extractMajorVersion(resolvedSpec.Tag) {
-					if origBase.TagVersion().GreaterThan(resolvedSpec.TagVersion()) {
-						// Report the specific tag that wasn't found
-						paths := group.RunFilePaths[origBase.Tag]
-						s.logUnknownBaseTag(origBase.Tag, paths)
-
-						// Don't modify the resolved base (eg. don't downgrade 1.2 -> 1.1)
-						delete(group.OriginalBases, origBase)
-						originalToNormalized[origBase] = origBase
-					}
-				}
-			}
-
-			return nil
-		})
-	}
-
-	if err := errs.Wait(); err != nil {
-		return nil, err
-	}
-
-	originalToResolved := make(map[BaseLayerSpec]BaseLayerSpec, len(runFiles))
-	for originalBase, normalizedSpec := range originalToNormalized {
-		group := specGroups[normalizedSpec]
-		// If resolution failed, don't add to the result
-		if group != nil && group.ResolvedSpec != (BaseLayerSpec{}) {
-			originalToResolved[originalBase] = group.ResolvedSpec
-		}
-	}
-
-	return originalToResolved, nil
+	return BaseSpec{
+		Image:  result.Image,
+		Config: result.Config,
+		Arch:   result.Arch,
+	}, nil
 }
 
 func (s Service) writeRunFileWithBase(runFile BaseLayerRunFile) error {
@@ -1161,40 +944,20 @@ func (s Service) writeRunFileWithBase(runFile BaseLayerRunFile) error {
 	}
 
 	resolvedBase := runFile.ResolvedBase
-	base := map[string]any{
-		"os": resolvedBase.Os,
-	}
-
-	// Prevent unnecessary quoting of float-like tags, eg. 1.2
-	if strings.Count(resolvedBase.Tag, ".") == 1 {
-		parsedTag, err := strconv.ParseFloat(resolvedBase.Tag, 64)
-		if err != nil {
-			return err
-		}
-		base["tag"] = parsedTag
-	} else {
-		base["tag"] = resolvedBase.Tag
+	base := yaml.MapSlice{
+		{Key: "image", Value: resolvedBase.Image},
+		{Key: "config", Value: resolvedBase.Config},
 	}
 
 	if resolvedBase.Arch != "" && resolvedBase.Arch != DefaultArch {
-		base["arch"] = resolvedBase.Arch
+		base = append(base, yaml.MapItem{Key: "arch", Value: resolvedBase.Arch})
 	}
 
-	if !doc.HasBase() {
-		err = doc.InsertBefore("$.tasks", map[string]any{
-			"base": base,
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		if err = doc.MergeAtPath("$.base", base); err != nil {
-			return err
-		}
-	}
-
-	if !doc.HasChanges() {
-		return nil
+	err = doc.InsertBefore("$.tasks", map[string]any{
+		"base": base,
+	})
+	if err != nil {
+		return err
 	}
 
 	return doc.WriteFile(runFile.OriginalPath)

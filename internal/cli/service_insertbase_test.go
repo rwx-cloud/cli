@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_ResolvingBaseLayers(t *testing.T) {
+func TestService_InsertBase(t *testing.T) {
 	type baseLayerSetup struct {
 		s            *testSetup
-		apiOs        string
-		apiTag       string
+		apiImage     string
+		apiConfig    string
 		apiArch      string
 		apiCallCount int
 		apiError     func(callCount int) error
@@ -29,8 +29,8 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 
 		bl := &baseLayerSetup{
 			s:            s,
-			apiOs:        "gentoo 99",
-			apiTag:       "1.2",
+			apiImage:     "ubuntu:24.04",
+			apiConfig:    "rwx/base 1.0.0",
 			apiArch:      "x86_64",
 			apiCallCount: 0,
 			apiError:     func(callCount int) error { return nil },
@@ -47,28 +47,16 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 		err = os.Chdir(bl.workingDir)
 		require.NoError(t, err)
 
-		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
+		s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
 			bl.apiCallCount += 1
 			if err := bl.apiError(bl.apiCallCount); err != nil {
-				return api.ResolveBaseLayerResult{}, err
+				return api.DefaultBaseResult{}, err
 			}
 
-			os := cfg.Os
-			if os == "" {
-				os = bl.apiOs
-			}
-			tag := cfg.Tag
-			if tag == "" {
-				tag = bl.apiTag
-			}
-			arch := cfg.Arch
-			if arch == "" {
-				arch = bl.apiArch
-			}
-			return api.ResolveBaseLayerResult{
-				Os:   os,
-				Tag:  tag,
-				Arch: arch,
+			return api.DefaultBaseResult{
+				Image:  bl.apiImage,
+				Config: bl.apiConfig,
+				Arch:   bl.apiArch,
 			}, nil
 		}
 
@@ -81,7 +69,7 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 		err := os.WriteFile(filepath.Join(bl.mintDir, "bar.json"), []byte("some json"), 0o644)
 		require.NoError(t, err)
 
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf("no files provided, and no yaml files found in directory %s", bl.mintDir))
@@ -98,7 +86,7 @@ func TestService_ResolvingBaseLayers(t *testing.T) {
 }`), 0o644)
 		require.NoError(t, err)
 
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 
 		require.NoError(t, err)
 		require.Equal(t, "", bl.s.mockStderr.String())
@@ -126,9 +114,7 @@ not-my-key:
 		require.NoError(t, err)
 
 		t.Run("adds base to file", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Arch: "quantum",
-			})
+			_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte
@@ -136,9 +122,8 @@ not-my-key:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "bar.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  arch: quantum
-  os: gentoo 99
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: a
@@ -147,7 +132,7 @@ tasks:
 
 			require.Equal(t, fmt.Sprintf(
 				"Added base to the following run definitions:\n%s\n",
-				"\t../.mint/bar.yaml → gentoo 99, tag 1.2",
+				"\t../.mint/bar.yaml → ubuntu:24.04",
 			), bl.s.mockStdout.String())
 
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "baz.yaml"))
@@ -177,9 +162,8 @@ tasks:
 			err = os.WriteFile(filepath.Join(bl.mintDir, "qux.yaml"), []byte(originalQuxContents), 0o644)
 			require.NoError(t, err)
 
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
+			_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{
 				Files: []string{"../.mint/bar.yaml"},
-				Arch:  "quantum",
 			})
 			require.NoError(t, err)
 
@@ -188,9 +172,8 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "bar.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  arch: quantum
-  os: gentoo 99
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: a
@@ -199,7 +182,7 @@ tasks:
 
 			require.Equal(t, fmt.Sprintf(
 				"Added base to the following run definitions:\n%s\n",
-				"\t../.mint/bar.yaml → gentoo 99, tag 1.2",
+				"\t../.mint/bar.yaml → ubuntu:24.04",
 			), bl.s.mockStdout.String())
 
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "qux.yaml"))
@@ -208,16 +191,15 @@ tasks:
 		})
 
 		t.Run("errors when given a file that does not exist", func(t *testing.T) {
-			_, err := bl.s.service.ResolveBase(cli.ResolveBaseConfig{
+			_, err := bl.s.service.InsertBase(cli.InsertBaseConfig{
 				Files: []string{"does-not-exist.yaml"},
-				Arch:  "quantum",
 			})
 			require.Error(t, err)
 			require.Equal(t, "reading rwx directory entries at does-not-exist.yaml: file does not exist", err.Error())
 		})
 	})
 
-	t.Run("when yaml file has a base with os but no tag or arch", func(t *testing.T) {
+	t.Run("when yaml file has a base", func(t *testing.T) {
 		bl := setupBaseLayer(t)
 
 		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
@@ -225,7 +207,8 @@ tasks:
     push: {}
 
 base:
-  os: gentoo 99
+  os: ubuntu 24.04
+  tag: 1.2
 
 tasks:
   - key: a
@@ -233,7 +216,7 @@ tasks:
 `), 0o644)
 		require.NoError(t, err)
 
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 		require.NoError(t, err)
 
 		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
@@ -243,7 +226,7 @@ tasks:
     push: {}
 
 base:
-  os: gentoo 99
+  os: ubuntu 24.04
   tag: 1.2
 
 tasks:
@@ -251,91 +234,7 @@ tasks:
   - key: b
 `, string(contents))
 
-		require.Equal(t, fmt.Sprintf(
-			"Added base to the following run definitions:\n%s\n",
-			"\t../.mint/ci.yaml → gentoo 99, tag 1.2",
-		), bl.s.mockStdout.String())
-	})
-
-	t.Run("when yaml file has a base with os and arch but no tag", func(t *testing.T) {
-		bl := setupBaseLayer(t)
-
-		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
-  github:
-    push: {}
-
-base:
-  os: gentoo 99
-  arch: quantum
-
-tasks:
-  - key: a
-  - key: b
-`), 0o644)
-		require.NoError(t, err)
-
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
-		require.NoError(t, err)
-
-		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
-		require.NoError(t, err)
-		require.Equal(t, `on:
-  github:
-    push: {}
-
-base:
-  os: gentoo 99
-  arch: quantum
-  tag: 1.2
-
-tasks:
-  - key: a
-  - key: b
-`, string(contents))
-
-		require.Equal(t, fmt.Sprintf(
-			"Added base to the following run definitions:\n%s\n",
-			"\t../.mint/ci.yaml → gentoo 99, tag 1.2",
-		), bl.s.mockStdout.String())
-	})
-
-	t.Run("when yaml file has base after tasks with os but no tag", func(t *testing.T) {
-		bl := setupBaseLayer(t)
-
-		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
-  github:
-    push: {}
-
-tasks:
-  - key: a
-  - key: b
-
-base:
-  os: gentoo 99`), 0o644)
-		require.NoError(t, err)
-
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
-		require.NoError(t, err)
-
-		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
-		require.NoError(t, err)
-		require.Equal(t, `on:
-  github:
-    push: {}
-
-tasks:
-  - key: a
-  - key: b
-
-base:
-  os: gentoo 99
-  tag: 1.2
-`, string(contents))
-
-		require.Equal(t, fmt.Sprintf(
-			"Added base to the following run definitions:\n%s\n",
-			"\t../.mint/ci.yaml → gentoo 99, tag 1.2",
-		), bl.s.mockStdout.String())
+		require.Contains(t, bl.s.mockStdout.String(), "No run files were missing base")
 	})
 
 	t.Run("with multiple yaml files", func(t *testing.T) {
@@ -347,10 +246,7 @@ base:
 `), 0o644)
 		require.NoError(t, err)
 
-		err = os.WriteFile(filepath.Join(bl.mintDir, "two.yaml"), []byte(`base:
-  os: gentoo 88
-
-tasks:
+		err = os.WriteFile(filepath.Join(bl.mintDir, "two.yaml"), []byte(`tasks:
   - key: c
   - key: d
 `), 0o644)
@@ -363,9 +259,7 @@ tasks:
 		require.NoError(t, err)
 
 		t.Run("updates all files", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Os: "gentoo 99",
-			})
+			_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte
@@ -373,8 +267,8 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "one.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  os: gentoo 99
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: a
@@ -384,8 +278,8 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "two.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  os: gentoo 88
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: c
@@ -395,8 +289,8 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "three.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  os: gentoo 99
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: e
@@ -405,13 +299,13 @@ tasks:
 
 			require.Equal(t, fmt.Sprintf(
 				"Added base to the following run definitions:\n%s\n%s\n%s\n",
-				"\t../.mint/one.yaml → gentoo 99, tag 1.2",
-				"\t../.mint/three.yaml → gentoo 99, tag 1.2",
-				"\t../.mint/two.yaml → gentoo 88, tag 1.2",
+				"\t../.mint/one.yaml → ubuntu:24.04",
+				"\t../.mint/three.yaml → ubuntu:24.04",
+				"\t../.mint/two.yaml → ubuntu:24.04",
 			), bl.s.mockStdout.String())
 		})
 
-		t.Run("when an API request fails", func(t *testing.T) {
+		t.Run("when the api request to get the default base fails", func(t *testing.T) {
 			bl.apiCallCount = 0
 
 			err := os.WriteFile(filepath.Join(bl.mintDir, "one.yaml"), []byte(`tasks:
@@ -420,36 +314,14 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			err = os.WriteFile(filepath.Join(bl.mintDir, "two.yaml"), []byte(`base:
-  os: gentoo 88
-
-tasks:
-  - key: c
-  - key: d
-`), 0o644)
-			require.NoError(t, err)
-
-			err = os.WriteFile(filepath.Join(bl.mintDir, "three.yaml"), []byte(`tasks:
-  - key: e
-  - key: f
-`), 0o644)
-			require.NoError(t, err)
-
 			contentsOne, err := os.ReadFile(filepath.Join(bl.mintDir, "one.yaml"))
-			require.NoError(t, err)
-			contentsTwo, err := os.ReadFile(filepath.Join(bl.mintDir, "two.yaml"))
-			require.NoError(t, err)
-			contentsThree, err := os.ReadFile(filepath.Join(bl.mintDir, "three.yaml"))
 			require.NoError(t, err)
 
 			bl.apiError = func(callCount int) error {
-				if callCount == 2 {
-					return errors.New("API request failed")
-				}
-				return nil
+				return errors.New("API request failed")
 			}
 
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
+			_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "API request failed")
 
@@ -458,14 +330,6 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "one.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, string(contentsOne), string(contents))
-
-			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "two.yaml"))
-			require.NoError(t, err)
-			require.Equal(t, string(contentsTwo), string(contents))
-
-			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "three.yaml"))
-			require.NoError(t, err)
-			require.Equal(t, string(contentsThree), string(contents))
 		})
 	})
 
@@ -487,9 +351,7 @@ tasks:
 		require.NoError(t, err)
 
 		t.Run("does not add base to file", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Arch: "quantum",
-			})
+			_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte
@@ -502,43 +364,5 @@ tasks:
     call: ${{ run.dir }}/bar.yaml
 `, string(contents))
 		})
-	})
-
-	t.Run("when yaml file has a custom base image it does not add os/tag", func(t *testing.T) {
-		bl := setupBaseLayer(t)
-
-		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
-  github:
-    push: {}
-
-base:
-	image: alpine:latest
-	config: none
-
-tasks:
-  - key: a
-  - key: b
-`), 0o644)
-		require.NoError(t, err)
-
-		_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
-		require.NoError(t, err)
-
-		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
-		require.NoError(t, err)
-		require.Equal(t, `on:
-  github:
-    push: {}
-
-base:
-	image: alpine:latest
-	config: none
-
-tasks:
-  - key: a
-  - key: b
-`, string(contents))
-
-		require.Equal(t, "No run files were missing base.\n", bl.s.mockStdout.String())
 	})
 }

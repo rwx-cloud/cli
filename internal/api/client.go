@@ -474,16 +474,11 @@ func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	return &respBody, nil
 }
 
-func (c Client) ResolveBaseLayer(cfg ResolveBaseLayerConfig) (ResolveBaseLayerResult, error) {
-	endpoint := "/mint/api/base_layers/resolve"
-	result := ResolveBaseLayerResult{}
+func (c Client) GetDefaultBase() (DefaultBaseResult, error) {
+	endpoint := "/mint/api/base/default"
+	result := DefaultBaseResult{}
 
-	encodedBody, err := json.Marshal(cfg)
-	if err != nil {
-		return result, errors.Wrap(err, "unable to encode as JSON")
-	}
-
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return result, errors.Wrap(err, "unable to create new HTTP request")
 	}
