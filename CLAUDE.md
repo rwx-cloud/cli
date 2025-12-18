@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `golangci-lint run ./....` - Run golangci-lint static analysis
 - `golangci-lint run --fix ./...` - Apply lint fixes
 - `go mod tidy` - Apply dependency changes
+- `go fmt ./...` - Format Go source code
 
 ### Testing
 - `go test ./internal/... ./cmd/...` - Run unit tests with standard Go testing

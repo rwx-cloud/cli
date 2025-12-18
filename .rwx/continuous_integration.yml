@@ -101,8 +101,24 @@ tasks:
   - key: go-mod-tidy
     use: go-deps
     run: |
+      before=$(git diff)
       go mod tidy
-      git diff --exit-code
+      after=$(git diff)
+      if [ "$before" != "$after" ]; then
+        echo "go mod tidy produced changes"
+        exit 1
+      fi
+
+  - key: go-fmt
+    use: go-deps
+    run: |
+      before=$(git diff)
+      go fmt ./...
+      after=$(git diff)
+      if [ "$before" != "$after" ]; then
+        echo "go fmt produced changes"
+        exit 1
+      fi
 
   - key: rwx-testing-code
     call: git/clone 1.9.0

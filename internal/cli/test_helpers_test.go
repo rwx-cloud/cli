@@ -12,16 +12,16 @@ import (
 )
 
 type testSetup struct {
-	config      cli.Config
-	service     cli.Service
-	mockAPI     *mocks.API
-	mockSSH     *mocks.SSH
-	mockGit     *mocks.Git
-	mockDocker  *mocks.DockerClient
-	mockStdout  *strings.Builder
-	mockStderr  *strings.Builder
-	tmp         string
-	originalWd  string
+	config     cli.Config
+	service    cli.Service
+	mockAPI    *mocks.API
+	mockSSH    *mocks.SSH
+	mockGit    *mocks.Git
+	mockDocker *mocks.DockerClient
+	mockStdout *strings.Builder
+	mockStderr *strings.Builder
+	tmp        string
+	originalWd string
 }
 
 func setupTest(t *testing.T) *testSetup {
