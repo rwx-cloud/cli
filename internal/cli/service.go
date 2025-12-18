@@ -219,7 +219,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 	}
 
-	addBaseIfNeeded, err := s.resolveOrUpdateBaseForFiles(runDefinition, BaseLayerSpec{}, false)
+	addBaseIfNeeded, err := s.resolveOrUpdateBaseForFiles(runDefinition, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve base")
 	}
@@ -839,13 +839,7 @@ func (s Service) ResolveBase(cfg ResolveBaseConfig) (ResolveBaseResult, error) {
 		return ResolveBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
-	requestedSpec := BaseLayerSpec{
-		Os:   cfg.Os,
-		Tag:  cfg.Tag,
-		Arch: cfg.Arch,
-	}
-
-	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, requestedSpec, false)
+	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, false)
 	if err != nil {
 		return ResolveBaseResult{}, err
 	}
@@ -902,7 +896,7 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 		return ResolveBaseResult{}, errors.New(errmsg)
 	}
 
-	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, BaseLayerSpec{}, true)
+	result, err := s.resolveOrUpdateBaseForFiles(yamlFiles, true)
 	if err != nil {
 		return ResolveBaseResult{}, err
 	}
@@ -935,8 +929,8 @@ func (s Service) UpdateBase(cfg UpdateBaseConfig) (ResolveBaseResult, error) {
 	return result, nil
 }
 
-func (s Service) resolveOrUpdateBaseForFiles(mintFiles []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) (ResolveBaseResult, error) {
-	runFiles, err := s.getFilesForBaseResolveOrUpdate(mintFiles, requestedSpec, update)
+func (s Service) resolveOrUpdateBaseForFiles(mintFiles []RwxDirectoryEntry, update bool) (ResolveBaseResult, error) {
+	runFiles, err := s.getFilesForBaseResolveOrUpdate(mintFiles, update)
 	if err != nil {
 		return ResolveBaseResult{}, err
 	}
@@ -975,7 +969,7 @@ func (s Service) resolveOrUpdateBaseForFiles(mintFiles []RwxDirectoryEntry, requ
 	}, nil
 }
 
-func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, requestedSpec BaseLayerSpec, update bool) ([]BaseLayerRunFile, error) {
+func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, update bool) ([]BaseLayerRunFile, error) {
 	yamlFiles := filterYAMLFilesForModification(entries, func(doc *YAMLDoc) bool {
 		if !doc.HasTasks() {
 			return false
@@ -1009,7 +1003,7 @@ func (s Service) getFilesForBaseResolveOrUpdate(entries []RwxDirectoryEntry, req
 
 		runFiles = append(runFiles, BaseLayerRunFile{
 			OriginalBase: spec,
-			Spec:         requestedSpec.Merge(spec),
+			Spec:         spec,
 			OriginalPath: yamlFile.Entry.OriginalPath,
 		})
 	}

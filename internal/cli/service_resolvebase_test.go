@@ -126,9 +126,7 @@ not-my-key:
 		require.NoError(t, err)
 
 		t.Run("adds base to file", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Arch: "quantum",
-			})
+			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte
@@ -136,7 +134,6 @@ not-my-key:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "bar.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  arch: quantum
   os: gentoo 99
   tag: 1.2
 
@@ -179,7 +176,6 @@ tasks:
 
 			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
 				Files: []string{"../.mint/bar.yaml"},
-				Arch:  "quantum",
 			})
 			require.NoError(t, err)
 
@@ -188,7 +184,6 @@ tasks:
 			contents, err = os.ReadFile(filepath.Join(bl.mintDir, "bar.yaml"))
 			require.NoError(t, err)
 			require.Equal(t, `base:
-  arch: quantum
   os: gentoo 99
   tag: 1.2
 
@@ -210,7 +205,6 @@ tasks:
 		t.Run("errors when given a file that does not exist", func(t *testing.T) {
 			_, err := bl.s.service.ResolveBase(cli.ResolveBaseConfig{
 				Files: []string{"does-not-exist.yaml"},
-				Arch:  "quantum",
 			})
 			require.Error(t, err)
 			require.Equal(t, "reading rwx directory entries at does-not-exist.yaml: file does not exist", err.Error())
@@ -363,9 +357,7 @@ tasks:
 		require.NoError(t, err)
 
 		t.Run("updates all files", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Os: "gentoo 99",
-			})
+			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte
@@ -487,9 +479,7 @@ tasks:
 		require.NoError(t, err)
 
 		t.Run("does not add base to file", func(t *testing.T) {
-			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{
-				Arch: "quantum",
-			})
+			_, err = bl.s.service.ResolveBase(cli.ResolveBaseConfig{})
 			require.NoError(t, err)
 
 			var contents []byte

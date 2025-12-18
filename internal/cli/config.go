@@ -213,9 +213,6 @@ func (c UpdatePackagesConfig) Validate() error {
 type ResolveBaseConfig struct {
 	RwxDirectory string
 	Files        []string
-	Os           string
-	Tag          string
-	Arch         string
 }
 
 func (c ResolveBaseConfig) Validate() error {
