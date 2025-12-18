@@ -383,8 +383,40 @@ func TestAPIClient_ImagePushStatus(t *testing.T) {
 	})
 }
 
-func TestAPIClient_GetLogArchiveRequest(t *testing.T) {
-	t.Run("builds the request and parses the response", func(t *testing.T) {
+func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
+	t.Run("builds the request and parses the response without contents", func(t *testing.T) {
+		body := struct {
+			URL      string `json:"url"`
+			Token    string `json:"token"`
+			Filename string `json:"filename"`
+		}{
+			URL:      "https://example.com/logs/download",
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.log",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-123", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetLogDownloadRequest("task-123")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/logs/download", result.URL)
+		require.Equal(t, "jwt-token-123", result.Token)
+		require.Equal(t, "task-123-logs.log", result.Filename)
+		require.Nil(t, result.Contents)
+	})
+
+	t.Run("builds the request and parses the response with contents", func(t *testing.T) {
 		body := struct {
 			URL      string `json:"url"`
 			Token    string `json:"token"`
@@ -410,12 +442,13 @@ func TestAPIClient_GetLogArchiveRequest(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		result, err := c.GetLogArchiveRequest("task-123")
+		result, err := c.GetLogDownloadRequest("task-123")
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/logs/download", result.URL)
 		require.Equal(t, "jwt-token-123", result.Token)
 		require.Equal(t, "task-123-logs.zip", result.Filename)
-		require.Equal(t, `{"key":"value"}`, result.Contents)
+		require.NotNil(t, result.Contents)
+		require.Equal(t, `{"key":"value"}`, *result.Contents)
 	})
 
 	t.Run("handles 404 not found", func(t *testing.T) {
@@ -430,15 +463,44 @@ func TestAPIClient_GetLogArchiveRequest(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		_, err := c.GetLogArchiveRequest("task-999")
+		_, err := c.GetLogDownloadRequest("task-999")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
 	})
 }
 
 func TestAPIClient_DownloadLogs(t *testing.T) {
-	t.Run("makes POST request with correct body and returns zip contents", func(t *testing.T) {
+	t.Run("makes GET request with Authorization header when Contents is nil", func(t *testing.T) {
+		logContents := []byte("2024-01-01 12:00:00 INFO Starting task\n2024-01-01 12:00:01 INFO Task completed\n")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "Bearer jwt-token-123", r.Header.Get("Authorization"))
+
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(logContents)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.log",
+			Contents: nil, // No Contents = GET request
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, logContents, result)
+	})
+
+	t.Run("makes POST request with form data when Contents is present", func(t *testing.T) {
 		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
+		contents := `{"key":"value"}`
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			require.Equal(t, http.MethodPost, r.Method)
@@ -448,7 +510,7 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "jwt-token-123", r.Form.Get("token"))
 			require.Equal(t, "task-123-logs.zip", r.Form.Get("filename"))
-			require.Equal(t, `{"key":"value"}`, r.Form.Get("contents"))
+			require.Equal(t, contents, r.Form.Get("contents"))
 
 			w.WriteHeader(http.StatusOK)
 			_, writeErr := w.Write(zipContents)
@@ -460,11 +522,11 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 			return http.DefaultClient.Do(req)
 		})
 
-		result, err := c.DownloadLogs(api.LogArchiveRequestResult{
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
 			URL:      server.URL,
 			Token:    "jwt-token-123",
 			Filename: "task-123-logs.zip",
-			Contents: `{"key":"value"}`,
+			Contents: &contents, // Contents present = POST request
 		})
 
 		require.NoError(t, err)
@@ -483,11 +545,10 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 			return http.DefaultClient.Do(req)
 		})
 
-		_, err := c.DownloadLogs(api.LogArchiveRequestResult{
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
 			URL:      server.URL,
 			Token:    "token",
-			Filename: "logs.zip",
-			Contents: "{}",
+			Filename: "logs.log",
 		})
 
 		require.Error(t, err)
@@ -499,11 +560,10 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 			return http.DefaultClient.Do(req)
 		})
 
-		_, err := c.DownloadLogs(api.LogArchiveRequestResult{
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
 			URL:      "http://invalid-host-that-does-not-exist-12345.com",
 			Token:    "token",
-			Filename: "logs.zip",
-			Contents: "{}",
+			Filename: "logs.log",
 		})
 
 		require.Error(t, err)

@@ -580,9 +580,9 @@ func (c Client) TaskStatus(cfg TaskStatusConfig) (TaskStatusResult, error) {
 	return result, nil
 }
 
-func (c Client) GetLogArchiveRequest(taskId string) (LogArchiveRequestResult, error) {
+func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/log_downloads/%s", url.PathEscape(taskId))
-	result := LogArchiveRequestResult{}
+	result := LogDownloadRequestResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -604,19 +604,33 @@ func (c Client) GetLogArchiveRequest(taskId string) (LogArchiveRequestResult, er
 	return result, nil
 }
 
-func (c Client) DownloadLogs(request LogArchiveRequestResult) ([]byte, error) {
-	formData := url.Values{}
-	formData.Set("token", request.Token)
-	formData.Set("filename", request.Filename)
-	formData.Set("contents", request.Contents)
-	encodedBody := formData.Encode()
+func (c Client) DownloadLogs(request LogDownloadRequestResult) ([]byte, error) {
+	var req *http.Request
+	var err error
 
-	req, err := http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	if request.Contents != nil {
+		// POST approach, for zip files (group tasks)
+		formData := url.Values{}
+		formData.Set("token", request.Token)
+		formData.Set("filename", request.Filename)
+		formData.Set("contents", *request.Contents)
+		encodedBody := formData.Encode()
+
+		req, err = http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to create new HTTP request")
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/octet-stream")
+	} else {
+		// GET approach, for single log files
+		req, err = http.NewRequest(http.MethodGet, request.URL, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to create new HTTP request")
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", request.Token))
+		req.Header.Set("Accept", "application/octet-stream")
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/octet-stream")
 
 	// Use http.DefaultClient directly since the logs will come from a task server URL rather than Cloud
 	resp, err := http.DefaultClient.Do(req)
@@ -633,12 +647,12 @@ func (c Client) DownloadLogs(request LogArchiveRequestResult) ([]byte, error) {
 		return nil, errors.New(errMsg)
 	}
 
-	zipBytes, err := io.ReadAll(resp.Body)
+	logBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read response body")
 	}
 
-	return zipBytes, nil
+	return logBytes, nil
 }
 
 func decodeResponseJSON(resp *http.Response, result any) error {

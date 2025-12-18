@@ -23,8 +23,8 @@ type APIClient interface {
 	StartImagePush(cfg api.StartImagePushConfig) (api.StartImagePushResult, error)
 	ImagePushStatus(pushID string) (api.ImagePushStatusResult, error)
 	TaskStatus(api.TaskStatusConfig) (api.TaskStatusResult, error)
-	GetLogArchiveRequest(taskId string) (api.LogArchiveRequestResult, error)
-	DownloadLogs(api.LogArchiveRequestResult) ([]byte, error)
+	GetLogDownloadRequest(taskId string) (api.LogDownloadRequestResult, error)
+	DownloadLogs(api.LogDownloadRequestResult) ([]byte, error)
 }
 
 var _ APIClient = api.Client{}

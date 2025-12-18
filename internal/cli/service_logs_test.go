@@ -15,9 +15,9 @@ func TestService_DownloadLogs(t *testing.T) {
 	t.Run("when the task is not found", func(t *testing.T) {
 		s := setupTest(t)
 
-		s.mockAPI.MockGetLogArchiveRequest = func(taskId string) (api.LogArchiveRequestResult, error) {
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
 			require.Equal(t, "task-123", taskId)
-			return api.LogArchiveRequestResult{}, api.ErrNotFound
+			return api.LogDownloadRequestResult{}, api.ErrNotFound
 		}
 
 		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
@@ -29,11 +29,11 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Contains(t, err.Error(), "Task task-123 not found")
 	})
 
-	t.Run("when GetLogArchiveRequest fails with other error", func(t *testing.T) {
+	t.Run("when GetLogDownloadRequest fails with other error", func(t *testing.T) {
 		s := setupTest(t)
 
-		s.mockAPI.MockGetLogArchiveRequest = func(taskId string) (api.LogArchiveRequestResult, error) {
-			return api.LogArchiveRequestResult{}, errors.New("network error")
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{}, errors.New("network error")
 		}
 
 		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
@@ -49,20 +49,18 @@ func TestService_DownloadLogs(t *testing.T) {
 	t.Run("when DownloadLogs fails", func(t *testing.T) {
 		s := setupTest(t)
 
-		s.mockAPI.MockGetLogArchiveRequest = func(taskId string) (api.LogArchiveRequestResult, error) {
-			return api.LogArchiveRequestResult{
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{
 				URL:      "https://example.com/logs",
 				Token:    "jwt-token",
-				Filename: "logs.zip",
-				Contents: "contents-json",
+				Filename: "logs.log",
 			}, nil
 		}
 
-		s.mockAPI.MockDownloadLogs = func(request api.LogArchiveRequestResult) ([]byte, error) {
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
 			require.Equal(t, "https://example.com/logs", request.URL)
 			require.Equal(t, "jwt-token", request.Token)
-			require.Equal(t, "logs.zip", request.Filename)
-			require.Equal(t, "contents-json", request.Contents)
+			require.Equal(t, "logs.log", request.Filename)
 			return nil, errors.New("download failed")
 		}
 
@@ -79,17 +77,16 @@ func TestService_DownloadLogs(t *testing.T) {
 	t.Run("when writing file fails", func(t *testing.T) {
 		s := setupTest(t)
 
-		s.mockAPI.MockGetLogArchiveRequest = func(taskId string) (api.LogArchiveRequestResult, error) {
-			return api.LogArchiveRequestResult{
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{
 				URL:      "https://example.com/logs",
 				Token:    "jwt-token",
-				Filename: "logs.zip",
-				Contents: "contents-json",
+				Filename: "logs.log",
 			}, nil
 		}
 
-		s.mockAPI.MockDownloadLogs = func(request api.LogArchiveRequestResult) ([]byte, error) {
-			return []byte("zip file contents"), nil
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
+			return []byte("log file contents"), nil
 		}
 
 		invalidDir := filepath.Join(s.tmp, "nonexistent", "subdir")
@@ -102,26 +99,26 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Contains(t, err.Error(), "unable to write log file")
 	})
 
-	t.Run("when download succeeds", func(t *testing.T) {
+	t.Run("when download succeeds with single log file (no Contents)", func(t *testing.T) {
 		s := setupTest(t)
 
-		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
-		s.mockAPI.MockGetLogArchiveRequest = func(taskId string) (api.LogArchiveRequestResult, error) {
+		logContents := []byte("2024-01-01 12:00:00 INFO Starting task\n2024-01-01 12:00:01 INFO Task completed\n")
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
 			require.Equal(t, "task-123", taskId)
-			return api.LogArchiveRequestResult{
+			return api.LogDownloadRequestResult{
 				URL:      "https://example.com/logs",
 				Token:    "jwt-token",
-				Filename: "task-123-logs.zip",
-				Contents: "contents-json",
+				Filename: "task-123-logs.log",
+				Contents: nil, // No contents = single log file
 			}, nil
 		}
 
-		s.mockAPI.MockDownloadLogs = func(request api.LogArchiveRequestResult) ([]byte, error) {
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
 			require.Equal(t, "https://example.com/logs", request.URL)
 			require.Equal(t, "jwt-token", request.Token)
-			require.Equal(t, "task-123-logs.zip", request.Filename)
-			require.Equal(t, "contents-json", request.Contents)
-			return zipContents, nil
+			require.Equal(t, "task-123-logs.log", request.Filename)
+			require.Nil(t, request.Contents)
+			return logContents, nil
 		}
 
 		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
@@ -131,7 +128,50 @@ func TestService_DownloadLogs(t *testing.T) {
 
 		require.NoError(t, err)
 
-		expectedPath := filepath.Join(s.tmp, "task-123-logs.zip")
+		expectedPath := filepath.Join(s.tmp, "task-123-logs.log")
+		require.FileExists(t, expectedPath)
+
+		actualContents, err := os.ReadFile(expectedPath)
+		require.NoError(t, err)
+		require.Equal(t, logContents, actualContents)
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, "Logs downloaded to")
+		require.Contains(t, output, "task-123-logs.log")
+	})
+
+	t.Run("when download succeeds with zip file (with Contents)", func(t *testing.T) {
+		s := setupTest(t)
+
+		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
+		contents := `{"key":"value"}`
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			require.Equal(t, "task-456", taskId)
+			return api.LogDownloadRequestResult{
+				URL:      "https://example.com/logs",
+				Token:    "jwt-token",
+				Filename: "task-456-logs.zip",
+				Contents: &contents, // Contents present = zip file
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
+			require.Equal(t, "https://example.com/logs", request.URL)
+			require.Equal(t, "jwt-token", request.Token)
+			require.Equal(t, "task-456-logs.zip", request.Filename)
+			require.NotNil(t, request.Contents)
+			require.Equal(t, contents, *request.Contents)
+			return zipContents, nil
+		}
+
+		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:    "task-456",
+			OutputDir: s.tmp,
+		})
+
+		require.NoError(t, err)
+
+		expectedPath := filepath.Join(s.tmp, "task-456-logs.zip")
 		require.FileExists(t, expectedPath)
 
 		actualContents, err := os.ReadFile(expectedPath)
@@ -140,7 +180,7 @@ func TestService_DownloadLogs(t *testing.T) {
 
 		output := s.mockStdout.String()
 		require.Contains(t, output, "Logs downloaded to")
-		require.Contains(t, output, "task-123-logs.zip")
+		require.Contains(t, output, "task-456-logs.zip")
 	})
 
 	t.Run("when validation fails", func(t *testing.T) {

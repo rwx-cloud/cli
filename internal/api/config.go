@@ -284,9 +284,9 @@ type TaskStatusResult struct {
 	Polling PollingResult `json:"polling"`
 }
 
-type LogArchiveRequestResult struct {
-	URL      string `json:"url"`
-	Token    string `json:"token"`
-	Filename string `json:"filename"`
-	Contents string `json:"contents"`
+type LogDownloadRequestResult struct {
+	URL      string  `json:"url"`
+	Token    string  `json:"token"`
+	Filename string  `json:"filename"`
+	Contents *string `json:"contents,omitempty"`
 }
