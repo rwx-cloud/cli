@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/rwx-cloud/cli/cmd/rwx/config"
 	"github.com/rwx-cloud/cli/internal/accesstoken"
@@ -604,55 +605,105 @@ func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, 
 	return result, nil
 }
 
-func (c Client) DownloadLogs(request LogDownloadRequestResult) ([]byte, error) {
-	var req *http.Request
-	var err error
-
-	if request.Contents != nil {
-		// POST approach, for zip files (group tasks)
-		formData := url.Values{}
-		formData.Set("token", request.Token)
-		formData.Set("filename", request.Filename)
-		formData.Set("contents", *request.Contents)
-		encodedBody := formData.Encode()
-
-		req, err = http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to create new HTTP request")
-		}
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Set("Accept", "application/octet-stream")
-	} else {
-		// GET approach, for single log files
-		req, err = http.NewRequest(http.MethodGet, request.URL, nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to create new HTTP request")
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", request.Token))
-		req.Header.Set("Accept", "application/octet-stream")
+func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationSeconds ...int) ([]byte, error) {
+	maxRetryDuration := 30 * time.Second
+	if len(maxRetryDurationSeconds) > 0 && maxRetryDurationSeconds[0] > 0 {
+		maxRetryDuration = time.Duration(maxRetryDurationSeconds[0]) * time.Second
 	}
+	const initialBackoff = 1 * time.Second
 
-	// Use http.DefaultClient directly since the logs will come from a task server URL rather than Cloud
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "HTTP request failed")
-	}
-	defer resp.Body.Close()
+	startTime := time.Now()
+	backoff := initialBackoff
+	attempt := 0
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		errMsg := extractErrorMessage(resp.Body)
+	var lastErr error
+
+	for {
+		attempt++
+
+		// need to recreate for each attempt since body readers are consumed
+		var req *http.Request
+		var err error
+
+		if request.Contents != nil {
+			// POST approach, for zip files (group tasks)
+			formData := url.Values{}
+			formData.Set("token", request.Token)
+			formData.Set("filename", request.Filename)
+			formData.Set("contents", *request.Contents)
+			encodedBody := formData.Encode()
+
+			req, err = http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to create new HTTP request")
+			}
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Accept", "application/octet-stream")
+		} else {
+			// GET approach, for single log files
+			req, err = http.NewRequest(http.MethodGet, request.URL, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to create new HTTP request")
+			}
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", request.Token))
+			req.Header.Set("Accept", "application/octet-stream")
+		}
+
+		// Use http.DefaultClient directly since the logs will come from a task server URL rather than Cloud
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = errors.Wrap(err, "HTTP request failed")
+
+			if time.Since(startTime) >= maxRetryDuration {
+				return nil, errors.Wrapf(lastErr, "failed after %d attempts over %v", attempt, time.Since(startTime).Round(time.Second))
+			}
+
+			time.Sleep(backoff)
+			backoff *= 2
+			if backoff > 5*time.Second {
+				backoff = 5 * time.Second
+			}
+			continue
+		}
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			defer resp.Body.Close()
+			logBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, errors.Wrap(err, "unable to read response body")
+			}
+			return logBytes, nil
+		}
+
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		// Don't retry on 4xx errors
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			errMsg := extractErrorMessage(bytes.NewReader(bodyBytes))
+			if errMsg == "" {
+				errMsg = fmt.Sprintf("Unable to download logs - %s", resp.Status)
+			}
+			return nil, errors.New(errMsg)
+		}
+
+		// Retry on 5xx errors - task server may be waking up
+		errMsg := extractErrorMessage(bytes.NewReader(bodyBytes))
 		if errMsg == "" {
 			errMsg = fmt.Sprintf("Unable to download logs - %s", resp.Status)
 		}
-		return nil, errors.New(errMsg)
-	}
+		lastErr = errors.New(errMsg)
 
-	logBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to read response body")
-	}
+		if time.Since(startTime) >= maxRetryDuration {
+			return nil, errors.Wrapf(lastErr, "failed after %d attempts over %v", attempt, time.Since(startTime).Round(time.Second))
+		}
 
-	return logBytes, nil
+		time.Sleep(backoff)
+		backoff *= 2
+		if backoff > 5*time.Second {
+			backoff = 5 * time.Second
+		}
+	}
 }
 
 func decodeResponseJSON(resp *http.Response, result any) error {

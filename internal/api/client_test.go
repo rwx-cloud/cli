@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/versions"
@@ -533,10 +534,12 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 		require.Equal(t, zipContents, result)
 	})
 
-	t.Run("returns error on non-2xx response", func(t *testing.T) {
+	t.Run("returns error on 4xx response without retry", func(t *testing.T) {
+		attemptCount := 0
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, err := w.Write([]byte(`{"error": "Internal server error"}`))
+			attemptCount++
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(`{"error": "Bad request"}`))
 			require.NoError(t, err)
 		}))
 		defer server.Close()
@@ -552,21 +555,91 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Internal server error")
+		require.Contains(t, err.Error(), "Bad request")
+		require.Equal(t, 1, attemptCount, "should not retry on 4xx errors")
 	})
 
-	t.Run("returns error on request failure", func(t *testing.T) {
+	t.Run("returns error on request failure after retries", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		serverURL := server.URL
+		server.Close() // Close immediately so connections fail
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		startTime := time.Now()
+		// Use 2 seconds for faster test execution
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      serverURL,
+			Token:    "token",
+			Filename: "logs.log",
+		}, 2)
+
+		elapsed := time.Since(startTime)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "HTTP request failed")
+		require.Contains(t, err.Error(), "failed after")
+		require.Contains(t, err.Error(), "attempts")
+		require.Greater(t, elapsed, 1*time.Second, "should retry for approximately 2 seconds")
+		require.Less(t, elapsed, 4*time.Second, "should not exceed 2 seconds significantly (allowing for backoff delays)")
+	})
+
+	t.Run("retries on 5xx errors and succeeds", func(t *testing.T) {
+		attemptCount := 0
+		logContents := []byte("log data")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attemptCount++
+			if attemptCount < 3 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte(`{"error": "Service temporarily unavailable"}`))
+				return
+			}
+			// Third attempt succeeds
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(logContents)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		// Use 5 seconds for faster test execution
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "token",
+			Filename: "logs.log",
+		}, 5)
+
+		require.NoError(t, err)
+		require.Equal(t, logContents, result)
+		require.Equal(t, 3, attemptCount)
+	})
+
+	t.Run("does not retry on 4xx errors", func(t *testing.T) {
+		attemptCount := 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attemptCount++
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": "Not found"}`))
+		}))
+		defer server.Close()
+
 		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
 			return http.DefaultClient.Do(req)
 		})
 
 		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
-			URL:      "http://invalid-host-that-does-not-exist-12345.com",
+			URL:      server.URL,
 			Token:    "token",
 			Filename: "logs.log",
 		})
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "HTTP request failed")
+		require.Contains(t, err.Error(), "Not found")
+		require.Equal(t, 1, attemptCount, "should not retry on 404")
 	})
 }

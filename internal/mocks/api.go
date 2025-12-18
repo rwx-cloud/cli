@@ -153,7 +153,7 @@ func (c *API) GetLogDownloadRequest(taskId string) (api.LogDownloadRequestResult
 	return api.LogDownloadRequestResult{}, errors.New("MockGetLogDownloadRequest was not configured")
 }
 
-func (c *API) DownloadLogs(request api.LogDownloadRequestResult) ([]byte, error) {
+func (c *API) DownloadLogs(request api.LogDownloadRequestResult, maxRetryDurationSeconds ...int) ([]byte, error) {
 	if c.MockDownloadLogs != nil {
 		return c.MockDownloadLogs(request)
 	}
