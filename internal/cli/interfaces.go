@@ -39,5 +39,5 @@ type GitClient interface {
 	GetBranch() string
 	GetCommit() string
 	GetOriginUrl() string
-	GeneratePatchFile(destDir string) git.PatchFile
+	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 }

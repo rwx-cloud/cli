@@ -109,14 +109,19 @@ type PatchFile struct {
 	LFSChangedFiles LFSChangedFilesMetadata
 }
 
-func (c *Client) GeneratePatchFile(destDir string) PatchFile {
+func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile {
 	sha := c.GetCommit()
 	if sha == "" {
 		// We can't determine a patch
 		return PatchFile{}
 	}
 
-	cmd := exec.Command(c.Binary, "diff", sha, "--name-only")
+	diffArgs := []string{"diff", sha, "--name-only"}
+	if len(pathspec) > 0 {
+		diffArgs = append(diffArgs, "--")
+		diffArgs = append(diffArgs, pathspec...)
+	}
+	cmd := exec.Command(c.Binary, diffArgs...)
 	cmd.Dir = c.Dir
 
 	files, err := cmd.Output()
@@ -156,7 +161,12 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		}
 	}
 
-	cmd = exec.Command(c.Binary, "ls-files", "--others", "--exclude-standard")
+	lsFilesArgs := []string{"ls-files", "--others", "--exclude-standard"}
+	if len(pathspec) > 0 {
+		lsFilesArgs = append(lsFilesArgs, "--")
+		lsFilesArgs = append(lsFilesArgs, pathspec...)
+	}
+	cmd = exec.Command(c.Binary, lsFilesArgs...)
 	cmd.Dir = c.Dir
 
 	untracked, err := cmd.Output()
@@ -171,7 +181,12 @@ func (c *Client) GeneratePatchFile(destDir string) PatchFile {
 		Count: len(untrackedFiles),
 	}
 
-	cmd = exec.Command(c.Binary, "diff", sha, "-p", "--binary")
+	patchArgs := []string{"diff", sha, "-p", "--binary"}
+	if len(pathspec) > 0 {
+		patchArgs = append(patchArgs, "--")
+		patchArgs = append(patchArgs, pathspec...)
+	}
+	cmd = exec.Command(c.Binary, patchArgs...)
 	cmd.Dir = c.Dir
 
 	patch, err := cmd.Output()

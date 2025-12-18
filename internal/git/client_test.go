@@ -206,14 +206,14 @@ func TestGeneratePatchFile(t *testing.T) {
 	t.Run("does not write a patch file", func(t *testing.T) {
 		t.Run("when git is not installed", func(t *testing.T) {
 			client := &git.Client{Binary: "fake", Dir: ""}
-			patchFile := client.GeneratePatchFile("")
+			patchFile := client.GeneratePatchFile("", nil)
 
 			require.Equal(t, false, patchFile.Written)
 		})
 
 		t.Run("when we can't determine a diff", func(t *testing.T) {
 			client := &git.Client{Binary: "git", Dir: "/tmp"}
-			patchFile := client.GeneratePatchFile("")
+			patchFile := client.GeneratePatchFile("", nil)
 
 			require.Equal(t, false, patchFile.Written)
 		})
@@ -222,7 +222,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, false, patchFile.Written)
 		})
@@ -231,7 +231,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, expected := repoFixture(t, "testdata/GeneratePatchFile-lfs")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, false, patchFile.Written)
 			require.ElementsMatch(t, strings.Split(expected, " "), patchFile.LFSChangedFiles.Files)
@@ -244,7 +244,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, true, patchFile.Written)
 			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
@@ -258,7 +258,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-committed")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, true, patchFile.Written)
 			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
@@ -275,7 +275,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, true, patchFile.Written)
 			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
@@ -292,7 +292,7 @@ func TestGeneratePatchFile(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
-			patchFile := client.GeneratePatchFile(client.Dir)
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
 
 			require.Equal(t, true, patchFile.Written)
 			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
@@ -302,6 +302,24 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.Contains(t, string(patch), "new file mode 100644")
 
 			require.Equal(t, []string{"bar.txt"}, patchFile.UntrackedFiles.Files)
+			require.Equal(t, 1, patchFile.UntrackedFiles.Count)
+		})
+
+		t.Run("excluding paths via pathspec", func(t *testing.T) {
+			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-exclude")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(client.Dir, []string{".", ":!.rwx"})
+
+			require.Equal(t, true, patchFile.Written)
+			require.Equal(t, filepath.Join(client.Dir, sha), patchFile.Path)
+
+			patch, err := os.ReadFile(patchFile.Path)
+			require.NoError(t, err)
+			require.Contains(t, string(patch), "included.txt")
+			require.NotContains(t, string(patch), "excluded.txt")
+
+			require.Equal(t, []string{"untracked.txt"}, patchFile.UntrackedFiles.Files)
 			require.Equal(t, 1, patchFile.UntrackedFiles.Count)
 		})
 	})

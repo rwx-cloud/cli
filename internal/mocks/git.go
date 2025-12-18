@@ -26,7 +26,7 @@ func (c *Git) GetOriginUrl() string {
 	return c.MockGetOriginUrl
 }
 
-func (c *Git) GeneratePatchFile(destDir string) git.PatchFile {
+func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile {
 	if c.MockGeneratePatchFile.Written {
 		if err := os.MkdirAll(destDir, 0755); err != nil {
 			// We can't write a patch

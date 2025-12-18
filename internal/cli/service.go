@@ -159,7 +159,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	relativeRunDefinitionPath := relativePathFromWd(runDefinitionPath)
 
 	if patchable {
-		patchFile = s.GitClient.GeneratePatchFile(patchDir)
+		patchFile = s.GitClient.GeneratePatchFile(patchDir, []string{".", ":!" + relativeRunDefinitionPath})
 	}
 
 	// Load directory entries
