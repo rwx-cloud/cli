@@ -285,16 +285,13 @@ func TestAPIClient_GetDispatch(t *testing.T) {
 	})
 }
 
-func TestAPIClient_ResolveBaseLayer(t *testing.T) {
+func TestAPIClient_GetDefaultBase(t *testing.T) {
 	t.Run("builds the request and parses the response", func(t *testing.T) {
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/base_layers/resolve", req.URL.Path)
-			require.Equal(t, http.MethodPost, req.Method)
-			reqBody, err := io.ReadAll(req.Body)
-			require.NoError(t, err)
-			require.Contains(t, string(reqBody), "gentoo 99")
+			require.Equal(t, "/mint/api/base/default", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
 
-			body := `{"os": "gentoo 99", "tag": "1.2", "arch": "quantum"}`
+			body := `{"image": "ubuntu:24.04", "config": "rwx/base 1.0.0", "arch": "x86_64"}`
 			return &http.Response{
 				Status:     "200 OK",
 				StatusCode: 200,
@@ -304,15 +301,11 @@ func TestAPIClient_ResolveBaseLayer(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		resolveConfig := api.ResolveBaseLayerConfig{
-			Os: "gentoo 99",
-		}
-
-		result, err := c.ResolveBaseLayer(resolveConfig)
+		result, err := c.GetDefaultBase()
 		require.NoError(t, err)
-		require.Equal(t, "gentoo 99", result.Os)
-		require.Equal(t, "1.2", result.Tag)
-		require.Equal(t, "quantum", result.Arch)
+		require.Equal(t, "ubuntu:24.04", result.Image)
+		require.Equal(t, "rwx/base 1.0.0", result.Config)
+		require.Equal(t, "x86_64", result.Arch)
 	})
 }
 

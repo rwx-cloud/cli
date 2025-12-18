@@ -16,7 +16,7 @@ type API struct {
 	MockLint                   func(api.LintConfig) (*api.LintResult, error)
 	MockInitiateDispatch       func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
 	MockGetDispatch            func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
-	MockResolveBaseLayer       func(api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error)
+	MockGetDefaultBase         func() (api.DefaultBaseResult, error)
 	MockMcpGetRunTestFailures  func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
 	MockStartImagePush         func(api.StartImagePushConfig) (api.StartImagePushResult, error)
 	MockImagePushStatus        func(string) (api.ImagePushStatusResult, error)
@@ -103,12 +103,12 @@ func (c *API) GetDispatch(cfg api.GetDispatchConfig) (*api.GetDispatchResult, er
 	return nil, errors.New("MockGetDispatch was not configured")
 }
 
-func (c *API) ResolveBaseLayer(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-	if c.MockResolveBaseLayer != nil {
-		return c.MockResolveBaseLayer(cfg)
+func (c *API) GetDefaultBase() (api.DefaultBaseResult, error) {
+	if c.MockGetDefaultBase != nil {
+		return c.MockGetDefaultBase()
 	}
 
-	return api.ResolveBaseLayerResult{}, errors.New("MockResolveBaseLayer was not configured")
+	return api.DefaultBaseResult{}, errors.New("MockGetDefaultBase was not configured")
 }
 
 func (c *API) McpGetRunTestFailures(cfg api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error) {

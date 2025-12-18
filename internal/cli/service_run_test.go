@@ -22,15 +22,15 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
-				resolveBaseLayerCalled := false
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
+				getDefaultBaseCalled := false
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					resolveBaseLayerCalled = true
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					getDefaultBaseCalled = true
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -127,7 +127,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, "", receivedRwxDir[5].FileContents)
 				require.Equal(t, "some nested yaml", receivedRwxDir[6].FileContents)
 
-				_ = resolveBaseLayerCalled
+				_ = getDefaultBaseCalled
 				_ = getPackageVersionsCalled
 			})
 
@@ -135,13 +135,13 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -197,15 +197,15 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
-				resolveBaseLayerCalled := false
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
+				getDefaultBaseCalled := false
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					resolveBaseLayerCalled = true
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					getDefaultBaseCalled = true
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -263,7 +263,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				}
 
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
-				require.False(t, resolveBaseLayerCalled)
+				require.False(t, getDefaultBaseCalled)
 			})
 		})
 
@@ -272,13 +272,13 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -364,13 +364,13 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -426,15 +426,15 @@ func TestService_InitiatingRun(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
-				resolveBaseLayerCalled := false
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
+				getDefaultBaseCalled := false
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					resolveBaseLayerCalled = true
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					getDefaultBaseCalled = true
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -492,20 +492,20 @@ func TestService_InitiatingRun(t *testing.T) {
 				}
 
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
-				require.False(t, resolveBaseLayerCalled)
+				require.False(t, getDefaultBaseCalled)
 			})
 
 			t.Run("when the directory includes a test-suites directory inside it", func(t *testing.T) {
 				s := setupTest(t)
 
 				runConfig := cli.InitiateRunConfig{}
-				baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+				baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-				s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-					return api.ResolveBaseLayerResult{
-						Os:   "ubuntu 24.04",
-						Tag:  "1.0",
-						Arch: "x86_64",
+				s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+					return api.DefaultBaseResult{
+						Image:  "ubuntu:24.04",
+						Config: "rwx/base 1.0.0",
+						Arch:   "x86_64",
 					}, nil
 				}
 
@@ -604,14 +604,14 @@ func TestService_InitiatingRun(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			resolveBaseLayerCalled := false
+			getDefaultBaseCalled := false
 
-			s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-				resolveBaseLayerCalled = true
-				return api.ResolveBaseLayerResult{
-					Os:   "ubuntu 24.04",
-					Tag:  "1.0",
-					Arch: "x86_64",
+			s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+				getDefaultBaseCalled = true
+				return api.DefaultBaseResult{
+					Image:  "ubuntu:24.04",
+					Config: "rwx/base 1.0.0",
+					Arch:   "x86_64",
 				}, nil
 			}
 
@@ -655,24 +655,24 @@ func TestService_InitiatingRun(t *testing.T) {
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
 
-			require.True(t, resolveBaseLayerCalled)
-			expectedContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+			require.True(t, getDefaultBaseCalled)
+			expectedContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
 			require.Equal(t, expectedContent, receivedSpecifiedFileContent)
 			require.Equal(t, expectedContent, receivedRwxDirectoryFileContent)
-			require.Contains(t, s.mockStderr.String(), "Configured \".mint/foo.yml\" to run on ubuntu 24.04\n")
+			require.Contains(t, s.mockStderr.String(), "Configured \".mint/foo.yml\" to run on ubuntu:24.04\n")
 		})
 
 		t.Run("when package is missing version", func(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+			baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-			s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-				return api.ResolveBaseLayerResult{
-					Os:   "ubuntu 24.04",
-					Tag:  "1.0",
-					Arch: "x86_64",
+			s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+				return api.DefaultBaseResult{
+					Image:  "ubuntu:24.04",
+					Config: "rwx/base 1.0.0",
+					Arch:   "x86_64",
 				}, nil
 			}
 
@@ -747,13 +747,13 @@ func TestService_InitiatingRun(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+			baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-			s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-				return api.ResolveBaseLayerResult{
-					Os:   "ubuntu 24.04",
-					Tag:  "1.0",
-					Arch: "x86_64",
+			s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+				return api.DefaultBaseResult{
+					Image:  "ubuntu:24.04",
+					Config: "rwx/base 1.0.0",
+					Arch:   "x86_64",
 				}, nil
 			}
 
@@ -824,13 +824,13 @@ func TestService_InitiatingRun(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+			baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-			s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-				return api.ResolveBaseLayerResult{
-					Os:   "ubuntu 24.04",
-					Tag:  "1.0",
-					Arch: "x86_64",
+			s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+				return api.DefaultBaseResult{
+					Image:  "ubuntu:24.04",
+					Config: "rwx/base 1.0.0",
+					Arch:   "x86_64",
 				}, nil
 			}
 
@@ -914,7 +914,7 @@ func TestService_InitiatingRun(t *testing.T) {
 			s := setupTest(t)
 
 			runConfig := cli.InitiateRunConfig{}
-			baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+			baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
 			originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
 
@@ -954,14 +954,14 @@ func TestService_InitiatingRun(t *testing.T) {
 		require.Contains(t, err.Error(), "the path to a run definition must be provided")
 	})
 
-	t.Run("when base resolution has errors but no updates", func(t *testing.T) {
+	t.Run("when base insertion has errors but no updates", func(t *testing.T) {
 		s := setupTest(t)
 
 		runConfig := cli.InitiateRunConfig{}
 
-		// Mock that base resolution fails
-		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-			return api.ResolveBaseLayerResult{}, fmt.Errorf("invalid YAML syntax")
+		// Mock that base insertion fails
+		s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{}, fmt.Errorf("invalid YAML syntax")
 		}
 
 		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
@@ -997,13 +997,13 @@ func TestService_InitiatingRun(t *testing.T) {
 		s := setupTest(t)
 
 		runConfig := cli.InitiateRunConfig{}
-		baseSpec := "base:\n  os: ubuntu 24.04\n  tag: 1.0\n"
+		baseSpec := "base:\n  image: ubuntu:24.04\n  config: rwx/base 1.0.0\n"
 
-		s.mockAPI.MockResolveBaseLayer = func(cfg api.ResolveBaseLayerConfig) (api.ResolveBaseLayerResult, error) {
-			return api.ResolveBaseLayerResult{
-				Os:   "ubuntu 24.04",
-				Tag:  "1.0",
-				Arch: "x86_64",
+		s.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{
+				Image:  "ubuntu:24.04",
+				Config: "rwx/base 1.0.0",
+				Arch:   "x86_64",
 			}, nil
 		}
 

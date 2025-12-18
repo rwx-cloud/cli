@@ -4,13 +4,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
@@ -187,15 +185,6 @@ func (c SetSecretsInVaultConfig) Validate() error {
 	return nil
 }
 
-type UpdateBaseConfig struct {
-	RwxDirectory string
-	Files        []string
-}
-
-func (c UpdateBaseConfig) Validate() error {
-	return nil
-}
-
 type UpdatePackagesConfig struct {
 	RwxDirectory             string
 	Files                    []string
@@ -210,94 +199,33 @@ func (c UpdatePackagesConfig) Validate() error {
 	return nil
 }
 
-type ResolveBaseConfig struct {
+type InsertBaseConfig struct {
 	RwxDirectory string
 	Files        []string
 }
 
-func (c ResolveBaseConfig) Validate() error {
+func (c InsertBaseConfig) Validate() error {
 	return nil
 }
 
-type BaseLayerSpec struct {
-	Os   string `yaml:"os"`
-	Tag  string `yaml:"tag"`
-	Arch string `yaml:"arch"`
-}
-
-func (b BaseLayerSpec) TagVersion() *semver.Version {
-	if b.Tag == "" {
-		return versions.EmptyVersion
-	}
-
-	return semver.MustParse(b.Tag)
-}
-
-func (b BaseLayerSpec) Equal(other BaseLayerSpec) bool {
-	if b.Os != other.Os {
-		return false
-	}
-
-	if b.Tag != other.Tag {
-		return false
-	}
-
-	arch1 := b.Arch
-	if arch1 == "" {
-		arch1 = DefaultArch
-	}
-	arch2 := other.Arch
-	if arch2 == "" {
-		arch2 = DefaultArch
-	}
-	if arch1 != arch2 {
-		return false
-	}
-
-	return true
-}
-
-func (b BaseLayerSpec) Merge(other BaseLayerSpec) BaseLayerSpec {
-	os := b.Os
-	if other.Os != "" {
-		os = other.Os
-	}
-
-	tag := b.Tag
-	if other.Tag != "" {
-		tag = other.Tag
-	}
-
-	arch := b.Arch
-	if other.Arch != "" {
-		arch = other.Arch
-	}
-
-	return BaseLayerSpec{
-		Os:   os,
-		Tag:  tag,
-		Arch: arch,
-	}
+type BaseSpec struct {
+	Image  string `yaml:"image"`
+	Config string `yaml:"config"`
+	Arch   string `yaml:"arch"`
 }
 
 type BaseLayerRunFile struct {
-	Spec         BaseLayerSpec
-	OriginalBase BaseLayerSpec
-	ResolvedBase BaseLayerSpec
+	ResolvedBase BaseSpec
 	OriginalPath string
 	Error        error
 }
 
-func (rf BaseLayerRunFile) HasChanges() bool {
-	return !rf.OriginalBase.Equal(rf.ResolvedBase)
-}
-
-type ResolveBaseResult struct {
+type InsertDefaultBaseResult struct {
 	ErroredRunFiles []BaseLayerRunFile
 	UpdatedRunFiles []BaseLayerRunFile
 }
 
-func (r ResolveBaseResult) HasChanges() bool {
+func (r InsertDefaultBaseResult) HasChanges() bool {
 	return len(r.ErroredRunFiles) > 0 || len(r.UpdatedRunFiles) > 0
 }
 

@@ -33,9 +33,9 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return updateBase(args)
 		},
-		Short: "Update all base layers to their latest (minor) version",
-		Long: "Update all base layers to their latest (minor) version.\n" +
-			"Takes a list of files as arguments, or updates all toplevel YAML files in .rwx if no files are given.",
+		Short: "Add a base image to RWX run configurations that do not have one",
+		Long: "Add a base image to RWX run configurations that do not have one.\n" +
+			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.",
 		Use: "base [flags] [files...]",
 	}
 
@@ -51,7 +51,7 @@ var (
 )
 
 func updateBase(files []string) error {
-	_, err := service.UpdateBase(cli.UpdateBaseConfig{
+	_, err := service.InsertBase(cli.InsertBaseConfig{
 		Files:        files,
 		RwxDirectory: RwxDirectory,
 	})

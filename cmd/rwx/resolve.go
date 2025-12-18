@@ -8,7 +8,7 @@ import (
 )
 
 var resolveCmd = &cobra.Command{
-	Short: "Resolve and add versions for base layers and RWX packages",
+	Short: "Resolve and add versions for base images and RWX packages",
 	Use:   "resolve [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
@@ -33,11 +33,9 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return resolveBase(args)
 		},
-		Short: "Add a base layer to RWX run configurations that do not have one",
-		Long: "Add a base layer to RWX run configurations that do not have one.\n" +
-			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.\n" +
-			"The best match will be found based on the provided flags. If no flags are provided,\n" +
-			"it will use the current default base layer.",
+		Short: "Add a base image to RWX run configurations that do not have one",
+		Long: "Add a base image to RWX run configurations that do not have one.\n" +
+			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.",
 		Use: "base [flags] [files...]",
 	}
 
@@ -54,7 +52,7 @@ var (
 )
 
 func resolveBase(files []string) error {
-	base, err := service.ResolveBase(cli.ResolveBaseConfig{
+	base, err := service.InsertBase(cli.InsertBaseConfig{
 		Files:        files,
 		RwxDirectory: RwxDirectory,
 	})

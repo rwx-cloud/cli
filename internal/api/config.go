@@ -225,14 +225,11 @@ type PackageVersionsResult struct {
 	LatestMinor map[string]map[string]string `json:"latest_minor"`
 }
 
-type resolveBaseLayerSpec struct {
-	Os   string `json:"os,omitempty"`
-	Tag  string `json:"tag,omitempty"`
-	Arch string `json:"arch,omitempty"`
+type DefaultBaseResult struct {
+	Image  string `json:"image,omitempty"`
+	Config string `json:"config,omitempty"`
+	Arch   string `json:"arch,omitempty"`
 }
-
-type ResolveBaseLayerConfig = resolveBaseLayerSpec
-type ResolveBaseLayerResult = resolveBaseLayerSpec
 
 type StartImagePushConfig struct {
 	TaskID      string                          `json:"task_id"`
