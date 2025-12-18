@@ -29,10 +29,6 @@ var resolveCmd = &cobra.Command{
 }
 
 var (
-	resolveBaseOs   string
-	resolveBaseTag  string
-	resolveBaseArch string
-
 	resolveBaseCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return resolveBase(args)
@@ -81,9 +77,6 @@ func resolvePackages(files []string) error {
 }
 
 func init() {
-	resolveBaseCmd.Flags().StringVar(&resolveBaseOs, "os", "", "target operating system")
-	resolveBaseCmd.Flags().StringVar(&resolveBaseTag, "tag", "", "target base layer tag")
-	resolveBaseCmd.Flags().StringVar(&resolveBaseArch, "arch", "", "target architecture")
 	addRwxDirFlag(resolveBaseCmd)
 
 	addRwxDirFlag(resolvePackagesCmd)
