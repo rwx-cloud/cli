@@ -600,8 +600,6 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 	}
 
 	fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", outputPath)
-	fmt.Fprintf(s.Stdout, "\nTo extract the logs, run:\n")
-	fmt.Fprintf(s.Stdout, "  tar -xf %s -C %s\n", outputPath, cfg.OutputDir)
 	return nil
 }
 

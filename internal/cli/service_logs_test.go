@@ -141,8 +141,6 @@ func TestService_DownloadLogs(t *testing.T) {
 		output := s.mockStdout.String()
 		require.Contains(t, output, "Logs downloaded to")
 		require.Contains(t, output, "task-123-logs.zip")
-		require.Contains(t, output, "To extract the logs, run:")
-		require.Contains(t, output, "tar -xf")
 	})
 
 	t.Run("when validation fails", func(t *testing.T) {
