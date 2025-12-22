@@ -21,6 +21,8 @@ type API struct {
 	MockStartImagePush         func(api.StartImagePushConfig) (api.StartImagePushResult, error)
 	MockImagePushStatus        func(string) (api.ImagePushStatusResult, error)
 	MockTaskStatus             func(api.TaskStatusConfig) (api.TaskStatusResult, error)
+	MockGetLogDownloadRequest  func(string) (api.LogDownloadRequestResult, error)
+	MockDownloadLogs           func(api.LogDownloadRequestResult) ([]byte, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -141,4 +143,20 @@ func (c *API) TaskStatus(cfg api.TaskStatusConfig) (api.TaskStatusResult, error)
 	}
 
 	return api.TaskStatusResult{}, errors.New("MockTaskStatus was not configured")
+}
+
+func (c *API) GetLogDownloadRequest(taskId string) (api.LogDownloadRequestResult, error) {
+	if c.MockGetLogDownloadRequest != nil {
+		return c.MockGetLogDownloadRequest(taskId)
+	}
+
+	return api.LogDownloadRequestResult{}, errors.New("MockGetLogDownloadRequest was not configured")
+}
+
+func (c *API) DownloadLogs(request api.LogDownloadRequestResult, maxRetryDurationSeconds ...int) ([]byte, error) {
+	if c.MockDownloadLogs != nil {
+		return c.MockDownloadLogs(request)
+	}
+
+	return nil, errors.New("MockDownloadLogs was not configured")
 }

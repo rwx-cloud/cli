@@ -280,3 +280,10 @@ type TaskStatusResult struct {
 	TaskID  string        `json:"task_id,omitempty"`
 	Polling PollingResult `json:"polling"`
 }
+
+type LogDownloadRequestResult struct {
+	URL      string  `json:"url"`
+	Token    string  `json:"token"`
+	Filename string  `json:"filename"`
+	Contents *string `json:"contents,omitempty"`
+}

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/versions"
@@ -372,5 +374,265 @@ func TestAPIClient_ImagePushStatus(t *testing.T) {
 		result, err := c.ImagePushStatus("abc123")
 		require.NoError(t, err)
 		require.Equal(t, "in_progress", result.Status)
+	})
+}
+
+func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
+	t.Run("builds the request and parses the response without contents", func(t *testing.T) {
+		body := struct {
+			URL      string `json:"url"`
+			Token    string `json:"token"`
+			Filename string `json:"filename"`
+		}{
+			URL:      "https://example.com/logs/download",
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.log",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-123", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetLogDownloadRequest("task-123")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/logs/download", result.URL)
+		require.Equal(t, "jwt-token-123", result.Token)
+		require.Equal(t, "task-123-logs.log", result.Filename)
+		require.Nil(t, result.Contents)
+	})
+
+	t.Run("builds the request and parses the response with contents", func(t *testing.T) {
+		body := struct {
+			URL      string `json:"url"`
+			Token    string `json:"token"`
+			Filename string `json:"filename"`
+			Contents string `json:"contents"`
+		}{
+			URL:      "https://example.com/logs/download",
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.zip",
+			Contents: `{"key":"value"}`,
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-123", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetLogDownloadRequest("task-123")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/logs/download", result.URL)
+		require.Equal(t, "jwt-token-123", result.Token)
+		require.Equal(t, "task-123-logs.zip", result.Filename)
+		require.NotNil(t, result.Contents)
+		require.Equal(t, `{"key":"value"}`, *result.Contents)
+	})
+
+	t.Run("handles 404 not found", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/log_downloads/task-999", req.URL.Path)
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Task not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetLogDownloadRequest("task-999")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+}
+
+func TestAPIClient_DownloadLogs(t *testing.T) {
+	t.Run("makes GET request with Authorization header when Contents is nil", func(t *testing.T) {
+		logContents := []byte("2024-01-01 12:00:00 INFO Starting task\n2024-01-01 12:00:01 INFO Task completed\n")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "Bearer jwt-token-123", r.Header.Get("Authorization"))
+
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(logContents)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.log",
+			Contents: nil, // No Contents = GET request
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, logContents, result)
+	})
+
+	t.Run("makes POST request with form data when Contents is present", func(t *testing.T) {
+		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
+		contents := `{"key":"value"}`
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodPost, r.Method)
+			require.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
+
+			err := r.ParseForm()
+			require.NoError(t, err)
+			require.Equal(t, "jwt-token-123", r.Form.Get("token"))
+			require.Equal(t, "task-123-logs.zip", r.Form.Get("filename"))
+			require.Equal(t, contents, r.Form.Get("contents"))
+
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(zipContents)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "jwt-token-123",
+			Filename: "task-123-logs.zip",
+			Contents: &contents, // Contents present = POST request
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, zipContents, result)
+	})
+
+	t.Run("returns error on 4xx response without retry", func(t *testing.T) {
+		attemptCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attemptCount++
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(`{"error": "Bad request"}`))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "token",
+			Filename: "logs.log",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Bad request")
+		require.Equal(t, 1, attemptCount, "should not retry on 4xx errors")
+	})
+
+	t.Run("returns error on request failure after retries", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		serverURL := server.URL
+		server.Close() // Close immediately so connections fail
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		startTime := time.Now()
+		// Use 2 seconds for faster test execution
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      serverURL,
+			Token:    "token",
+			Filename: "logs.log",
+		}, 2)
+
+		elapsed := time.Since(startTime)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "HTTP request failed")
+		require.Contains(t, err.Error(), "failed after")
+		require.Contains(t, err.Error(), "attempts")
+		require.Greater(t, elapsed, 1*time.Second, "should retry for approximately 2 seconds")
+		require.Less(t, elapsed, 4*time.Second, "should not exceed 2 seconds significantly (allowing for backoff delays)")
+	})
+
+	t.Run("retries on 5xx errors and succeeds", func(t *testing.T) {
+		attemptCount := 0
+		logContents := []byte("log data")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attemptCount++
+			if attemptCount < 3 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte(`{"error": "Service temporarily unavailable"}`))
+				return
+			}
+			// Third attempt succeeds
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(logContents)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		// Use 5 seconds for faster test execution
+		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "token",
+			Filename: "logs.log",
+		}, 5)
+
+		require.NoError(t, err)
+		require.Equal(t, logContents, result)
+		require.Equal(t, 3, attemptCount)
+	})
+
+	t.Run("does not retry on 4xx errors", func(t *testing.T) {
+		attemptCount := 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			attemptCount++
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": "Not found"}`))
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadLogs(api.LogDownloadRequestResult{
+			URL:      server.URL,
+			Token:    "token",
+			Filename: "logs.log",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Not found")
+		require.Equal(t, 1, attemptCount, "should not retry on 404")
 	})
 }

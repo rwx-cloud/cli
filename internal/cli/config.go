@@ -327,3 +327,15 @@ func (c PullImageConfig) Validate() error {
 	}
 	return nil
 }
+
+type DownloadLogsConfig struct {
+	TaskID    string
+	OutputDir string
+}
+
+func (c DownloadLogsConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}
