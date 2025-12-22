@@ -329,13 +329,18 @@ func (c PullImageConfig) Validate() error {
 }
 
 type DownloadLogsConfig struct {
-	TaskID    string
-	OutputDir string
+	TaskID     string
+	OutputDir  string
+	OutputFile string
+	Json       bool
 }
 
 func (c DownloadLogsConfig) Validate() error {
 	if c.TaskID == "" {
 		return errors.New("task ID must be provided")
+	}
+	if c.OutputDir != "" && c.OutputFile != "" {
+		return errors.New("output-dir and output-file cannot be used together")
 	}
 	return nil
 }

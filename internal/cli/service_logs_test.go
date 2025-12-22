@@ -75,9 +75,10 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
-	t.Run("when writing file fails", func(t *testing.T) {
+	t.Run("when output directory does not exist, it is created", func(t *testing.T) {
 		s := setupTest(t)
 
+		logContents := []byte("log file contents")
 		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
 			return api.LogDownloadRequestResult{
 				URL:      "https://example.com/logs",
@@ -87,17 +88,22 @@ func TestService_DownloadLogs(t *testing.T) {
 		}
 
 		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
-			return []byte("log file contents"), nil
+			return logContents, nil
 		}
 
-		invalidDir := filepath.Join(s.tmp, "nonexistent", "subdir")
+		nestedDir := filepath.Join(s.tmp, "nonexistent", "subdir")
 		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
-			OutputDir: invalidDir,
+			OutputDir: nestedDir,
 		})
 
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unable to write log file")
+		require.NoError(t, err)
+		expectedPath := filepath.Join(nestedDir, "logs.log")
+		require.FileExists(t, expectedPath)
+
+		actualContents, err := os.ReadFile(expectedPath)
+		require.NoError(t, err)
+		require.Equal(t, logContents, actualContents)
 		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
@@ -129,7 +135,6 @@ func TestService_DownloadLogs(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-
 		expectedPath := filepath.Join(s.tmp, "task-123-logs.log")
 		require.FileExists(t, expectedPath)
 
@@ -173,7 +178,6 @@ func TestService_DownloadLogs(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-
 		expectedPath := filepath.Join(s.tmp, "task-456-logs.zip")
 		require.FileExists(t, expectedPath)
 
@@ -187,7 +191,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
-	t.Run("when validation fails", func(t *testing.T) {
+	t.Run("when validation fails - missing task ID", func(t *testing.T) {
 		s := setupTest(t)
 
 		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
@@ -198,5 +202,83 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "validation failed")
 		require.Contains(t, err.Error(), "task ID must be provided")
+	})
+
+	t.Run("when validation fails - both output-dir and output-file set", func(t *testing.T) {
+		s := setupTest(t)
+
+		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:     "task-123",
+			OutputDir:  s.tmp,
+			OutputFile: filepath.Join(s.tmp, "custom.log"),
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validation failed")
+		require.Contains(t, err.Error(), "output-dir and output-file cannot be used together")
+	})
+
+	t.Run("when download succeeds with OutputFile specified", func(t *testing.T) {
+		s := setupTest(t)
+
+		logContents := []byte("2024-01-01 12:00:00 INFO Starting task\n2024-01-01 12:00:01 INFO Task completed\n")
+		customOutputFile := filepath.Join(s.tmp, "custom", "my-logs.log")
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			require.Equal(t, "task-789", taskId)
+			return api.LogDownloadRequestResult{
+				URL:      "https://example.com/logs",
+				Token:    "jwt-token",
+				Filename: "task-789-logs.log",
+				Contents: nil,
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
+			return logContents, nil
+		}
+
+		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:     "task-789",
+			OutputFile: customOutputFile,
+		})
+
+		require.NoError(t, err)
+		require.FileExists(t, customOutputFile)
+
+		actualContents, err := os.ReadFile(customOutputFile)
+		require.NoError(t, err)
+		require.Equal(t, logContents, actualContents)
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, "Logs downloaded to")
+		require.Contains(t, output, "my-logs.log")
+		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
+	})
+
+	t.Run("when download succeeds with OutputFile in nested directory", func(t *testing.T) {
+		s := setupTest(t)
+
+		logContents := []byte("log content")
+		nestedOutputFile := filepath.Join(s.tmp, "nested", "deep", "path", "logs.log")
+		s.mockAPI.MockGetLogDownloadRequest = func(taskId string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{
+				URL:      "https://example.com/logs",
+				Token:    "jwt-token",
+				Filename: "task-999-logs.log",
+				Contents: nil,
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadLogs = func(request api.LogDownloadRequestResult) ([]byte, error) {
+			return logContents, nil
+		}
+
+		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:     "task-999",
+			OutputFile: nestedOutputFile,
+		})
+
+		require.NoError(t, err)
+		require.FileExists(t, nestedOutputFile)
 	})
 }

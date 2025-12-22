@@ -587,17 +587,40 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 		return errors.Wrap(err, "unable to download logs")
 	}
 
-	outputPath := filepath.Join(cfg.OutputDir, LogDownloadRequest.Filename)
+	var outputPath string
+	if cfg.OutputFile != "" {
+		outputPath = cfg.OutputFile
+	} else {
+		outputPath = filepath.Join(cfg.OutputDir, LogDownloadRequest.Filename)
+	}
+
+	outputDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return errors.Wrapf(err, "unable to create output directory %s", outputDir)
+	}
 
 	if _, err := os.Stat(outputPath); err == nil {
-		fmt.Fprintf(s.Stdout, "Overwriting existing file at %s\n", outputPath)
+		if !cfg.Json {
+			fmt.Fprintf(s.Stdout, "Overwriting existing file at %s\n", outputPath)
+		}
 	}
 
 	if err := os.WriteFile(outputPath, logBytes, 0644); err != nil {
 		return errors.Wrapf(err, "unable to write log file to %s", outputPath)
 	}
 
-	fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", outputPath)
+	if cfg.Json {
+		output := struct {
+			OutputFile string `json:"outputFile"`
+		}{
+			OutputFile: outputPath,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", outputPath)
+	}
 	return nil
 }
 

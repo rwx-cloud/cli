@@ -12,7 +12,9 @@ import (
 )
 
 var (
-	LogsOutput string
+	LogsOutputDir  string
+	LogsOutputFile string
+	LogsJson       bool
 
 	logsCmd = &cobra.Command{
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -25,27 +27,40 @@ var (
 
 			taskId := args[0]
 
-			outputDir := LogsOutput
-			if outputDir == "" {
-				var err error
-				outputDir, err = getDefaultLogsDir()
+			outputDirSet := cmd.Flags().Changed("output-dir")
+			outputFileSet := cmd.Flags().Changed("output-file")
+			if outputDirSet && outputFileSet {
+				return errors.New("output-dir and output-file cannot be used together")
+			}
+
+			var absOutputDir string
+			var absOutputFile string
+			var err error
+
+			if LogsOutputFile != "" {
+				absOutputFile, err = filepath.Abs(LogsOutputFile)
 				if err != nil {
-					return errors.Wrap(err, "unable to determine default logs directory")
+					return errors.Wrapf(err, "unable to resolve absolute path for %s", LogsOutputFile)
+				}
+			} else {
+				outputDir := LogsOutputDir
+				if !outputDirSet {
+					outputDir, err = getDefaultLogsDir()
+					if err != nil {
+						return errors.Wrap(err, "unable to determine default logs directory")
+					}
+				}
+				absOutputDir, err = filepath.Abs(outputDir)
+				if err != nil {
+					return errors.Wrapf(err, "unable to resolve absolute path for %s", outputDir)
 				}
 			}
 
-			if err := os.MkdirAll(outputDir, 0755); err != nil {
-				return errors.Wrapf(err, "unable to create output directory %s", outputDir)
-			}
-
-			absOutputDir, err := filepath.Abs(outputDir)
-			if err != nil {
-				return errors.Wrapf(err, "unable to resolve absolute path for %s", outputDir)
-			}
-
 			err = service.DownloadLogs(cli.DownloadLogsConfig{
-				TaskID:    taskId,
-				OutputDir: absOutputDir,
+				TaskID:     taskId,
+				OutputDir:  absOutputDir,
+				OutputFile: absOutputFile,
+				Json:       LogsJson,
 			})
 			if err != nil {
 				return err
@@ -59,7 +74,10 @@ var (
 )
 
 func init() {
-	logsCmd.Flags().StringVarP(&LogsOutput, "output", "o", "", "output directory for the downloaded log file (defaults to Downloads folder)")
+	logsCmd.Flags().StringVar(&LogsOutputDir, "output-dir", "", "output directory for the downloaded log file (defaults to Downloads folder)")
+	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
+	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
+	logsCmd.Flags().BoolVar(&LogsJson, "json", false, "output result as JSON")
 }
 
 func getDefaultLogsDir() (string, error) {
