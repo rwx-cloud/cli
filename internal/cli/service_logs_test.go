@@ -72,6 +72,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to download logs")
 		require.Contains(t, err.Error(), "download failed")
+		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
 	t.Run("when writing file fails", func(t *testing.T) {
@@ -97,6 +98,7 @@ func TestService_DownloadLogs(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to write log file")
+		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
 	t.Run("when download succeeds with single log file (no Contents)", func(t *testing.T) {
@@ -138,6 +140,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		output := s.mockStdout.String()
 		require.Contains(t, output, "Logs downloaded to")
 		require.Contains(t, output, "task-123-logs.log")
+		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
 	t.Run("when download succeeds with zip file (with Contents)", func(t *testing.T) {
@@ -181,6 +184,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		output := s.mockStdout.String()
 		require.Contains(t, output, "Logs downloaded to")
 		require.Contains(t, output, "task-456-logs.zip")
+		require.Contains(t, s.mockStderr.String(), "Downloading logs...")
 	})
 
 	t.Run("when validation fails", func(t *testing.T) {
