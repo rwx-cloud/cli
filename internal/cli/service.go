@@ -575,7 +575,14 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 		return errors.Wrap(err, "unable to fetch log archive request")
 	}
 
+	stopSpinner := spin(
+		"Downloading logs...",
+		s.StderrIsTTY,
+		s.Stderr,
+	)
+
 	logBytes, err := s.APIClient.DownloadLogs(LogDownloadRequest)
+	stopSpinner()
 	if err != nil {
 		return errors.Wrap(err, "unable to download logs")
 	}
