@@ -329,10 +329,12 @@ func (c PullImageConfig) Validate() error {
 }
 
 type DownloadLogsConfig struct {
-	TaskID     string
-	OutputDir  string
-	OutputFile string
-	Json       bool
+	TaskID      string
+	OutputDir   string
+	OutputFile  string
+	Json        bool
+	AutoExtract bool
+	Open        bool
 }
 
 func (c DownloadLogsConfig) Validate() error {

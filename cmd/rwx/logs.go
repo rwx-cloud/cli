@@ -12,9 +12,11 @@ import (
 )
 
 var (
-	LogsOutputDir  string
-	LogsOutputFile string
-	LogsJson       bool
+	LogsOutputDir   string
+	LogsOutputFile  string
+	LogsJson        bool
+	LogsAutoExtract bool
+	LogsOpen        bool
 
 	logsCmd = &cobra.Command{
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -57,10 +59,12 @@ var (
 			}
 
 			err = service.DownloadLogs(cli.DownloadLogsConfig{
-				TaskID:     taskId,
-				OutputDir:  absOutputDir,
-				OutputFile: absOutputFile,
-				Json:       LogsJson,
+				TaskID:      taskId,
+				OutputDir:   absOutputDir,
+				OutputFile:  absOutputFile,
+				Json:        LogsJson,
+				AutoExtract: LogsAutoExtract,
+				Open:        LogsOpen,
 			})
 			if err != nil {
 				return err
@@ -78,6 +82,8 @@ func init() {
 	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	logsCmd.Flags().BoolVar(&LogsJson, "json", false, "output result as JSON")
+	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
+	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
 }
 
 func getDefaultLogsDir() (string, error) {
