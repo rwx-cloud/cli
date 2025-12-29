@@ -29,30 +29,44 @@ var (
 
 	runCmd = &cobra.Command{
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			for _, arg := range args {
-				if strings.Contains(arg, "=") {
-					initParam := strings.Split(arg, "=")[0]
-					return fmt.Errorf(
-						"You have specified a task target with an equals sign: \"%s\".\n"+
-							"Are you trying to specify an init parameter \"%s\"?\n"+
-							"You can define multiple init parameters by specifying --%s multiple times.\n"+
-							"You may have meant to specify --%s \"%s\".",
-						arg,
-						initParam,
-						flagInit,
-						flagInit,
-						arg,
-					)
+			// Only validate args when creating a run (no subcommand matched)
+			// Skip validation if the first arg is a subcommand
+			if cmd.Name() == "run" && len(args) > 0 {
+				firstArg := args[0]
+				isSubcommand := false
+				for _, subCmd := range cmd.Commands() {
+					if subCmd.Name() == firstArg {
+						isSubcommand = true
+						break
+					}
 				}
-			}
+				if !isSubcommand {
+					for _, arg := range args {
+						if strings.Contains(arg, "=") {
+							initParam := strings.Split(arg, "=")[0]
+							return fmt.Errorf(
+								"You have specified a task target with an equals sign: \"%s\".\n"+
+									"Are you trying to specify an init parameter \"%s\"?\n"+
+									"You can define multiple init parameters by specifying --%s multiple times.\n"+
+									"You may have meant to specify --%s \"%s\".",
+								arg,
+								initParam,
+								flagInit,
+								flagInit,
+								arg,
+							)
+						}
+					}
 
-			fileFlag := cmd.Flags().Lookup("file")
-			if (len(args) > 0 && fileFlag.Changed) || len(args) > 1 {
-				return fmt.Errorf(
-					"positional arguments are not supported for task targeting.\n" +
-						"Use --target to specify task targets instead.\n" +
-						"For example: rwx run <file> --target <task>",
-				)
+					fileFlag := cmd.Flags().Lookup("file")
+					if (len(args) > 0 && fileFlag.Changed) || len(args) > 1 {
+						return fmt.Errorf(
+							"positional arguments are not supported for task targeting.\n" +
+								"Use --target to specify task targets instead.\n" +
+								"For example: rwx run <file> --target <task>",
+						)
+					}
+				}
 			}
 
 			return requireAccessToken()
@@ -133,8 +147,34 @@ var (
 			return nil
 
 		},
-		Short: "Start a new run",
+		Short: "Manage runs",
 		Use:   "run <file> [flags]",
+	}
+
+	runListCmd = &cobra.Command{
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("List runs (placeholder)")
+			return nil
+		},
+		Short: "List runs",
+		Use:   "list [flags]",
+	}
+
+	runViewCmd = &cobra.Command{
+		Args: cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runId := args[0]
+			fmt.Printf("View run %s (placeholder)\n", runId)
+			return nil
+		},
+		Short: "View a run",
+		Use:   "view <runId> [flags]",
 	}
 )
 
@@ -149,4 +189,7 @@ func init() {
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
+
+	runCmd.AddCommand(runListCmd)
+	runCmd.AddCommand(runViewCmd)
 }
