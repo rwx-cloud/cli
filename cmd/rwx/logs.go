@@ -81,7 +81,7 @@ func init() {
 	logsCmd.Flags().StringVar(&LogsOutputDir, "output-dir", "", "output directory for the downloaded log file (defaults to Downloads folder)")
 	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
-	logsCmd.Flags().BoolVar(&LogsJson, "json", false, "output result as JSON")
+	logsCmd.Flags().BoolVar(&LogsJson, "json", false, "output file locations as JSON")
 	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
 	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
 }
