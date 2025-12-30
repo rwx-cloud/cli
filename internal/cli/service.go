@@ -1217,3 +1217,28 @@ func tryGetSliceAtIndex[S ~[]E, E any](s S, index int, defaultValue E) E {
 	}
 	return s[index]
 }
+
+func (s Service) ListRuns(cfg ListRunsConfig) (*api.ListRunsResult, error) {
+	defer s.outputLatestVersionMessage()
+
+	result, err := s.APIClient.ListRuns(api.ListRunsConfig{
+		RepositoryNames:    cfg.RepositoryNames,
+		BranchNames:        cfg.BranchNames,
+		TagNames:           cfg.TagNames,
+		Authors:            cfg.Authors,
+		CommitShas:         cfg.CommitShas,
+		DefinitionPaths:    cfg.DefinitionPaths,
+		Triggers:           cfg.Triggers,
+		TargetedTaskKeys:   cfg.TargetedTaskKeys,
+		ResultStatuses:     cfg.ResultStatuses,
+		ExecutionStatuses:  cfg.ExecutionStatuses,
+		MergeRequestLabels: cfg.MergeRequestLabels,
+		StartDate:          cfg.StartDate,
+		MyRuns:             cfg.MyRuns,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list runs")
+	}
+
+	return result, nil
+}

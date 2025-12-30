@@ -328,6 +328,23 @@ func (c PullImageConfig) Validate() error {
 	return nil
 }
 
+type ListRunsConfig struct {
+	RepositoryNames    []string
+	BranchNames        []string
+	TagNames           []string
+	Authors            []string
+	CommitShas         []string
+	DefinitionPaths    []string
+	Triggers           []string
+	TargetedTaskKeys   []string
+	ResultStatuses     []string
+	ExecutionStatuses  []string
+	MergeRequestLabels []string
+	StartDate          string
+	MyRuns             bool
+	Json               bool
+}
+
 type DownloadLogsConfig struct {
 	TaskID      string
 	OutputDir   string

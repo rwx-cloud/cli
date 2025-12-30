@@ -27,6 +27,22 @@ var (
 	Debug          bool
 	Title          string
 
+	// Run list filter flags
+	ListRepositoryNames    []string
+	ListBranchNames        []string
+	ListTagNames           []string
+	ListAuthors            []string
+	ListCommitShas         []string
+	ListDefinitionPaths    []string
+	ListTriggers           []string
+	ListTargetedTaskKeys   []string
+	ListResultStatuses     []string
+	ListExecutionStatuses  []string
+	ListMergeRequestLabels []string
+	ListStartDate          string
+	ListMyRuns             bool
+	ListJson               bool
+
 	runCmd = &cobra.Command{
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Only validate args when creating a run (no subcommand matched)
@@ -156,7 +172,51 @@ var (
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("List runs (placeholder)")
+			result, err := service.ListRuns(cli.ListRunsConfig{
+				RepositoryNames:    ListRepositoryNames,
+				BranchNames:        ListBranchNames,
+				TagNames:           ListTagNames,
+				Authors:            ListAuthors,
+				CommitShas:         ListCommitShas,
+				DefinitionPaths:    ListDefinitionPaths,
+				Triggers:           ListTriggers,
+				TargetedTaskKeys:   ListTargetedTaskKeys,
+				ResultStatuses:     ListResultStatuses,
+				ExecutionStatuses:  ListExecutionStatuses,
+				MergeRequestLabels: ListMergeRequestLabels,
+				StartDate:          ListStartDate,
+				MyRuns:             ListMyRuns,
+				Json:               ListJson,
+			})
+			if err != nil {
+				return err
+			}
+
+			if ListJson {
+				jsonOutput, err := json.Marshal(result)
+				if err != nil {
+					return errors.Wrap(err, "unable to marshal JSON")
+				}
+				fmt.Println(string(jsonOutput))
+			} else {
+				if len(result.Runs) == 0 {
+					fmt.Println("No runs found")
+					return nil
+				}
+				for _, run := range result.Runs {
+					runId := run.ID
+					title := "N/A"
+					if run.Title != nil {
+						title = *run.Title
+					}
+					status := "N/A"
+					if run.ResultStatus != nil {
+						status = *run.ResultStatus
+					}
+					fmt.Printf("%s\t%s\t%s\n", runId, status, title)
+				}
+			}
+
 			return nil
 		},
 		Short: "List runs",
@@ -192,4 +252,20 @@ func init() {
 
 	runCmd.AddCommand(runListCmd)
 	runCmd.AddCommand(runViewCmd)
+
+	// Run list flags
+	runListCmd.Flags().StringArrayVar(&ListRepositoryNames, "repository", []string{}, "filter by repository name (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListBranchNames, "branch", []string{}, "filter by branch name (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListTagNames, "tag", []string{}, "filter by tag name (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListAuthors, "author", []string{}, "filter by author (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListCommitShas, "commit-sha", []string{}, "filter by commit SHA (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListDefinitionPaths, "definition-path", []string{}, "filter by definition path (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListTriggers, "trigger", []string{}, "filter by trigger (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListTargetedTaskKeys, "targeted-task-key", []string{}, "filter by targeted task key (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListResultStatuses, "result-status", []string{}, "filter by result status (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListExecutionStatuses, "execution-status", []string{}, "filter by execution status (can be specified multiple times)")
+	runListCmd.Flags().StringArrayVar(&ListMergeRequestLabels, "merge-request-label", []string{}, "filter by merge request label (can be specified multiple times)")
+	runListCmd.Flags().StringVar(&ListStartDate, "start-date", "", "filter by start date (YYYY-MM-DD format)")
+	runListCmd.Flags().BoolVar(&ListMyRuns, "my-runs", false, "filter to show only runs by the current user")
+	runListCmd.Flags().BoolVar(&ListJson, "json", false, "output json data to stdout")
 }

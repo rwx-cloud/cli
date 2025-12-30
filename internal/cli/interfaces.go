@@ -25,6 +25,7 @@ type APIClient interface {
 	TaskStatus(api.TaskStatusConfig) (api.TaskStatusResult, error)
 	GetLogDownloadRequest(taskId string) (api.LogDownloadRequestResult, error)
 	DownloadLogs(api.LogDownloadRequestResult, ...int) ([]byte, error)
+	ListRuns(api.ListRunsConfig) (*api.ListRunsResult, error)
 }
 
 var _ APIClient = api.Client{}

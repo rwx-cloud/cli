@@ -287,3 +287,48 @@ type LogDownloadRequestResult struct {
 	Filename string  `json:"filename"`
 	Contents *string `json:"contents,omitempty"`
 }
+
+type ListRunsConfig struct {
+	RepositoryNames    []string
+	BranchNames        []string
+	TagNames           []string
+	Authors            []string
+	CommitShas         []string
+	DefinitionPaths    []string
+	Triggers           []string
+	TargetedTaskKeys   []string
+	ResultStatuses     []string
+	ExecutionStatuses  []string
+	MergeRequestLabels []string
+	StartDate          string
+	MyRuns             bool
+}
+
+type RunOverview struct {
+	ID                        string   `json:"id"`
+	StartedAt                 *string  `json:"started_at"`
+	CompletedAt               *string  `json:"completed_at"`
+	CancelledAt               *string  `json:"cancelled_at"`
+	RepositoryName            *string  `json:"repository_name"`
+	RepositoryURL             *string  `json:"repository_url"`
+	Branch                    *string  `json:"branch"`
+	Tag                       *string  `json:"tag"`
+	CommitSha                 *string  `json:"commit_sha"`
+	Author                    *string  `json:"author"`
+	CommitMessage             *string  `json:"commit_message"`
+	ResultStatus              *string  `json:"result_status"`
+	ExecutionStatus           *string  `json:"execution_status"`
+	ExecutionAbortedSubStatus *string  `json:"execution_aborted_sub_status"`
+	ExecutionWaitingSubStatus *string  `json:"execution_waiting_sub_status"`
+	RwxUserEmail              *string  `json:"rwx_user_email"`
+	DefinitionPath            *string  `json:"definition_path"`
+	Trigger                   *string  `json:"trigger"`
+	TargetedTaskKeys          []string `json:"targeted_task_keys"`
+	Title                     *string  `json:"title"`
+	VcsProvider               *string  `json:"vcs_provider"`
+	CompletedRuntimeSeconds   int      `json:"completed_runtime_seconds"`
+}
+
+type ListRunsResult struct {
+	Runs []RunOverview `json:"runs"`
+}

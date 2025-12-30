@@ -600,6 +600,107 @@ func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, 
 	return result, nil
 }
 
+func (c Client) ListRuns(cfg ListRunsConfig) (*ListRunsResult, error) {
+	endpoint := "/mint/api/runs"
+
+	// Build query parameters
+	params := url.Values{}
+	if len(cfg.RepositoryNames) > 0 {
+		for _, repo := range cfg.RepositoryNames {
+			params.Add("repository_names[]", repo)
+		}
+	}
+	if len(cfg.BranchNames) > 0 {
+		for _, branch := range cfg.BranchNames {
+			params.Add("branch_names[]", branch)
+		}
+	}
+	if len(cfg.TagNames) > 0 {
+		for _, tag := range cfg.TagNames {
+			params.Add("tag_names[]", tag)
+		}
+	}
+	if len(cfg.Authors) > 0 {
+		for _, author := range cfg.Authors {
+			params.Add("authors[]", author)
+		}
+	}
+	if len(cfg.CommitShas) > 0 {
+		for _, sha := range cfg.CommitShas {
+			params.Add("commit_shas[]", sha)
+		}
+	}
+	if len(cfg.DefinitionPaths) > 0 {
+		for _, path := range cfg.DefinitionPaths {
+			params.Add("definition_paths[]", path)
+		}
+	}
+	if len(cfg.Triggers) > 0 {
+		for _, trigger := range cfg.Triggers {
+			params.Add("triggers[]", trigger)
+		}
+	}
+	if len(cfg.TargetedTaskKeys) > 0 {
+		for _, key := range cfg.TargetedTaskKeys {
+			params.Add("targeted_task_keys[]", key)
+		}
+	}
+	if len(cfg.ResultStatuses) > 0 {
+		for _, status := range cfg.ResultStatuses {
+			params.Add("result_statuses[]", status)
+		}
+	}
+	if len(cfg.ExecutionStatuses) > 0 {
+		for _, status := range cfg.ExecutionStatuses {
+			params.Add("execution_statuses[]", status)
+		}
+	}
+	if len(cfg.MergeRequestLabels) > 0 {
+		for _, label := range cfg.MergeRequestLabels {
+			params.Add("merge_request_labels[]", label)
+		}
+	}
+	if cfg.StartDate != "" {
+		params.Set("start_date", cfg.StartDate)
+	}
+	if cfg.MyRuns {
+		params.Set("my_runs", "true")
+	}
+
+	if len(params) > 0 {
+		endpoint += "?" + params.Encode()
+	}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	respBody := ListRunsResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &respBody, nil
+}
+
 func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationSeconds ...int) ([]byte, error) {
 	maxRetryDuration := 30 * time.Second
 	if len(maxRetryDurationSeconds) > 0 && maxRetryDurationSeconds[0] > 0 {

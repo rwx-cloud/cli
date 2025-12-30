@@ -215,6 +215,113 @@ func TestAPIClient_SetSecretsInVault(t *testing.T) {
 	})
 }
 
+func TestAPIClient_ListRuns(t *testing.T) {
+	t.Run("makes the request with no filters", func(t *testing.T) {
+		expectedRuns := []api.RunOverview{
+			{
+				ID:                      "run-1",
+				RepositoryName:          stringPtr("test-repo"),
+				Branch:                  stringPtr("main"),
+				DefinitionPath:          stringPtr(".rwx/ci.yml"),
+				CompletedRuntimeSeconds: 120,
+			},
+		}
+		responseBody := api.ListRunsResult{Runs: expectedRuns}
+		bodyBytes, _ := json.Marshal(responseBody)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			require.Equal(t, "", req.URL.RawQuery)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.ListRuns(api.ListRunsConfig{})
+		require.NoError(t, err)
+		require.Len(t, result.Runs, 1)
+		require.Equal(t, "run-1", result.Runs[0].ID)
+	})
+
+	t.Run("builds query parameters correctly", func(t *testing.T) {
+		responseBody := api.ListRunsResult{Runs: []api.RunOverview{}}
+		bodyBytes, _ := json.Marshal(responseBody)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+
+			query := req.URL.Query()
+			require.Equal(t, []string{"repo1", "repo2"}, query["repository_names[]"])
+			require.Equal(t, []string{"main", "develop"}, query["branch_names[]"])
+			require.Equal(t, []string{"v1.0.0"}, query["tag_names[]"])
+			require.Equal(t, []string{"author1"}, query["authors[]"])
+			require.Equal(t, []string{"abc123"}, query["commit_shas[]"])
+			require.Equal(t, []string{".rwx/ci.yml"}, query["definition_paths[]"])
+			require.Equal(t, []string{"git_push"}, query["triggers[]"])
+			require.Equal(t, []string{"task1"}, query["targeted_task_keys[]"])
+			require.Equal(t, []string{"succeeded"}, query["result_statuses[]"])
+			require.Equal(t, []string{"finished"}, query["execution_statuses[]"])
+			require.Equal(t, []string{"repo#123"}, query["merge_request_labels[]"])
+			require.Equal(t, "2024-01-01", query.Get("start_date"))
+			require.Equal(t, "true", query.Get("my_runs"))
+
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.ListRuns(api.ListRunsConfig{
+			RepositoryNames:    []string{"repo1", "repo2"},
+			BranchNames:        []string{"main", "develop"},
+			TagNames:           []string{"v1.0.0"},
+			Authors:            []string{"author1"},
+			CommitShas:         []string{"abc123"},
+			DefinitionPaths:    []string{".rwx/ci.yml"},
+			Triggers:           []string{"git_push"},
+			TargetedTaskKeys:   []string{"task1"},
+			ResultStatuses:     []string{"succeeded"},
+			ExecutionStatuses:  []string{"finished"},
+			MergeRequestLabels: []string{"repo#123"},
+			StartDate:          "2024-01-01",
+			MyRuns:             true,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("handles HTTP error responses", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "500 Internal Server Error",
+				StatusCode: 500,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Internal error"}`))),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.ListRuns(api.ListRunsConfig{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Internal error")
+	})
+}
+
+func stringPtr(s string) *string {
+	return &s
+}
+
 func TestAPIClient_InitiateDispatch(t *testing.T) {
 	t.Run("builds the request and parses the response", func(t *testing.T) {
 		body := struct {
