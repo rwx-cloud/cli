@@ -249,8 +249,10 @@ type StartImagePushConfigCredentials struct {
 }
 
 type StartImagePushResult struct {
-	PushID string `json:"push_id"`
-	RunURL string `json:"run_url"`
+	TaskNotFound bool
+	Error        string `json:"error,omitempty"`
+	PushID       string `json:"push_id"`
+	RunURL       string `json:"run_url"`
 }
 
 type ImagePushStatusResult struct {

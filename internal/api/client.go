@@ -525,6 +525,10 @@ func (c Client) StartImagePush(cfg StartImagePushConfig) (StartImagePushResult, 
 		return result, err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		result.TaskNotFound = true
+		result.Error = "task not found"
+	}
 	return result, nil
 }
 

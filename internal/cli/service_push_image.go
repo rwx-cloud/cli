@@ -93,9 +93,29 @@ func (s Service) PushImage(config PushImageConfig) error {
 	}
 
 	result, err := s.APIClient.StartImagePush(request)
-	stopStartSpinner()
 	if err != nil {
+		stopStartSpinner()
 		return err
+	}
+
+	attemptsMade := 0
+	for result.PushID == "" && attemptsMade < 60 {
+		if result.TaskNotFound {
+			attemptsMade++
+			time.Sleep(1 * time.Second)
+			result, err = s.APIClient.StartImagePush(request)
+			if err != nil {
+				stopStartSpinner()
+				return err
+			}
+		} else {
+			break
+		}
+	}
+	stopStartSpinner()
+
+	if result.PushID == "" {
+		return fmt.Errorf("unable to start image push: %v", result.Error)
 	}
 
 	if !config.JSON {
