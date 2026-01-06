@@ -262,6 +262,10 @@ type TaskKeyStatusConfig struct {
 	TaskKey string
 }
 
+type TaskIDStatusConfig struct {
+	TaskID string
+}
+
 const (
 	TaskStatusSucceeded = "succeeded"
 )

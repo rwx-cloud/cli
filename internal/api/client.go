@@ -576,6 +576,30 @@ func (c Client) TaskKeyStatus(cfg TaskKeyStatusConfig) (TaskStatusResult, error)
 	return result, nil
 }
 
+func (c Client) TaskIDStatus(cfg TaskIDStatusConfig) (TaskStatusResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/tasks/%s/status", url.PathEscape(cfg.TaskID))
+	result := TaskStatusResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/log_downloads/%s", url.PathEscape(taskId))
 	result := LogDownloadRequestResult{}
