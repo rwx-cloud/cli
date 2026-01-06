@@ -632,6 +632,14 @@ func TestService_BuildImage(t *testing.T) {
 			return types.AuthConfig{Username: "registry-user", Password: "registry-pass"}, nil
 		}
 
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+				TaskID:  "task-456",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "task-456", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
