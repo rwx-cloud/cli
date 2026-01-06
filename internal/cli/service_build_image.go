@@ -52,7 +52,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		default:
 		}
 
-		result, err := s.APIClient.TaskKeyStatus(api.TaskKeyStatusConfig{
+		result, err := s.APIClient.TaskStatus(api.TaskStatusConfig{
 			RunID:   runResult.RunId,
 			TaskKey: config.TargetTaskKey,
 		})

@@ -257,13 +257,9 @@ type ImagePushStatusResult struct {
 	Status string `json:"status"`
 }
 
-type TaskKeyStatusConfig struct {
+type TaskStatusConfig struct {
 	RunID   string
 	TaskKey string
-}
-
-type TaskIDStatusConfig struct {
-	TaskID string
 }
 
 const (
