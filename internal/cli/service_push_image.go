@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -91,36 +90,6 @@ func (s Service) PushImage(config PushImageConfig) error {
 			s.StderrIsTTY,
 			s.Stderr,
 		)
-	}
-
-	taskStatusTimeout, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	succeeded := false
-	for !succeeded {
-		select {
-		case <-taskStatusTimeout.Done():
-			stopStartSpinner()
-			return fmt.Errorf("timed out waiting for task %s to complete", config.TaskID)
-		default:
-		}
-
-		result, err := s.APIClient.TaskIDStatus(api.TaskIDStatusConfig{TaskID: config.TaskID})
-		if err != nil {
-			stopStartSpinner()
-			return fmt.Errorf("failed to get task status: %w", err)
-		}
-
-		if result.Polling.Completed {
-			if result.Status != nil && result.Status.Result == api.TaskStatusSucceeded {
-				succeeded = true
-			} else {
-				stopStartSpinner()
-				return fmt.Errorf("task failed")
-			}
-		} else {
-			time.Sleep(time.Duration(*result.Polling.BackoffMs) * time.Millisecond)
-		}
 	}
 
 	result, err := s.APIClient.StartImagePush(request)

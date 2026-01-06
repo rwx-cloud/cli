@@ -52,7 +52,7 @@ func TestService_BuildImage(t *testing.T) {
 		}
 
 		callCount := 0
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			require.Equal(t, "run-123", cfg.RunID)
 			require.Equal(t, "build-task", cfg.TaskKey)
 
@@ -124,7 +124,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
@@ -206,7 +206,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{}, fmt.Errorf("failed to get task status")
 		}
 
@@ -236,7 +236,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: "failed"},
 				Polling: api.PollingResult{
@@ -270,7 +270,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: "failed"},
 				Polling: api.PollingResult{
@@ -304,7 +304,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
@@ -346,7 +346,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
@@ -394,7 +394,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID: "task-456",
@@ -444,7 +444,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: "unknown-status"},
 				Polling: api.PollingResult{
@@ -478,7 +478,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: nil,
 				Polling: api.PollingResult{
@@ -512,7 +512,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status: &api.TaskStatus{Result: "pending"},
 				Polling: api.PollingResult{
@@ -548,7 +548,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID:  "task-456",
@@ -609,7 +609,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID:  "task-456",
@@ -630,14 +630,6 @@ func TestService_BuildImage(t *testing.T) {
 
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "registry-user", Password: "registry-pass"}, nil
-		}
-
-		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
-			return api.TaskStatusResult{
-				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
-				TaskID:  "task-456",
-				Polling: api.PollingResult{Completed: true},
-			}, nil
 		}
 
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
@@ -687,7 +679,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+		s.mockAPI.MockTaskStatus = func(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
 			return api.TaskStatusResult{
 				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
 				TaskID:  "task-456",
