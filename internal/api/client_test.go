@@ -377,6 +377,28 @@ func TestAPIClient_ImagePushStatus(t *testing.T) {
 	})
 }
 
+func TestAPIClient_TaskIDStatus(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/tasks/abc123/status", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+
+			body := `{"polling": {"completed": true}}`
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.TaskIDStatus(api.TaskIDStatusConfig{TaskID: "abc123"})
+		require.NoError(t, err)
+		require.True(t, result.Polling.Completed)
+	})
+}
+
 func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
 	t.Run("builds the request and parses the response without contents", func(t *testing.T) {
 		body := struct {
