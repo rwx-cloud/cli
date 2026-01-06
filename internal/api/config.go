@@ -257,7 +257,7 @@ type ImagePushStatusResult struct {
 	Status string `json:"status"`
 }
 
-type TaskStatusConfig struct {
+type TaskKeyStatusConfig struct {
 	RunID   string
 	TaskKey string
 }

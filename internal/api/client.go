@@ -552,7 +552,7 @@ func (c Client) ImagePushStatus(pushID string) (ImagePushStatusResult, error) {
 	return result, nil
 }
 
-func (c Client) TaskStatus(cfg TaskStatusConfig) (TaskStatusResult, error) {
+func (c Client) TaskKeyStatus(cfg TaskKeyStatusConfig) (TaskStatusResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/runs/%s/task_status?task_key=%s", url.PathEscape(cfg.RunID), url.PathEscape(cfg.TaskKey))
 	result := TaskStatusResult{}
 
