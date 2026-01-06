@@ -7,9 +7,8 @@ import (
 )
 
 var imageCmd = &cobra.Command{
-	Use:    "image",
-	Short:  "Manage OCI images",
-	Hidden: true,
+	Use:   "image",
+	Short: "Manage OCI images",
 }
 
 // for backcompat
