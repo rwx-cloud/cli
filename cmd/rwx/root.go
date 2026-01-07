@@ -105,20 +105,29 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "enable debug output")
 	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 
-	rootCmd.AddCommand(runCmd)
+	// Define command groups for help output ordering
+	rootCmd.AddGroup(&cobra.Group{ID: "meta", Title: ""})
+	rootCmd.AddGroup(&cobra.Group{ID: "commands", Title: "Commands:"})
+
+	// Set group IDs for built-in commands
+	rootCmd.SetHelpCommandGroupID("meta")
+	rootCmd.SetCompletionCommandGroupID("meta")
+
+	// Add commands (GroupID is set in each command's definition)
 	rootCmd.AddCommand(debugCmd)
 	rootCmd.AddCommand(dispatchCmd)
-	rootCmd.AddCommand(loginCmd)
-	rootCmd.AddCommand(whoamiCmd)
-	rootCmd.AddCommand(vaultsCmd)
-	rootCmd.AddCommand(packagesCmd)
-	rootCmd.AddCommand(lintCmd)
-	rootCmd.AddCommand(resolveCmd)
-	rootCmd.AddCommand(updateCmd)
-	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(imageCmd)
-	rootCmd.AddCommand(pushCmd)
+	rootCmd.AddCommand(lintCmd)
+	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logsCmd)
+	rootCmd.AddCommand(mcpCmd)
+	rootCmd.AddCommand(packagesCmd)
+	rootCmd.AddCommand(pushCmd)
+	rootCmd.AddCommand(resolveCmd)
+	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(vaultsCmd)
+	rootCmd.AddCommand(whoamiCmd)
 
 	cobra.OnInitialize(func() {
 		if AccessToken == "$RWX_ACCESS_TOKEN" {

@@ -6,8 +6,9 @@ import (
 )
 
 var updateCmd = &cobra.Command{
-	Short: "Update versions for base layers and RWX packages",
-	Use:   "update [flags] [files...]",
+	GroupID: "commands",
+	Short:   "Update versions for base layers and RWX packages",
+	Use:     "update [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {

@@ -20,6 +20,7 @@ var (
 	OpenMintLoginAuthorizationUrl bool
 
 	loginCmd = &cobra.Command{
+		GroupID: "meta",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// try to collect the device name if one is not provided
 			if DeviceName == "" {

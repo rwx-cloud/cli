@@ -23,7 +23,8 @@ var (
 	DispatchRef    string
 
 	dispatchCmd = &cobra.Command{
-		Args: cobra.ExactArgs(1),
+		GroupID: "commands",
+		Args:    cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},
