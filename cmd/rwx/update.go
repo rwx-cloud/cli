@@ -6,7 +6,7 @@ import (
 )
 
 var updateCmd = &cobra.Command{
-	GroupID: "commands",
+	GroupID: "definitions",
 	Short:   "Update versions for base layers and RWX packages",
 	Use:     "update [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {

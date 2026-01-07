@@ -10,7 +10,7 @@ var (
 	WhoamiJson bool
 
 	whoamiCmd = &cobra.Command{
-		GroupID: "meta",
+		GroupID: "setup",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},

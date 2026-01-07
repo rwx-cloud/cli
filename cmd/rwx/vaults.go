@@ -6,7 +6,7 @@ import (
 )
 
 var vaultsCmd = &cobra.Command{
-	GroupID: "commands",
+	GroupID: "api",
 	Short:   "Manage vaults and secrets",
 	Use:     "vaults",
 }

@@ -18,7 +18,7 @@ var (
 	LintOutputFormat     string
 
 	lintCmd = &cobra.Command{
-		GroupID: "commands",
+		GroupID: "definitions",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},

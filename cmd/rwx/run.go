@@ -28,7 +28,7 @@ var (
 	Title          string
 
 	runCmd = &cobra.Command{
-		GroupID: "commands",
+		GroupID: "execution",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if strings.Contains(arg, "=") {

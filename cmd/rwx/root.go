@@ -106,12 +106,15 @@ func init() {
 	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 
 	// Define command groups for help output ordering
-	rootCmd.AddGroup(&cobra.Group{ID: "meta", Title: ""})
-	rootCmd.AddGroup(&cobra.Group{ID: "commands", Title: "Commands:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "execution", Title: "Execution:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "results", Title: "Results:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "api", Title: "API:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "definitions", Title: "Definitions:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "setup", Title: "Setup:"})
 
 	// Set group IDs for built-in commands
-	rootCmd.SetHelpCommandGroupID("meta")
-	rootCmd.SetCompletionCommandGroupID("meta")
+	rootCmd.SetHelpCommandGroupID("setup")
+	rootCmd.SetCompletionCommandGroupID("setup")
 
 	// Add commands (GroupID is set in each command's definition)
 	rootCmd.AddCommand(debugCmd)

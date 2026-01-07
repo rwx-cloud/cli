@@ -7,7 +7,7 @@ import (
 )
 
 var imageCmd = &cobra.Command{
-	GroupID: "commands",
+	GroupID: "execution",
 	Use:     "image",
 	Short:   "Manage OCI images",
 }
@@ -25,7 +25,7 @@ func init() {
 
 	// for backcompat
 	pushCmd = &cobra.Command{
-		GroupID: "commands",
+		GroupID: "execution",
 		Args:    image.PushCmd.Args,
 		PreRunE: image.PushCmd.PreRunE,
 		RunE:    image.PushCmd.RunE,

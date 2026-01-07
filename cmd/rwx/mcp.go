@@ -7,7 +7,7 @@ import (
 
 var (
 	mcpCmd = &cobra.Command{
-		GroupID: "commands",
+		GroupID: "setup",
 		Use:     "mcp",
 		Short:   "MCP (Model Context Protocol) related commands",
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 var debugCmd = &cobra.Command{
-	GroupID: "commands",
+	GroupID: "execution",
 	Args:    cobra.ExactArgs(1),
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requireAccessToken()

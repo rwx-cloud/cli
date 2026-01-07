@@ -6,7 +6,7 @@ import (
 )
 
 var packagesCmd = &cobra.Command{
-	GroupID: "commands",
+	GroupID: "definitions",
 	Short:   "Manage RWX packages",
 	Use:     "packages",
 }
