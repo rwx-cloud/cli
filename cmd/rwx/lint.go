@@ -50,9 +50,8 @@ var (
 
 			return nil
 		},
-		Short:  "Lint RWX configuration files",
-		Use:    "lint [flags]",
-		Hidden: true,
+		Short: "Lint RWX configuration files",
+		Use:   "lint [flags]",
 	}
 )
 
