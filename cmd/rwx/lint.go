@@ -18,6 +18,7 @@ var (
 	LintOutputFormat     string
 
 	lintCmd = &cobra.Command{
+		GroupID: "definitions",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},
@@ -49,9 +50,8 @@ var (
 
 			return nil
 		},
-		Short:  "Lint RWX configuration files",
-		Use:    "lint [flags]",
-		Hidden: true,
+		Short: "Lint RWX configuration files",
+		Use:   "lint [flags]",
 	}
 )
 

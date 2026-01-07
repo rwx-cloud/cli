@@ -8,8 +8,9 @@ import (
 )
 
 var resolveCmd = &cobra.Command{
-	Short: "Resolve and add versions for base images and RWX packages",
-	Use:   "resolve [flags] [files...]",
+	GroupID: "definitions",
+	Short:   "Resolve and add versions for base images and RWX packages",
+	Use:     "resolve [flags] [files...]",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {
