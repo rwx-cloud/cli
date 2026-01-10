@@ -2,7 +2,7 @@ module github.com/rwx-cloud/cli
 
 go 1.24.0
 
-toolchain go1.24.1
+toolchain go1.25.5
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -10,7 +10,7 @@ require (
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v28.5.2+incompatible
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/goccy/go-yaml v1.19.1
+	github.com/goccy/go-yaml v1.19.2
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/manifoldco/promptui v0.9.0
 	github.com/moby/moby v28.5.2+incompatible
@@ -19,7 +19,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.46.0
-	golang.org/x/term v0.38.0
+	golang.org/x/term v0.39.0
 )
 
 require github.com/mattn/go-isatty v0.0.20 // indirect
@@ -87,5 +87,5 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/pflag v1.0.9 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 )
