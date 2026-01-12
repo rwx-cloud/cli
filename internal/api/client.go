@@ -701,6 +701,60 @@ func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationS
 	}
 }
 
+func (c Client) GetArtifactDownloadRequest(taskId, artifactKey string) (ArtifactDownloadRequestResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/tasks/%s/artifact_downloads/%s", url.PathEscape(taskId), url.PathEscape(artifactKey))
+	result := ArtifactDownloadRequestResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (c Client) DownloadArtifact(request ArtifactDownloadRequestResult) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, request.URL, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Accept", "application/octet-stream")
+
+	// Use http.DefaultClient directly since the artifact will come from storage (S3, etc.)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		artifactBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to read response body")
+		}
+		return artifactBytes, nil
+	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	errMsg := extractErrorMessage(bytes.NewReader(bodyBytes))
+	if errMsg == "" {
+		errMsg = fmt.Sprintf("Unable to download artifact - %s", resp.Status)
+	}
+	return nil, errors.New(errMsg)
+}
+
 func decodeResponseJSON(resp *http.Response, result any) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if result == nil {

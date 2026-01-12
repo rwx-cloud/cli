@@ -636,3 +636,250 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 		require.Equal(t, 1, attemptCount, "should not retry on 404")
 	})
 }
+
+func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
+	t.Run("builds the request and parses the response", func(t *testing.T) {
+		body := struct {
+			URL         string `json:"url"`
+			Filename    string `json:"filename"`
+			SizeInBytes int64  `json:"size_in_bytes"`
+			Kind        string `json:"kind"`
+			Key         string `json:"key"`
+		}{
+			URL:         "https://s3.example.com/artifacts/abc123",
+			Filename:    "task-123-my-artifact.tar",
+			SizeInBytes: 1024,
+			Kind:        "file",
+			Key:         "my-artifact",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/tasks/task-123/artifact_downloads/my-artifact", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetArtifactDownloadRequest("task-123", "my-artifact")
+		require.NoError(t, err)
+		require.Equal(t, "https://s3.example.com/artifacts/abc123", result.URL)
+		require.Equal(t, "task-123-my-artifact.tar", result.Filename)
+		require.Equal(t, int64(1024), result.SizeInBytes)
+		require.Equal(t, "file", result.Kind)
+		require.Equal(t, "my-artifact", result.Key)
+	})
+
+	t.Run("builds the request with directory kind", func(t *testing.T) {
+		body := struct {
+			URL         string `json:"url"`
+			Filename    string `json:"filename"`
+			SizeInBytes int64  `json:"size_in_bytes"`
+			Kind        string `json:"kind"`
+			Key         string `json:"key"`
+		}{
+			URL:         "https://s3.example.com/artifacts/def456",
+			Filename:    "task-456~my-dir.tar",
+			SizeInBytes: 4096,
+			Kind:        "directory",
+			Key:         "my-dir",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/tasks/task-456/artifact_downloads/my-dir", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetArtifactDownloadRequest("task-456", "my-dir")
+		require.NoError(t, err)
+		require.Equal(t, "directory", result.Kind)
+	})
+
+	t.Run("handles 404 not found", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/tasks/task-999/artifact_downloads/missing", req.URL.Path)
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Artifact not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetArtifactDownloadRequest("task-999", "missing")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("handles special characters in artifact key", func(t *testing.T) {
+		body := struct {
+			URL      string `json:"url"`
+			Filename string `json:"filename"`
+			Kind     string `json:"kind"`
+			Key      string `json:"key"`
+		}{
+			URL:      "https://example.com/artifact",
+			Filename: "file.tar",
+			Kind:     "file",
+			Key:      "my-artifact-v1.2.3",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Contains(t, req.URL.Path, "/mint/api/tasks/")
+			require.Contains(t, req.URL.Path, "/artifact_downloads/")
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetArtifactDownloadRequest("task-123", "my-artifact-v1.2.3")
+		require.NoError(t, err)
+	})
+}
+
+func TestAPIClient_DownloadArtifact(t *testing.T) {
+	t.Run("makes GET request to presigned URL", func(t *testing.T) {
+		artifactContents := []byte("artifact binary data")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "application/octet-stream", r.Header.Get("Accept"))
+
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(artifactContents)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadArtifact(api.ArtifactDownloadRequestResult{
+			URL:      server.URL,
+			Filename: "artifact.tar",
+			Kind:     "file",
+			Key:      "my-artifact",
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, artifactContents, result)
+	})
+
+	t.Run("returns error on 4xx response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, err := w.Write([]byte(`<?xml version="1.0"?><Error><Code>AccessDenied</Code></Error>`))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadArtifact(api.ArtifactDownloadRequestResult{
+			URL:      server.URL,
+			Filename: "artifact.tar",
+			Kind:     "file",
+			Key:      "my-artifact",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unable to download artifact")
+	})
+
+	t.Run("returns error on 404 from S3", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, err := w.Write([]byte(`<?xml version="1.0"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error>`))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadArtifact(api.ArtifactDownloadRequestResult{
+			URL:      server.URL,
+			Filename: "artifact.tar",
+			Kind:     "file",
+			Key:      "my-artifact",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "404")
+	})
+
+	t.Run("returns error on 403 errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`<?xml version="1.0"?><Error><Code>AccessDenied</Code></Error>`))
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		_, err := c.DownloadArtifact(api.ArtifactDownloadRequestResult{
+			URL:      server.URL,
+			Filename: "artifact.tar",
+			Kind:     "file",
+			Key:      "my-artifact",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unable to download artifact")
+	})
+
+	t.Run("handles large artifact download", func(t *testing.T) {
+		// Create a 1MB artifact
+		largeContent := make([]byte, 1024*1024)
+		for i := range largeContent {
+			largeContent[i] = byte(i % 256)
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, writeErr := w.Write(largeContent)
+			require.NoError(t, writeErr)
+		}))
+		defer server.Close()
+
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			return http.DefaultClient.Do(req)
+		})
+
+		result, err := c.DownloadArtifact(api.ArtifactDownloadRequestResult{
+			URL:      server.URL,
+			Filename: "large-artifact.tar",
+			Kind:     "directory",
+			Key:      "large-artifact",
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, largeContent, result)
+		require.Equal(t, 1024*1024, len(result))
+	})
+}
