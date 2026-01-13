@@ -287,3 +287,11 @@ type LogDownloadRequestResult struct {
 	Filename string  `json:"filename"`
 	Contents *string `json:"contents,omitempty"`
 }
+
+type ArtifactDownloadRequestResult struct {
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	SizeInBytes int64  `json:"size_in_bytes"`
+	Kind        string `json:"kind"`
+	Key         string `json:"key"`
+}

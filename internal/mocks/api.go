@@ -6,23 +6,25 @@ import (
 )
 
 type API struct {
-	MockInitiateRun            func(api.InitiateRunConfig) (*api.InitiateRunResult, error)
-	MockGetDebugConnectionInfo func(runID string) (api.DebugConnectionInfo, error)
-	MockObtainAuthCode         func(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
-	MockAcquireToken           func(tokenUrl string) (*api.AcquireTokenResult, error)
-	MockWhoami                 func() (*api.WhoamiResult, error)
-	MockSetSecretsInVault      func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
-	MockGetPackageVersions     func() (*api.PackageVersionsResult, error)
-	MockLint                   func(api.LintConfig) (*api.LintResult, error)
-	MockInitiateDispatch       func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
-	MockGetDispatch            func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
-	MockGetDefaultBase         func() (api.DefaultBaseResult, error)
-	MockMcpGetRunTestFailures  func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
-	MockStartImagePush         func(api.StartImagePushConfig) (api.StartImagePushResult, error)
-	MockImagePushStatus        func(string) (api.ImagePushStatusResult, error)
-	MockTaskStatus             func(api.TaskStatusConfig) (api.TaskStatusResult, error)
-	MockGetLogDownloadRequest  func(string) (api.LogDownloadRequestResult, error)
-	MockDownloadLogs           func(api.LogDownloadRequestResult) ([]byte, error)
+	MockInitiateRun                func(api.InitiateRunConfig) (*api.InitiateRunResult, error)
+	MockGetDebugConnectionInfo     func(runID string) (api.DebugConnectionInfo, error)
+	MockObtainAuthCode             func(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
+	MockAcquireToken               func(tokenUrl string) (*api.AcquireTokenResult, error)
+	MockWhoami                     func() (*api.WhoamiResult, error)
+	MockSetSecretsInVault          func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
+	MockGetPackageVersions         func() (*api.PackageVersionsResult, error)
+	MockLint                       func(api.LintConfig) (*api.LintResult, error)
+	MockInitiateDispatch           func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
+	MockGetDispatch                func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
+	MockGetDefaultBase             func() (api.DefaultBaseResult, error)
+	MockMcpGetRunTestFailures      func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
+	MockStartImagePush             func(api.StartImagePushConfig) (api.StartImagePushResult, error)
+	MockImagePushStatus            func(string) (api.ImagePushStatusResult, error)
+	MockTaskStatus                 func(api.TaskStatusConfig) (api.TaskStatusResult, error)
+	MockGetLogDownloadRequest      func(string) (api.LogDownloadRequestResult, error)
+	MockDownloadLogs               func(api.LogDownloadRequestResult) ([]byte, error)
+	MockGetArtifactDownloadRequest func(string, string) (api.ArtifactDownloadRequestResult, error)
+	MockDownloadArtifact           func(api.ArtifactDownloadRequestResult) ([]byte, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -159,4 +161,20 @@ func (c *API) DownloadLogs(request api.LogDownloadRequestResult, maxRetryDuratio
 	}
 
 	return nil, errors.New("MockDownloadLogs was not configured")
+}
+
+func (c *API) GetArtifactDownloadRequest(taskId, artifactKey string) (api.ArtifactDownloadRequestResult, error) {
+	if c.MockGetArtifactDownloadRequest != nil {
+		return c.MockGetArtifactDownloadRequest(taskId, artifactKey)
+	}
+
+	return api.ArtifactDownloadRequestResult{}, errors.New("MockGetArtifactDownloadRequest was not configured")
+}
+
+func (c *API) DownloadArtifact(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+	if c.MockDownloadArtifact != nil {
+		return c.MockDownloadArtifact(request)
+	}
+
+	return nil, errors.New("MockDownloadArtifact was not configured")
 }
