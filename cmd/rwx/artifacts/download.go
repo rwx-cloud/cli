@@ -15,6 +15,7 @@ var (
 	downloadOutputDir   string
 	downloadOutputFile  string
 	downloadJSON        bool
+	downloadOutput      string
 	downloadAutoExtract bool
 	downloadOpen        bool
 
@@ -60,13 +61,14 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 				}
 			}
 
+			useJson := downloadOutput == "json" || downloadJSON
 			err = getService().DownloadArtifact(cli.DownloadArtifactConfig{
 				TaskID:                 taskID,
 				ArtifactKey:            artifactKey,
 				OutputDir:              absOutputDir,
 				OutputFile:             absOutputFile,
 				OutputDirExplicitlySet: outputDirSet,
-				Json:                   downloadJSON,
+				Json:                   useJson,
 				AutoExtract:            downloadAutoExtract,
 				Open:                   downloadOpen,
 			})
@@ -84,6 +86,8 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 	DownloadCmd.Flags().StringVar(&downloadOutputFile, "output-file", "", "output file path for the downloaded artifact")
 	DownloadCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	DownloadCmd.Flags().BoolVar(&downloadJSON, "json", false, "output file locations as JSON")
+	_ = DownloadCmd.Flags().MarkHidden("json")
+	DownloadCmd.Flags().StringVar(&downloadOutput, "output", "text", "output format: text or json")
 	DownloadCmd.Flags().BoolVar(&downloadAutoExtract, "auto-extract", false, "automatically extract directory tar archives")
 	DownloadCmd.Flags().BoolVar(&downloadOpen, "open", false, "automatically open the downloaded file(s)")
 }
