@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	WhoamiJson bool
+	WhoamiJson   bool
+	WhoamiOutput string
 
 	whoamiCmd = &cobra.Command{
 		GroupID: "setup",
@@ -15,7 +16,8 @@ var (
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := service.Whoami(cli.WhoamiConfig{Json: WhoamiJson})
+			useJson := WhoamiOutput == "json" || WhoamiJson
+			err := service.Whoami(cli.WhoamiConfig{Json: useJson})
 			if err != nil {
 				return err
 			}
@@ -30,4 +32,6 @@ var (
 
 func init() {
 	whoamiCmd.Flags().BoolVar(&WhoamiJson, "json", false, "output JSON instead of a textual representation")
+	_ = whoamiCmd.Flags().MarkHidden("json")
+	whoamiCmd.Flags().StringVar(&WhoamiOutput, "output", "text", "output format: text or json")
 }
