@@ -19,6 +19,7 @@ const flagInit = "init"
 var (
 	InitParameters []string
 	Json           bool
+	Output         string
 	RwxDirectory   string
 	MintFilePath   string
 	TargetedTasks  []string
@@ -68,9 +69,10 @@ var (
 				return errors.Wrap(err, "unable to parse init parameters")
 			}
 
+			useJson := Output == "json" || Json
 			runResult, err := service.InitiateRun(cli.InitiateRunConfig{
 				InitParameters: initParams,
-				Json:           Json,
+				Json:           useJson,
 				RwxDirectory:   RwxDirectory,
 				MintFilePath:   MintFilePath,
 				NoCache:        NoCache,
@@ -81,7 +83,7 @@ var (
 				return err
 			}
 
-			if Json {
+			if useJson {
 				jsonOutput := struct {
 					RunId            string
 					RunURL           string
@@ -150,4 +152,6 @@ func init() {
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
+	_ = runCmd.Flags().MarkHidden("json")
+	runCmd.Flags().StringVar(&Output, "output", "text", "output format: text or json")
 }

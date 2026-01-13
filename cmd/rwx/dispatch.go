@@ -17,6 +17,7 @@ import (
 var (
 	DispatchParams []string
 	DispatchJson   bool
+	DispatchOutput string
 	DispatchOpen   bool
 	DispatchDebug  bool
 	DispatchTitle  string
@@ -36,10 +37,11 @@ var (
 				return errors.Wrap(err, "unable to parse params")
 			}
 
+			useJson := DispatchOutput == "json" || DispatchJson
 			dispatchResult, err := service.InitiateDispatch(cli.InitiateDispatchConfig{
 				DispatchKey: dispatchKey,
 				Params:      params,
-				Json:        DispatchJson,
+				Json:        useJson,
 				Title:       DispatchTitle,
 				Ref:         DispatchRef,
 			})
@@ -65,7 +67,7 @@ var (
 				break
 			}
 
-			if DispatchJson {
+			if useJson {
 				dispatchResultJson, err := json.Marshal(runs)
 				if err != nil {
 					return err
@@ -117,6 +119,8 @@ func init() {
 	dispatchCmd.Flags().BoolVar(&DispatchDebug, "debug", false, "start a remote debugging session once a breakpoint is hit")
 	dispatchCmd.Flags().StringVar(&DispatchTitle, "title", "", "the title the UI will display for the run")
 	dispatchCmd.Flags().BoolVar(&DispatchJson, "json", false, "output json data to stdout")
+	_ = dispatchCmd.Flags().MarkHidden("json")
+	dispatchCmd.Flags().StringVar(&DispatchOutput, "output", "text", "output format: text or json")
 	dispatchCmd.Flags().SortFlags = false
 }
 
