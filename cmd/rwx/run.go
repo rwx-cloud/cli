@@ -84,27 +84,29 @@ var (
 				return err
 			}
 
-			if useJson {
-				jsonOutput := struct {
-					RunId            string
-					RunURL           string
-					TargetedTaskKeys []string
-					DefinitionPath   string
-					Message          string
-				}{
-					RunId:            runResult.RunId,
-					RunURL:           runResult.RunURL,
-					TargetedTaskKeys: runResult.TargetedTaskKeys,
-					DefinitionPath:   runResult.DefinitionPath,
-					Message:          runResult.Message,
-				}
+			jsonOutput := struct {
+				RunId            string
+				RunURL           string
+				TargetedTaskKeys []string
+				DefinitionPath   string
+				Message          string
+				Status           string `json:",omitempty"`
+			}{
+				RunId:            runResult.RunId,
+				RunURL:           runResult.RunURL,
+				TargetedTaskKeys: runResult.TargetedTaskKeys,
+				DefinitionPath:   runResult.DefinitionPath,
+				Message:          runResult.Message,
+			}
+
+			if useJson && !Wait {
 				runResultJson, err := json.Marshal(jsonOutput)
 				if err != nil {
 					return err
 				}
 
 				fmt.Println(string(runResultJson))
-			} else {
+			} else if !useJson {
 				fmt.Print(runResult.Message)
 			}
 
@@ -124,7 +126,8 @@ var (
 				}
 
 				if useJson {
-					waitResultJson, err := json.Marshal(waitResult)
+					jsonOutput.Status = waitResult.Status
+					waitResultJson, err := json.Marshal(jsonOutput)
 					if err != nil {
 						return err
 					}
