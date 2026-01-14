@@ -116,7 +116,7 @@ var (
 				}
 			}
 
-			if Wait {
+			if Wait && !Debug {
 				waitResult, err := service.WaitForRun(cli.WaitForRunConfig{
 					RunID: runResult.RunId,
 					Json:  useJson,
