@@ -28,7 +28,7 @@ func TestService_WaitForRun(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, "run-123", result.RunID)
-		require.Equal(t, "succeeded", result.Status)
+		require.Equal(t, "succeeded", result.ResultStatus)
 	})
 
 	t.Run("polls until run completes", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestService_WaitForRun(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 3, callCount)
 		require.Equal(t, "run-456", result.RunID)
-		require.Equal(t, "failed", result.Status)
+		require.Equal(t, "failed", result.ResultStatus)
 	})
 
 	t.Run("returns error when backoff is nil and polling not completed", func(t *testing.T) {
@@ -100,7 +100,7 @@ func TestService_WaitForRun(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, "nonexistent", result.RunID)
-		require.Equal(t, "", result.Status)
+		require.Equal(t, "", result.ResultStatus)
 	})
 
 	t.Run("returns error when API call fails", func(t *testing.T) {
