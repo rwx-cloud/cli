@@ -377,6 +377,6 @@ type WaitForRunConfig struct {
 }
 
 type WaitForRunResult struct {
-	RunID  string `json:"run_id"`
-	Status string `json:"status"`
+	RunID        string `json:"run_id"`
+	ResultStatus string `json:"result_status"`
 }

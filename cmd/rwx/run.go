@@ -90,7 +90,7 @@ var (
 				TargetedTaskKeys []string
 				DefinitionPath   string
 				Message          string
-				Status           string `json:",omitempty"`
+				ResultStatus     string `json:"result_status,omitempty"`
 			}{
 				RunId:            runResult.RunId,
 				RunURL:           runResult.RunURL,
@@ -126,14 +126,14 @@ var (
 				}
 
 				if useJson {
-					jsonOutput.Status = waitResult.Status
+					jsonOutput.ResultStatus = waitResult.ResultStatus
 					waitResultJson, err := json.Marshal(jsonOutput)
 					if err != nil {
 						return err
 					}
 					fmt.Println(string(waitResultJson))
 				} else {
-					fmt.Printf("Run completed with status: %s\n", waitResult.Status)
+					fmt.Printf("Run result status: %s\n", waitResult.ResultStatus)
 				}
 			}
 
@@ -174,7 +174,7 @@ func init() {
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
-	runCmd.Flags().BoolVar(&Wait, "wait", false, "wait for the run to complete and report the status")
+	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete or reach its first failure and report the result status")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = runCmd.Flags().MarkHidden("json")

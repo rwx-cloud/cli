@@ -942,8 +942,8 @@ func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
 				status = statusResult.Status.Result
 			}
 			result = &WaitForRunResult{
-				RunID:  cfg.RunID,
-				Status: status,
+				RunID:        cfg.RunID,
+				ResultStatus: status,
 			}
 			break
 		}
