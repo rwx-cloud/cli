@@ -26,6 +26,7 @@ var (
 	NoCache        bool
 	Open           bool
 	Debug          bool
+	Wait           bool
 	Title          string
 
 	runCmd = &cobra.Command{
@@ -113,6 +114,26 @@ var (
 				}
 			}
 
+			if Wait {
+				waitResult, err := service.WaitForRun(cli.WaitForRunConfig{
+					RunID: runResult.RunId,
+					Json:  useJson,
+				})
+				if err != nil {
+					return err
+				}
+
+				if useJson {
+					waitResultJson, err := json.Marshal(waitResult)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(waitResultJson))
+				} else {
+					fmt.Printf("Run completed with status: %s\n", waitResult.Status)
+				}
+			}
+
 			if Debug {
 				fmt.Println("\nWaiting for run to hit a breakpoint...")
 
@@ -150,6 +171,7 @@ func init() {
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
+	runCmd.Flags().BoolVar(&Wait, "wait", false, "wait for the run to complete and report the status")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = runCmd.Flags().MarkHidden("json")

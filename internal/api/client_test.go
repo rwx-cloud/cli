@@ -756,6 +756,102 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 	})
 }
 
+func TestAPIClient_RunStatus(t *testing.T) {
+	t.Run("parses the response when run is in progress", func(t *testing.T) {
+		backoffMs := 2000
+		body := struct {
+			Status  *api.RunStatus    `json:"status"`
+			RunID   string            `json:"run_id"`
+			Polling api.PollingResult `json:"polling"`
+		}{
+			Status:  &api.RunStatus{Result: "in_progress"},
+			RunID:   "run-123",
+			Polling: api.PollingResult{Completed: false, BackoffMs: &backoffMs},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs/run-123/status", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.RunStatus(api.RunStatusConfig{RunID: "run-123"})
+		require.NoError(t, err)
+		require.NotNil(t, result.Status)
+		require.Equal(t, "in_progress", result.Status.Result)
+		require.Equal(t, "run-123", result.RunID)
+		require.False(t, result.Polling.Completed)
+		require.NotNil(t, result.Polling.BackoffMs)
+		require.Equal(t, 2000, *result.Polling.BackoffMs)
+	})
+
+	t.Run("parses the response when run is completed", func(t *testing.T) {
+		body := struct {
+			Status  *api.RunStatus    `json:"status"`
+			RunID   string            `json:"run_id"`
+			Polling api.PollingResult `json:"polling"`
+		}{
+			Status:  &api.RunStatus{Result: "succeeded"},
+			RunID:   "run-456",
+			Polling: api.PollingResult{Completed: true},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs/run-456/status", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.RunStatus(api.RunStatusConfig{RunID: "run-456"})
+		require.NoError(t, err)
+		require.NotNil(t, result.Status)
+		require.Equal(t, "succeeded", result.Status.Result)
+		require.Equal(t, "run-456", result.RunID)
+		require.True(t, result.Polling.Completed)
+		require.Nil(t, result.Polling.BackoffMs)
+	})
+
+	t.Run("parses the response when run is not found", func(t *testing.T) {
+		body := struct {
+			Status  *api.RunStatus    `json:"status"`
+			Polling api.PollingResult `json:"polling"`
+		}{
+			Status:  nil,
+			Polling: api.PollingResult{Completed: true},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.RunStatus(api.RunStatusConfig{RunID: "nonexistent"})
+		require.NoError(t, err)
+		require.Nil(t, result.Status)
+		require.True(t, result.Polling.Completed)
+	})
+}
+
 func TestAPIClient_DownloadArtifact(t *testing.T) {
 	t.Run("makes GET request to presigned URL", func(t *testing.T) {
 		artifactContents := []byte("artifact binary data")

@@ -295,3 +295,17 @@ type ArtifactDownloadRequestResult struct {
 	Kind        string `json:"kind"`
 	Key         string `json:"key"`
 }
+
+type RunStatusConfig struct {
+	RunID string
+}
+
+type RunStatus struct {
+	Result string `json:"result"`
+}
+
+type RunStatusResult struct {
+	Status  *RunStatus    `json:"status,omitempty"`
+	RunID   string        `json:"run_id,omitempty"`
+	Polling PollingResult `json:"polling"`
+}

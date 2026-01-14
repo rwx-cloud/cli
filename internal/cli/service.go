@@ -912,6 +912,54 @@ func extractTar(data []byte, destDir string) ([]string, error) {
 	return extractedFiles, nil
 }
 
+func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
+	defer s.outputLatestVersionMessage()
+
+	var stopSpinner func()
+	if !cfg.Json && s.StdoutIsTTY {
+		indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(s.Stdout))
+		indicator.Suffix = " Waiting for run to complete..."
+		indicator.Start()
+		stopSpinner = indicator.Stop
+	}
+
+	var result *WaitForRunResult
+	for {
+		statusResult, err := s.APIClient.RunStatus(api.RunStatusConfig{RunID: cfg.RunID})
+		if err != nil {
+			if stopSpinner != nil {
+				stopSpinner()
+			}
+			return nil, errors.Wrap(err, "unable to get run status")
+		}
+
+		if statusResult.Polling.Completed {
+			if stopSpinner != nil {
+				stopSpinner()
+			}
+			status := ""
+			if statusResult.Status != nil {
+				status = statusResult.Status.Result
+			}
+			result = &WaitForRunResult{
+				RunID:  cfg.RunID,
+				Status: status,
+			}
+			break
+		}
+
+		if statusResult.Polling.BackoffMs == nil {
+			if stopSpinner != nil {
+				stopSpinner()
+			}
+			return nil, errors.New("unable to wait for run")
+		}
+		time.Sleep(time.Duration(*statusResult.Polling.BackoffMs) * time.Millisecond)
+	}
+
+	return result, nil
+}
+
 func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
