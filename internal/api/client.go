@@ -624,6 +624,40 @@ func (c Client) RunStatus(cfg RunStatusConfig) (RunStatusResult, error) {
 	return result, nil
 }
 
+func (c Client) GetRunPrompt(runID string) (string, error) {
+	endpoint := fmt.Sprintf("/mint/api/runs/%s/prompt", url.PathEscape(runID))
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Accept", "text/plain")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return "", errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errMsg := extractErrorMessage(resp.Body)
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return "", errors.Wrap(ErrNotFound, errMsg)
+		}
+		return "", errors.New(errMsg)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to read response body")
+	}
+
+	return string(body), nil
+}
+
 func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/log_downloads/%s", url.PathEscape(taskId))
 	result := LogDownloadRequestResult{}

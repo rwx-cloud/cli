@@ -71,6 +71,8 @@ var (
 			}
 
 			useJson := Output == "json" || Json
+			useLLM := Output == "llm"
+
 			runResult, err := service.InitiateRun(cli.InitiateRunConfig{
 				InitParameters: initParams,
 				Json:           useJson,
@@ -160,6 +162,14 @@ var (
 				}
 			}
 
+			if useLLM && !Debug {
+				// No-op and treat as if --output text
+				prompt, err := service.GetRunPrompt(runResult.RunId)
+				if err == nil {
+					fmt.Print(prompt)
+				}
+			}
+
 			return nil
 
 		},
@@ -181,5 +191,5 @@ func init() {
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = runCmd.Flags().MarkHidden("json")
-	runCmd.Flags().StringVar(&Output, "output", "text", "output format: text or json")
+	runCmd.Flags().StringVar(&Output, "output", "text", "output format: text, json, or llm")
 }

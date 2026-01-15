@@ -954,6 +954,10 @@ func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
 	return result, nil
 }
 
+func (s Service) GetRunPrompt(runID string) (string, error) {
+	return s.APIClient.GetRunPrompt(runID)
+}
+
 func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

@@ -27,6 +27,7 @@ type API struct {
 	MockDownloadLogs               func(api.LogDownloadRequestResult) ([]byte, error)
 	MockGetArtifactDownloadRequest func(string, string) (api.ArtifactDownloadRequestResult, error)
 	MockDownloadArtifact           func(api.ArtifactDownloadRequestResult) ([]byte, error)
+	MockGetRunPrompt               func(string) (string, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -195,4 +196,12 @@ func (c *API) DownloadArtifact(request api.ArtifactDownloadRequestResult) ([]byt
 	}
 
 	return nil, errors.New("MockDownloadArtifact was not configured")
+}
+
+func (c *API) GetRunPrompt(runID string) (string, error) {
+	if c.MockGetRunPrompt != nil {
+		return c.MockGetRunPrompt(runID)
+	}
+
+	return "", errors.New("MockGetRunPrompt was not configured")
 }
