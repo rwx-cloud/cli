@@ -19,6 +19,7 @@ import (
 
 var (
 	AccessToken string
+	Output      string
 	Verbose     bool
 
 	rwxHost            string
@@ -88,6 +89,13 @@ func addRwxDirFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 }
 
+func RejectJSONOutput() error {
+	if Output == "json" {
+		return errors.New("this command does not support JSON output")
+	}
+	return nil
+}
+
 func init() {
 	// A different host can only be set over the environment
 	mintHostEnv := os.Getenv("MINT_HOST")
@@ -102,6 +110,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
+	rootCmd.PersistentFlags().StringVar(&Output, "output", "text", "output format: text or json")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "enable debug output")
 	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 
