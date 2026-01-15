@@ -772,6 +772,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
 			require.Equal(t, "/mint/api/runs/run-123/status", req.URL.Path)
+			require.Equal(t, "true", req.URL.Query().Get("fail_fast"))
 			require.Equal(t, http.MethodGet, req.Method)
 			return &http.Response{
 				Status:     "200 OK",
