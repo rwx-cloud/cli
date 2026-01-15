@@ -28,6 +28,7 @@ type APIClient interface {
 	DownloadLogs(api.LogDownloadRequestResult, ...int) ([]byte, error)
 	GetArtifactDownloadRequest(taskId, artifactKey string) (api.ArtifactDownloadRequestResult, error)
 	DownloadArtifact(api.ArtifactDownloadRequestResult) ([]byte, error)
+	GetRunPrompt(runID string) (string, error)
 }
 
 var _ APIClient = api.Client{}

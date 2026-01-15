@@ -853,6 +853,43 @@ func TestAPIClient_RunStatus(t *testing.T) {
 	})
 }
 
+func TestAPIClient_GetRunPrompt(t *testing.T) {
+	t.Run("builds the request and returns the prompt text", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs/run-123/prompt", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			require.Equal(t, "text/plain", req.Header.Get("Accept"))
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte("some prompt text"))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetRunPrompt("run-123")
+		require.NoError(t, err)
+		require.NotEmpty(t, result)
+	})
+
+	t.Run("handles 404 not found", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Run not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetRunPrompt("nonexistent")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+}
+
 func TestAPIClient_DownloadArtifact(t *testing.T) {
 	t.Run("makes GET request to presigned URL", func(t *testing.T) {
 		artifactContents := []byte("artifact binary data")
