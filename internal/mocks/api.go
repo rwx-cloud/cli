@@ -20,7 +20,8 @@ type API struct {
 	MockMcpGetRunTestFailures      func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
 	MockStartImagePush             func(api.StartImagePushConfig) (api.StartImagePushResult, error)
 	MockImagePushStatus            func(string) (api.ImagePushStatusResult, error)
-	MockTaskStatus                 func(api.TaskStatusConfig) (api.TaskStatusResult, error)
+	MockTaskKeyStatus              func(api.TaskKeyStatusConfig) (api.TaskStatusResult, error)
+	MockTaskIDStatus               func(api.TaskIDStatusConfig) (api.TaskStatusResult, error)
 	MockRunStatus                  func(api.RunStatusConfig) (api.RunStatusResult, error)
 	MockGetLogDownloadRequest      func(string) (api.LogDownloadRequestResult, error)
 	MockDownloadLogs               func(api.LogDownloadRequestResult) ([]byte, error)
@@ -140,12 +141,20 @@ func (c *API) ImagePushStatus(pushID string) (api.ImagePushStatusResult, error) 
 	return api.ImagePushStatusResult{}, errors.New("MockImagePushStatus was not configured")
 }
 
-func (c *API) TaskStatus(cfg api.TaskStatusConfig) (api.TaskStatusResult, error) {
-	if c.MockTaskStatus != nil {
-		return c.MockTaskStatus(cfg)
+func (c *API) TaskKeyStatus(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+	if c.MockTaskKeyStatus != nil {
+		return c.MockTaskKeyStatus(cfg)
 	}
 
-	return api.TaskStatusResult{}, errors.New("MockTaskStatus was not configured")
+	return api.TaskStatusResult{}, errors.New("MockTaskKeyStatus was not configured")
+}
+
+func (c *API) TaskIDStatus(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+	if c.MockTaskIDStatus != nil {
+		return c.MockTaskIDStatus(cfg)
+	}
+
+	return api.TaskStatusResult{}, errors.New("MockTaskIDStatus was not configured")
 }
 
 func (c *API) RunStatus(cfg api.RunStatusConfig) (api.RunStatusResult, error) {

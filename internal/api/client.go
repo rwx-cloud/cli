@@ -552,8 +552,32 @@ func (c Client) ImagePushStatus(pushID string) (ImagePushStatusResult, error) {
 	return result, nil
 }
 
-func (c Client) TaskStatus(cfg TaskStatusConfig) (TaskStatusResult, error) {
+func (c Client) TaskKeyStatus(cfg TaskKeyStatusConfig) (TaskStatusResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/runs/%s/task_status?task_key=%s", url.PathEscape(cfg.RunID), url.PathEscape(cfg.TaskKey))
+	result := TaskStatusResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (c Client) TaskIDStatus(cfg TaskIDStatusConfig) (TaskStatusResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/tasks/%s/status", url.PathEscape(cfg.TaskID))
 	result := TaskStatusResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
