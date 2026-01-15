@@ -10,14 +10,13 @@ import (
 var (
 	pushImageReferences []string
 	pushImageJSON       bool
-	pushImageOutput     string
 	pushImageNoWait     bool
 	pushImageOpen       bool
 
 	PushCmd *cobra.Command
 )
 
-func InitPush(requireAccessToken func() error, getService func() cli.Service) {
+func InitPush(requireAccessToken func() error, getService func() cli.Service, getOutput func() string) {
 	PushCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -29,7 +28,7 @@ func InitPush(requireAccessToken func() error, getService func() cli.Service) {
 				openURL = func(input string) error { return nil }
 			}
 
-			useJson := pushImageOutput == "json" || pushImageJSON
+			useJson := getOutput() == "json" || pushImageJSON
 			config, err := cli.NewPushImageConfig(args[0], pushImageReferences, useJson, !pushImageNoWait, openURL)
 			if err != nil {
 				return err
@@ -44,7 +43,6 @@ func InitPush(requireAccessToken func() error, getService func() cli.Service) {
 	PushCmd.Flags().StringArrayVar(&pushImageReferences, "to", []string{}, "the qualified OCI reference to push the image to (can be specified multiple times)")
 	PushCmd.Flags().BoolVar(&pushImageJSON, "json", false, "output JSON instead of human-readable text")
 	_ = PushCmd.Flags().MarkHidden("json")
-	PushCmd.Flags().StringVar(&pushImageOutput, "output", "text", "output format: text or json")
 	PushCmd.Flags().BoolVar(&pushImageNoWait, "no-wait", false, "do not wait for the push to complete")
 	PushCmd.Flags().BoolVar(&pushImageOpen, "open", false, "open the run URL in the default browser once the push starts")
 }

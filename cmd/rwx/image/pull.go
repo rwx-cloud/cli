@@ -14,10 +14,13 @@ var (
 	PullCmd *cobra.Command
 )
 
-func InitPull(requireAccessToken func() error, getService func() cli.Service) {
+func InitPull(requireAccessToken func() error, getService func() cli.Service, rejectJSONOutput func() error) {
 	PullCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectJSONOutput(); err != nil {
+				return err
+			}
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

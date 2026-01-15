@@ -24,10 +24,13 @@ var (
 	BuildCmd *cobra.Command
 )
 
-func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), getService func() cli.Service) {
+func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), getService func() cli.Service, rejectJSONOutput func() error) {
 	BuildCmd = &cobra.Command{
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectJSONOutput(); err != nil {
+				return err
+			}
 			if err := requireAccessToken(); err != nil {
 				return err
 			}

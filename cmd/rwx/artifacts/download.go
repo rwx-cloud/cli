@@ -15,14 +15,13 @@ var (
 	downloadOutputDir   string
 	downloadOutputFile  string
 	downloadJSON        bool
-	downloadOutput      string
 	downloadAutoExtract bool
 	downloadOpen        bool
 
 	DownloadCmd *cobra.Command
 )
 
-func InitDownload(requireAccessToken func() error, getService func() cli.Service) {
+func InitDownload(requireAccessToken func() error, getService func() cli.Service, getOutput func() string) {
 	DownloadCmd = &cobra.Command{
 		Args: cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +60,7 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 				}
 			}
 
-			useJson := downloadOutput == "json" || downloadJSON
+			useJson := getOutput() == "json" || downloadJSON
 			err = getService().DownloadArtifact(cli.DownloadArtifactConfig{
 				TaskID:                 taskID,
 				ArtifactKey:            artifactKey,
@@ -87,7 +86,6 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 	DownloadCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	DownloadCmd.Flags().BoolVar(&downloadJSON, "json", false, "output file locations as JSON")
 	_ = DownloadCmd.Flags().MarkHidden("json")
-	DownloadCmd.Flags().StringVar(&downloadOutput, "output", "text", "output format: text or json")
 	DownloadCmd.Flags().BoolVar(&downloadAutoExtract, "auto-extract", false, "automatically extract directory tar archives")
 	DownloadCmd.Flags().BoolVar(&downloadOpen, "open", false, "automatically open the downloaded file(s)")
 }

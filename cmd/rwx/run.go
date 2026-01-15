@@ -20,7 +20,6 @@ const flagInit = "init"
 var (
 	InitParameters []string
 	Json           bool
-	Output         string
 	RwxDirectory   string
 	MintFilePath   string
 	TargetedTasks  []string
@@ -184,5 +183,4 @@ func init() {
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = runCmd.Flags().MarkHidden("json")
-	runCmd.Flags().StringVar(&Output, "output", "text", "output format: text or json")
 }

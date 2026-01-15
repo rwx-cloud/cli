@@ -18,7 +18,6 @@ import (
 var (
 	DispatchParams []string
 	DispatchJson   bool
-	DispatchOutput string
 	DispatchOpen   bool
 	DispatchDebug  bool
 	DispatchTitle  string
@@ -38,7 +37,7 @@ var (
 				return errors.Wrap(err, "unable to parse params")
 			}
 
-			useJson := DispatchOutput == "json" || DispatchJson
+			useJson := Output == "json" || DispatchJson
 			dispatchResult, err := service.InitiateDispatch(cli.InitiateDispatchConfig{
 				DispatchKey: dispatchKey,
 				Params:      params,
@@ -131,7 +130,6 @@ func init() {
 	dispatchCmd.Flags().StringVar(&DispatchTitle, "title", "", "the title the UI will display for the run")
 	dispatchCmd.Flags().BoolVar(&DispatchJson, "json", false, "output json data to stdout")
 	_ = dispatchCmd.Flags().MarkHidden("json")
-	dispatchCmd.Flags().StringVar(&DispatchOutput, "output", "text", "output format: text or json")
 	dispatchCmd.Flags().SortFlags = false
 }
 
