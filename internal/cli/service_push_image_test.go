@@ -118,10 +118,55 @@ func TestService_PushImage(t *testing.T) {
 		)
 	})
 
+	t.Run("fails when the task status is ultimately failed", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
+			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
+
+		count := 0
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			count++
+			require.Equal(t, "some-task-id", cfg.TaskID)
+
+			if count <= 1 {
+				backoff := 10
+				return api.TaskStatusResult{Status: &api.TaskStatus{Result: "pending"}, Polling: api.PollingResult{Completed: false, BackoffMs: &backoff}}, nil
+			} else {
+				return api.TaskStatusResult{Status: &api.TaskStatus{Result: "failed"}, Polling: api.PollingResult{Completed: true}}, nil
+			}
+		}
+
+		cfg := cli.PushImageConfig{
+			TaskID: "some-task-id",
+			References: []reference.Named{
+				ReferenceMustParse(t, "registry.com/repo:latest"),
+				ReferenceMustParse(t, "registry.com/repo:17.1"),
+			},
+			JSON: false,
+			Wait: true,
+			OpenURL: func(url string) error {
+				require.Fail(t, "open url should not be called when the push does not start")
+				return nil
+			},
+		}
+
+		err := s.service.PushImage(cfg)
+
+		require.Error(t, err)
+		require.Equal(t, "task failed", err.Error())
+
+		require.Contains(t, s.mockStdout.String(), "Pushing image from task: some-task-id\nregistry.com/repo:latest\nregistry.com/repo:17.1")
+		require.Contains(t, s.mockStderr.String(), "Starting...")
+	})
+
 	t.Run("fails when starting the push fails", func(t *testing.T) {
 		s := setupTest(t)
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{Status: &api.TaskStatus{Result: "succeeded"}, Polling: api.PollingResult{Completed: true}}, nil
 		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
@@ -161,6 +206,9 @@ func TestService_PushImage(t *testing.T) {
 		s := setupTest(t)
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{Status: &api.TaskStatus{Result: "succeeded"}, Polling: api.PollingResult{Completed: true}}, nil
 		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
@@ -211,6 +259,9 @@ func TestService_PushImage(t *testing.T) {
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
 		}
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{Status: &api.TaskStatus{Result: "succeeded"}, Polling: api.PollingResult{Completed: true}}, nil
+		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
 			require.Equal(t, "registry.com", cfg.Image.Registry)
@@ -259,6 +310,9 @@ func TestService_PushImage(t *testing.T) {
 		s := setupTest(t)
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{Status: &api.TaskStatus{Result: "succeeded"}, Polling: api.PollingResult{Completed: true}}, nil
 		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
@@ -312,6 +366,9 @@ func TestService_PushImage(t *testing.T) {
 
 		s.mockDocker.GetAuthConfigFunc = func(host string) (types.AuthConfig, error) {
 			return types.AuthConfig{Username: "my-username", Password: "my-password"}, nil
+		}
+		s.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{Status: &api.TaskStatus{Result: "succeeded"}, Polling: api.PollingResult{Completed: true}}, nil
 		}
 		s.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
 			require.Equal(t, "some-task-id", cfg.TaskID)
