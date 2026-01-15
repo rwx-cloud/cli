@@ -9,6 +9,9 @@ var updateCmd = &cobra.Command{
 	GroupID: "definitions",
 	Short:   "Update versions for base layers and RWX packages",
 	Use:     "update [flags] [files...]",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return RejectJSONOutput()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {

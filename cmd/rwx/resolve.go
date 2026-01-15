@@ -11,6 +11,9 @@ var resolveCmd = &cobra.Command{
 	GroupID: "definitions",
 	Short:   "Resolve and add versions for base images and RWX packages",
 	Use:     "resolve [flags] [files...]",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return RejectJSONOutput()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			switch args[0] {

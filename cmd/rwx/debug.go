@@ -10,6 +10,9 @@ var debugCmd = &cobra.Command{
 	GroupID: "execution",
 	Args:    cobra.ExactArgs(1),
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := RejectJSONOutput(); err != nil {
+			return err
+		}
 		return requireAccessToken()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -9,6 +9,9 @@ var vaultsCmd = &cobra.Command{
 	GroupID: "api",
 	Short:   "Manage vaults and secrets",
 	Use:     "vaults",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return RejectJSONOutput()
+	},
 }
 
 var (

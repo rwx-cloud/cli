@@ -21,6 +21,9 @@ var (
 
 	loginCmd = &cobra.Command{
 		GroupID: "setup",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return RejectJSONOutput()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// try to collect the device name if one is not provided
 			if DeviceName == "" {

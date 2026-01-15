@@ -10,6 +10,9 @@ var (
 		GroupID: "setup",
 		Use:     "mcp",
 		Short:   "MCP (Model Context Protocol) related commands",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return RejectJSONOutput()
+		},
 	}
 
 	mcpServeCmd = &cobra.Command{

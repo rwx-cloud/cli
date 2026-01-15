@@ -9,6 +9,9 @@ var packagesCmd = &cobra.Command{
 	GroupID: "definitions",
 	Short:   "Manage RWX packages",
 	Use:     "packages",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return RejectJSONOutput()
+	},
 }
 
 var (
