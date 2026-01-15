@@ -370,3 +370,13 @@ func (c DownloadArtifactConfig) Validate() error {
 	}
 	return nil
 }
+
+type WaitForRunConfig struct {
+	RunID string
+	Json  bool
+}
+
+type WaitForRunResult struct {
+	RunID        string `json:"run_id"`
+	ResultStatus string `json:"result_status"`
+}

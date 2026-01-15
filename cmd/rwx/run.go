@@ -27,6 +27,7 @@ var (
 	NoCache        bool
 	Open           bool
 	Debug          bool
+	Wait           bool
 	Title          string
 
 	runCmd = &cobra.Command{
@@ -84,33 +85,56 @@ var (
 				return err
 			}
 
-			if useJson {
-				jsonOutput := struct {
-					RunId            string
-					RunURL           string
-					TargetedTaskKeys []string
-					DefinitionPath   string
-					Message          string
-				}{
-					RunId:            runResult.RunId,
-					RunURL:           runResult.RunURL,
-					TargetedTaskKeys: runResult.TargetedTaskKeys,
-					DefinitionPath:   runResult.DefinitionPath,
-					Message:          runResult.Message,
-				}
+			jsonOutput := struct {
+				RunId            string
+				RunURL           string
+				TargetedTaskKeys []string
+				DefinitionPath   string
+				Message          string
+				ResultStatus     string `json:"result_status,omitempty"`
+			}{
+				RunId:            runResult.RunId,
+				RunURL:           runResult.RunURL,
+				TargetedTaskKeys: runResult.TargetedTaskKeys,
+				DefinitionPath:   runResult.DefinitionPath,
+				Message:          runResult.Message,
+			}
+
+			if useJson && !Wait {
 				runResultJson, err := json.Marshal(jsonOutput)
 				if err != nil {
 					return err
 				}
 
 				fmt.Println(string(runResultJson))
-			} else {
+			} else if !useJson {
 				fmt.Print(runResult.Message)
 			}
 
 			if Open {
 				if err := open.Run(runResult.RunURL); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to open browser.\n")
+				}
+			}
+
+			if Wait && !Debug {
+				waitResult, err := service.WaitForRun(cli.WaitForRunConfig{
+					RunID: runResult.RunId,
+					Json:  useJson,
+				})
+				if err != nil {
+					return err
+				}
+
+				if useJson {
+					jsonOutput.ResultStatus = waitResult.ResultStatus
+					waitResultJson, err := json.Marshal(jsonOutput)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(waitResultJson))
+				} else {
+					fmt.Printf("Run result status: %s\n", waitResult.ResultStatus)
 				}
 			}
 
@@ -156,6 +180,7 @@ func init() {
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
+	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete or reach its first failure and report the result status")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 	runCmd.Flags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = runCmd.Flags().MarkHidden("json")
