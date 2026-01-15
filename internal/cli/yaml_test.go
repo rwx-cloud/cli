@@ -405,6 +405,70 @@ tasks:
 	})
 }
 
+func TestYamlDoc_IsRunDefinition(t *testing.T) {
+	t.Run("returns false for empty document", func(t *testing.T) {
+		doc, err := cli.ParseYAMLDoc("")
+		require.NoError(t, err)
+
+		require.False(t, doc.IsRunDefinition())
+	})
+
+	t.Run("returns true for run definition with tasks", func(t *testing.T) {
+		contents := `
+tasks:
+  - key: task1
+  - key: task2
+`
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		require.True(t, doc.IsRunDefinition())
+	})
+
+	t.Run("returns false for list of tasks", func(t *testing.T) {
+		contents := `
+- key: task1
+- key: task2
+`
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		require.False(t, doc.IsRunDefinition())
+	})
+}
+
+func TestYamlDoc_IsListOfTasks(t *testing.T) {
+	t.Run("returns false for empty document", func(t *testing.T) {
+		doc, err := cli.ParseYAMLDoc("")
+		require.NoError(t, err)
+
+		require.False(t, doc.IsListOfTasks())
+	})
+
+	t.Run("returns true for list of tasks", func(t *testing.T) {
+		contents := `
+- key: task1
+- key: task2
+`
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		require.True(t, doc.IsListOfTasks())
+	})
+
+	t.Run("returns false for run definition", func(t *testing.T) {
+		contents := `
+tasks:
+  - key: task1
+  - key: task2
+`
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		require.False(t, doc.IsListOfTasks())
+	})
+}
+
 func TestYamlDoc_SetAtPath(t *testing.T) {
 	t.Run("sets and overwrites a yaml object at a specific path", func(t *testing.T) {
 		contents := `

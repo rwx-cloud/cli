@@ -99,6 +99,11 @@ func (doc *YAMLDoc) IsRunDefinition() bool {
 	}
 
 	yamlDoc := doc.astFile.Docs[0]
+	if yamlDoc.Body == nil {
+		// Empty document
+		return false
+	}
+
 	return yamlDoc.Body.Type() == ast.MappingType && doc.HasTasks()
 }
 
@@ -109,6 +114,11 @@ func (doc *YAMLDoc) IsListOfTasks() bool {
 	}
 
 	yamlDoc := doc.astFile.Docs[0]
+	if yamlDoc.Body == nil {
+		// Empty document
+		return false
+	}
+
 	return yamlDoc.Body.Type() == ast.SequenceType
 }
 
