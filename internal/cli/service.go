@@ -25,7 +25,6 @@ import (
 	"github.com/rwx-cloud/cli/internal/messages"
 	"github.com/rwx-cloud/cli/internal/versions"
 
-	"github.com/briandowns/spinner"
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"golang.org/x/crypto/ssh"
@@ -496,12 +495,10 @@ func (s Service) Login(cfg LoginConfig) error {
 	fmt.Fprintln(s.Stdout, "Once authorized, a personal access token will be generated and stored securely on this device.")
 	fmt.Fprintln(s.Stdout)
 
-	indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(s.Stdout))
-	indicator.Suffix = " Waiting for authorization..."
-	indicator.Start()
+	stopSpinner := Spin("Waiting for authorization...", s.StdoutIsTTY, s.Stdout)
 
 	stop := func() {
-		indicator.Stop()
+		stopSpinner()
 		s.outputLatestVersionMessage()
 	}
 
@@ -580,7 +577,7 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 		return errors.Wrap(err, "unable to fetch log archive request")
 	}
 
-	stopSpinner := spin(
+	stopSpinner := Spin(
 		"Downloading logs...",
 		s.StderrIsTTY,
 		s.Stderr,
@@ -740,7 +737,7 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 		return errors.Wrap(err, "unable to fetch artifact download request")
 	}
 
-	stopSpinner := spin(
+	stopSpinner := Spin(
 		"Downloading artifact...",
 		s.StderrIsTTY,
 		s.Stderr,
@@ -916,11 +913,8 @@ func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
 	defer s.outputLatestVersionMessage()
 
 	var stopSpinner func()
-	if !cfg.Json && s.StdoutIsTTY {
-		indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(s.Stdout))
-		indicator.Suffix = " Waiting for run to complete..."
-		indicator.Start()
-		stopSpinner = indicator.Stop
+	if !cfg.Json {
+		stopSpinner = Spin("Waiting for run to complete...", s.StdoutIsTTY, s.Stdout)
 	}
 
 	var result *WaitForRunResult
