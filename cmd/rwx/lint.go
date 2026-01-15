@@ -20,12 +20,19 @@ var (
 	lintCmd = &cobra.Command{
 		GroupID: "definitions",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if LintOutputFormat == "json" {
+				return errors.New("this command does not support JSON output")
+			}
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			outputFormat := LintOutputFormat
+			if outputFormat == "text" {
+				outputFormat = "multiline"
+			}
 			lintConfig, err := cli.NewLintConfig(
 				LintRwxDirectory,
-				LintOutputFormat,
+				outputFormat,
 			)
 			if err != nil {
 				return err
