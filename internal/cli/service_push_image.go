@@ -3,11 +3,9 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/api"
 )
@@ -85,7 +83,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 			fmt.Fprintf(s.Stdout, "%s/%s:%s\n", request.Image.Registry, request.Image.Repository, tag)
 		}
 
-		stopStartSpinner = spin(
+		stopStartSpinner = Spin(
 			"Starting...",
 			s.StderrIsTTY,
 			s.Stderr,
@@ -124,7 +122,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 
 	stopWaitingSpinner := func() {}
 	if !config.JSON {
-		stopWaitingSpinner = spin(
+		stopWaitingSpinner = Spin(
 			"Waiting for image push to finish...",
 			s.StderrIsTTY,
 			s.Stderr,
@@ -188,26 +186,4 @@ statusloop:
 	}
 
 	return nil
-}
-
-func spin(message string, tty bool, out io.Writer) func() {
-	if tty {
-		indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(out))
-		indicator.Suffix = " " + message
-		indicator.Start()
-		return indicator.Stop
-	} else {
-		ticker := time.NewTicker(1 * time.Second)
-		fmt.Fprintln(out, message)
-		go func() {
-			for range ticker.C {
-				fmt.Fprintf(out, ".")
-			}
-		}()
-
-		return func() {
-			ticker.Stop()
-			fmt.Fprintln(out)
-		}
-	}
 }

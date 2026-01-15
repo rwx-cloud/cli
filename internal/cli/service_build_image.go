@@ -33,7 +33,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		return fmt.Errorf("failed to open URL: %w", err)
 	}
 
-	stopSpinner := spin(
+	stopSpinner := Spin(
 		"Polling for build completion...",
 		s.StderrIsTTY,
 		s.Stderr,

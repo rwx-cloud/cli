@@ -10,7 +10,6 @@ import (
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
 
-	"github.com/briandowns/spinner"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 )
@@ -139,19 +138,17 @@ var (
 			}
 
 			if Debug {
-				indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-				indicator.Suffix = " Waiting for run to hit a breakpoint..."
 				fmt.Println()
-				indicator.Start()
+				stopSpinner := cli.Spin("Waiting for run to hit a breakpoint...", service.StdoutIsTTY, service.Stdout)
 
 				ticker := time.NewTicker(time.Second)
 				defer ticker.Stop()
 
 				for range ticker.C {
-					indicator.Stop()
+					stopSpinner()
 					err := service.DebugTask(cli.DebugTaskConfig{DebugKey: runResult.RunId})
 					if errors.Is(err, errors.ErrRetry) {
-						indicator.Start()
+						stopSpinner = cli.Spin("Waiting for run to hit a breakpoint...", service.StdoutIsTTY, service.Stdout)
 						continue
 					}
 					if errors.Is(err, errors.ErrGone) {
