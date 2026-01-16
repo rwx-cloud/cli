@@ -1,0 +1,248 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+
+	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/errors"
+
+	"github.com/goccy/go-yaml/ast"
+)
+
+func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return ResolvePackagesResult{}, errors.Wrap(err, "validation failed")
+	}
+
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
+	if err != nil {
+		return ResolvePackagesResult{}, errors.Wrap(err, "unable to find .rwx directory")
+	}
+
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
+	if err != nil {
+		return ResolvePackagesResult{}, err
+	}
+
+	if len(yamlFiles) == 0 {
+		return ResolvePackagesResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
+	}
+
+	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
+		return true
+	})
+
+	replacements, err := s.resolveOrUpdatePackagesForFiles(mintFiles, false, cfg.LatestVersionPicker)
+	if err != nil {
+		return ResolvePackagesResult{}, err
+	}
+
+	if cfg.Json {
+		output := struct {
+			ResolvedPackages map[string]string `json:"resolved_packages"`
+		}{
+			ResolvedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return ResolvePackagesResult{}, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "No packages to resolve.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Resolved the following packages:")
+			for rwxPackage, version := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
+			}
+		}
+	}
+
+	return ResolvePackagesResult{ResolvedPackages: replacements}, nil
+}
+
+func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
+	defer s.outputLatestVersionMessage()
+	err := cfg.Validate()
+	if err != nil {
+		return errors.Wrap(err, "validation failed")
+	}
+
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
+	if err != nil {
+		return errors.Wrap(err, "unable to find .rwx directory")
+	}
+
+	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
+	if err != nil {
+		return err
+	}
+
+	if len(yamlFiles) == 0 {
+		return errors.New(fmt.Sprintf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath))
+	}
+
+	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
+		return true
+	})
+
+	replacements, err := s.resolveOrUpdatePackagesForFiles(mintFiles, true, cfg.ReplacementVersionPicker)
+	if err != nil {
+		return err
+	}
+
+	if cfg.Json {
+		output := struct {
+			UpdatedPackages map[string]string `json:"updated_packages"`
+		}{
+			UpdatedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Updated the following packages:")
+			for original, replacement := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
+			}
+		}
+	}
+
+	return nil
+}
+
+var rePackageVersion = regexp.MustCompile(`([a-z0-9-]+\/[a-z0-9-]+)(?:\s+(([0-9]+)\.[0-9]+\.[0-9]+))?`)
+
+type PackageVersion struct {
+	Original     string
+	Name         string
+	Version      string
+	MajorVersion string
+}
+
+func (s Service) parsePackageVersion(str string) PackageVersion {
+	match := rePackageVersion.FindStringSubmatch(str)
+	if len(match) == 0 {
+		return PackageVersion{}
+	}
+
+	return PackageVersion{
+		Original:     match[0],
+		Name:         tryGetSliceAtIndex(match, 1, ""),
+		Version:      tryGetSliceAtIndex(match, 2, ""),
+		MajorVersion: tryGetSliceAtIndex(match, 3, ""),
+	}
+}
+
+func (s Service) resolveOrUpdatePackagesForFiles(mintFiles []*MintYAMLFile, update bool, versionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)) (map[string]string, error) {
+	packageVersions, err := s.APIClient.GetPackageVersions()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to fetch package versions")
+	}
+
+	docs := make(map[string]*YAMLDoc)
+	replacements := make(map[string]string)
+
+	for _, file := range mintFiles {
+		hasChange := false
+
+		var nodePath string
+		if file.Doc.IsRunDefinition() {
+			nodePath = "$.tasks[*].call"
+		} else if file.Doc.IsListOfTasks() {
+			nodePath = "$[*].call"
+		} else {
+			continue
+		}
+
+		err = file.Doc.ForEachNode(nodePath, func(node ast.Node) error {
+			packageVersion := s.parsePackageVersion(node.String())
+			if packageVersion.Name == "" {
+				// Packages won't be found for eg. embedded runs, call: ${{ run.dir }}/embed.yml
+				return nil
+			} else if !update && packageVersion.MajorVersion != "" {
+				return nil
+			}
+
+			newName := packageVersions.Renames[packageVersion.Name]
+			if newName == "" {
+				newName = packageVersion.Name
+			}
+
+			targetPackageVersion, err := versionPicker(*packageVersions, newName, packageVersion.MajorVersion)
+			if err != nil {
+				fmt.Fprintln(s.Stderr, err.Error())
+				return nil
+			}
+
+			newPackage := fmt.Sprintf("%s %s", newName, targetPackageVersion)
+			if newPackage == node.String() {
+				return nil
+			}
+
+			if err = file.Doc.ReplaceAtPath(node.GetPath(), newPackage); err != nil {
+				return err
+			}
+
+			if newName != packageVersion.Name {
+				replacements[packageVersion.Original] = fmt.Sprintf("%s %s", newName, targetPackageVersion)
+			} else {
+				replacements[packageVersion.Original] = targetPackageVersion
+			}
+			hasChange = true
+			return nil
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to replace package references")
+		}
+
+		if hasChange {
+			docs[file.Entry.OriginalPath] = file.Doc
+		}
+	}
+
+	for path, doc := range docs {
+		if !doc.HasChanges() {
+			continue
+		}
+
+		err := doc.WriteFile(path)
+		if err != nil {
+			return replacements, err
+		}
+	}
+
+	return replacements, nil
+}
+
+func PickLatestMajorVersion(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error) {
+	latestVersion, ok := versions.LatestMajor[rwxPackage]
+	if !ok {
+		return "", fmt.Errorf("Unable to find the package %q; skipping it.", rwxPackage)
+	}
+
+	return latestVersion, nil
+}
+
+func PickLatestMinorVersion(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error) {
+	if major == "" {
+		return PickLatestMajorVersion(versions, rwxPackage, major)
+	}
+
+	majorVersions, ok := versions.LatestMinor[rwxPackage]
+	if !ok {
+		return "", fmt.Errorf("Unable to find the package %q; skipping it.", rwxPackage)
+	}
+
+	latestVersion, ok := majorVersions[major]
+	if !ok {
+		return "", fmt.Errorf("Unable to find major version %q for package %q; skipping it.", major, rwxPackage)
+	}
+
+	return latestVersion, nil
+}
