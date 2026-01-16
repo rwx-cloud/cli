@@ -234,6 +234,7 @@ type ResolvePackagesConfig struct {
 	RwxDirectory        string
 	Files               []string
 	LatestVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error)
+	Json                bool
 }
 
 func (c ResolvePackagesConfig) PickLatestVersion(versions api.PackageVersionsResult, rwxPackage string) (string, error) {

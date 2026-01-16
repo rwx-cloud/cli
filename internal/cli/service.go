@@ -1060,12 +1060,23 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 		return ResolvePackagesResult{}, err
 	}
 
-	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "No packages to resolve.")
+	if cfg.Json {
+		output := struct {
+			ResolvedPackages map[string]string `json:"resolved_packages"`
+		}{
+			ResolvedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return ResolvePackagesResult{}, errors.Wrap(err, "unable to encode JSON output")
+		}
 	} else {
-		fmt.Fprintln(s.Stdout, "Resolved the following packages:")
-		for rwxPackage, version := range replacements {
-			fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "No packages to resolve.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Resolved the following packages:")
+			for rwxPackage, version := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
+			}
 		}
 	}
 
