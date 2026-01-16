@@ -17,11 +17,11 @@ func ReferenceMustParse(t *testing.T, ref string) reference.Named {
 	return parsed
 }
 
-func TestService_PushImage(t *testing.T) {
+func TestService_ImagePush(t *testing.T) {
 	t.Run("only supports one registry", func(t *testing.T) {
 		s := setupTest(t)
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "a.registry.com/repo-one:tag-one"),
@@ -33,7 +33,7 @@ func TestService_PushImage(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "all image references must have the same registry: a.registry.com != b.registry.com", err.Error())
@@ -42,7 +42,7 @@ func TestService_PushImage(t *testing.T) {
 	t.Run("only supports one repository", func(t *testing.T) {
 		s := setupTest(t)
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo-one:tag-one"),
@@ -54,7 +54,7 @@ func TestService_PushImage(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "all image references must have the same repository: repo-one != repo-two", err.Error())
@@ -66,7 +66,7 @@ func TestService_PushImage(t *testing.T) {
 			return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "postgres:latest"),
@@ -77,7 +77,7 @@ func TestService_PushImage(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(
@@ -95,7 +95,7 @@ func TestService_PushImage(t *testing.T) {
 			return types.AuthConfig{}, fmt.Errorf("failed to get auth config for host %q: no credentials available", host)
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -106,7 +106,7 @@ func TestService_PushImage(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(
@@ -137,7 +137,7 @@ func TestService_PushImage(t *testing.T) {
 			}
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -151,7 +151,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "task failed", err.Error())
@@ -179,7 +179,7 @@ func TestService_PushImage(t *testing.T) {
 			return api.StartImagePushResult{}, fmt.Errorf("failed to start push")
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -193,7 +193,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "failed to start push", err.Error())
@@ -227,7 +227,7 @@ func TestService_PushImage(t *testing.T) {
 		}
 
 		didOpenURL := false
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -242,7 +242,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get image push status")
@@ -279,7 +279,7 @@ func TestService_PushImage(t *testing.T) {
 		}
 
 		didOpenURL := false
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -294,7 +294,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "image push failed, inspect the run at \"some-run-url\" to see why", err.Error())
@@ -331,7 +331,7 @@ func TestService_PushImage(t *testing.T) {
 		}
 
 		didOpenURL := false
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -346,7 +346,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.NoError(t, err)
 
@@ -387,7 +387,7 @@ func TestService_PushImage(t *testing.T) {
 		}
 
 		didOpenURL := false
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -402,7 +402,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.NoError(t, err)
 
@@ -438,7 +438,7 @@ func TestService_PushImage(t *testing.T) {
 			return api.ImagePushStatusResult{Status: "succeeded"}, nil
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -452,7 +452,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.ErrorContains(t, err, "RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
 	})
@@ -481,7 +481,7 @@ func TestService_PushImage(t *testing.T) {
 			return api.ImagePushStatusResult{Status: "succeeded"}, nil
 		}
 
-		cfg := cli.PushImageConfig{
+		cfg := cli.ImagePushConfig{
 			TaskID: "some-task-id",
 			References: []reference.Named{
 				ReferenceMustParse(t, "registry.com/repo:latest"),
@@ -495,7 +495,7 @@ func TestService_PushImage(t *testing.T) {
 			},
 		}
 
-		err := s.service.PushImage(cfg)
+		err := s.service.ImagePush(cfg)
 
 		require.ErrorContains(t, err, "RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
 	})

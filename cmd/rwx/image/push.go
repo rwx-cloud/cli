@@ -30,12 +30,12 @@ func InitPush(requireAccessToken func() error, getService func() cli.Service) {
 			}
 
 			useJson := pushImageOutput == "json" || pushImageJSON
-			config, err := cli.NewPushImageConfig(args[0], pushImageReferences, useJson, !pushImageNoWait, openURL)
+			config, err := cli.NewImagePushConfig(args[0], pushImageReferences, useJson, !pushImageNoWait, openURL)
 			if err != nil {
 				return err
 			}
 
-			return getService().PushImage(config)
+			return getService().ImagePush(config)
 		},
 		Short: "Push an RWX task to an OCI reference",
 		Use:   "push <task-id> --to <reference> [--to <reference>] [--output json] [--open] [--no-wait]",

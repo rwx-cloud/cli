@@ -11,13 +11,13 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 )
 
-type PushImageOutput struct {
+type ImagePushOutput struct {
 	PushID string `json:"push_id,omitempty"`
 	RunURL string `json:"run_url,omitempty"`
 	Status string `json:"status,omitempty"`
 }
 
-func (s Service) PushImage(config PushImageConfig) error {
+func (s Service) ImagePush(config ImagePushConfig) error {
 	request := api.StartImagePushConfig{
 		TaskID:      config.TaskID,
 		Image:       api.StartImagePushConfigImage{},
@@ -139,7 +139,7 @@ func (s Service) PushImage(config PushImageConfig) error {
 
 	if !config.Wait {
 		if config.JSON {
-			output := PushImageOutput{PushID: result.PushID, RunURL: result.RunURL}
+			output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL}
 			if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
 				return fmt.Errorf("unable to encode output: %w", err)
 			}
@@ -193,7 +193,7 @@ statusloop:
 	case "succeeded":
 		{
 			if config.JSON {
-				output := PushImageOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
+				output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
 				if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
 					return fmt.Errorf("unable to encode output: %w", err)
 				}
@@ -205,7 +205,7 @@ statusloop:
 	case "failed":
 		{
 			if config.JSON {
-				output := PushImageOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
+				output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
 				if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
 					return fmt.Errorf("unable to encode output: %w", err)
 				}

@@ -262,7 +262,7 @@ func (r ResolvePackagesResult) HasChanges() bool {
 	return len(r.ResolvedPackages) > 0
 }
 
-type PushImageConfig struct {
+type ImagePushConfig struct {
 	TaskID       string
 	References   []reference.Named
 	JSON         bool
@@ -271,25 +271,25 @@ type PushImageConfig struct {
 	PollInterval time.Duration
 }
 
-func NewPushImageConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (PushImageConfig, error) {
+func NewImagePushConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (ImagePushConfig, error) {
 	if taskID == "" {
-		return PushImageConfig{}, errors.New("a task ID must be provided")
+		return ImagePushConfig{}, errors.New("a task ID must be provided")
 	}
 
 	if len(references) == 0 {
-		return PushImageConfig{}, errors.New("at least one OCI reference must be provided")
+		return ImagePushConfig{}, errors.New("at least one OCI reference must be provided")
 	}
 
 	parsedReferences := make([]reference.Named, 0, len(references))
 	for _, refStr := range references {
 		ref, err := reference.ParseNormalizedNamed(refStr)
 		if err != nil {
-			return PushImageConfig{}, errors.Wrapf(err, "invalid OCI reference: %s", refStr)
+			return ImagePushConfig{}, errors.Wrapf(err, "invalid OCI reference: %s", refStr)
 		}
 		parsedReferences = append(parsedReferences, ref)
 	}
 
-	return PushImageConfig{
+	return ImagePushConfig{
 		TaskID:       taskID,
 		References:   parsedReferences,
 		JSON:         json,
@@ -299,7 +299,7 @@ func NewPushImageConfig(taskID string, references []string, json bool, wait bool
 	}, nil
 }
 
-type BuildImageConfig struct {
+type ImageBuildConfig struct {
 	InitParameters   map[string]string
 	RwxDirectory     string
 	MintFilePath     string
@@ -312,7 +312,7 @@ type BuildImageConfig struct {
 	OpenURL          func(string) error
 }
 
-func (c BuildImageConfig) Validate() error {
+func (c ImageBuildConfig) Validate() error {
 	if c.MintFilePath == "" {
 		return errors.New("the path to a run definition must be provided")
 	}
@@ -322,14 +322,14 @@ func (c BuildImageConfig) Validate() error {
 	return nil
 }
 
-type PullImageConfig struct {
+type ImagePullConfig struct {
 	TaskID     string
 	Tags       []string
 	Timeout    time.Duration
 	OutputJSON bool
 }
 
-func (c PullImageConfig) Validate() error {
+func (c ImagePullConfig) Validate() error {
 	if c.TaskID == "" {
 		return errors.New("task ID must be provided")
 	}

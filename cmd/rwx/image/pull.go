@@ -25,14 +25,14 @@ func InitPull(requireAccessToken func() error, getService func() cli.Service) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			taskID := args[0]
 
-			config := cli.PullImageConfig{
+			config := cli.ImagePullConfig{
 				TaskID:     taskID,
 				Tags:       pullTags,
 				Timeout:    pullTimeout,
 				OutputJSON: pullOutput == "json" || pullJSON,
 			}
 
-			return getService().PullImage(config)
+			return getService().ImagePull(config)
 		},
 		Short: "Pull an existing RWX task as an OCI image",
 		Use:   "pull <taskId> [--output json]",

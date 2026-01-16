@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_PullImage(t *testing.T) {
+func TestService_ImagePull(t *testing.T) {
 	t.Run("successful pull with no tags", func(t *testing.T) {
 		s := setupTest(t)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
@@ -32,13 +32,13 @@ func TestService_PullImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Tags:    []string{},
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), "Pulling image: cloud.rwx.com/my-org:task-456")
@@ -68,13 +68,13 @@ func TestService_PullImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Tags:    []string{"latest", "v1.0.0"},
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{
@@ -88,12 +88,12 @@ func TestService_PullImage(t *testing.T) {
 	t.Run("fails when config is invalid", func(t *testing.T) {
 		s := setupTest(t)
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "",
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "task ID must be provided")
@@ -106,12 +106,12 @@ func TestService_PullImage(t *testing.T) {
 			return nil, fmt.Errorf("unauthorized")
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
@@ -133,12 +133,12 @@ func TestService_PullImage(t *testing.T) {
 			return fmt.Errorf("failed to pull image: not found")
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to pull image")
@@ -160,12 +160,12 @@ func TestService_PullImage(t *testing.T) {
 			return context.DeadlineExceeded
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "timeout while pulling image after 1s")
@@ -191,13 +191,13 @@ func TestService_PullImage(t *testing.T) {
 			return fmt.Errorf("failed to tag image")
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Tags:    []string{"latest"},
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to tag image as latest")
@@ -222,13 +222,13 @@ func TestService_PullImage(t *testing.T) {
 			return context.DeadlineExceeded
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:  "task-456",
 			Tags:    []string{"latest"},
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "timeout while tagging image after 1s")
@@ -257,14 +257,14 @@ func TestService_PullImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:     "task-456",
 			Tags:       []string{"latest", "v1.0.0"},
 			Timeout:    1 * time.Second,
 			OutputJSON: true,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{"latest", "v1.0.0"}, taggedRefs)
@@ -295,14 +295,14 @@ func TestService_PullImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.PullImageConfig{
+		cfg := cli.ImagePullConfig{
 			TaskID:     "task-456",
 			Tags:       []string{},
 			Timeout:    1 * time.Second,
 			OutputJSON: true,
 		}
 
-		err := s.service.PullImage(cfg)
+		err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), `"image_ref":"cloud.rwx.com/my-org:task-456"`)

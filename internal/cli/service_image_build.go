@@ -10,7 +10,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 )
 
-func (s Service) BuildImage(config BuildImageConfig) error {
+func (s Service) ImageBuild(config ImageBuildConfig) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 	if len(config.PushToReferences) > 0 {
 		fmt.Fprintf(s.Stdout, "\n")
 
-		pushConfig, err := NewPushImageConfig(
+		pushConfig, err := NewImagePushConfig(
 			taskID,
 			config.PushToReferences,
 			false,
@@ -138,7 +138,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 			return err
 		}
 
-		if err := s.PushImage(pushConfig); err != nil {
+		if err := s.ImagePush(pushConfig); err != nil {
 			return err
 		}
 	}
