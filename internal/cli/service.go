@@ -1008,13 +1008,24 @@ func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 		Secrets:   secrets,
 	})
 
-	if result != nil && len(result.SetSecrets) > 0 {
-		fmt.Fprintln(s.Stdout)
-		fmt.Fprintf(s.Stdout, "Successfully set the following secrets: %s", strings.Join(result.SetSecrets, ", "))
-	}
-
 	if err != nil {
 		return errors.Wrap(err, "unable to set secrets")
+	}
+
+	if cfg.Json {
+		output := struct {
+			Vault      string   `json:"vault"`
+			SetSecrets []string `json:"set_secrets"`
+		}{
+			Vault:      cfg.Vault,
+			SetSecrets: result.SetSecrets,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else if result != nil && len(result.SetSecrets) > 0 {
+		fmt.Fprintln(s.Stdout)
+		fmt.Fprintf(s.Stdout, "Successfully set the following secrets: %s", strings.Join(result.SetSecrets, ", "))
 	}
 
 	return nil
@@ -1049,12 +1060,23 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 		return ResolvePackagesResult{}, err
 	}
 
-	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "No packages to resolve.")
+	if cfg.Json {
+		output := struct {
+			ResolvedPackages map[string]string `json:"resolved_packages"`
+		}{
+			ResolvedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return ResolvePackagesResult{}, errors.Wrap(err, "unable to encode JSON output")
+		}
 	} else {
-		fmt.Fprintln(s.Stdout, "Resolved the following packages:")
-		for rwxPackage, version := range replacements {
-			fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "No packages to resolve.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Resolved the following packages:")
+			for rwxPackage, version := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", rwxPackage, version)
+			}
 		}
 	}
 
@@ -1091,12 +1113,23 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 		return err
 	}
 
-	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
+	if cfg.Json {
+		output := struct {
+			UpdatedPackages map[string]string `json:"updated_packages"`
+		}{
+			UpdatedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
 	} else {
-		fmt.Fprintln(s.Stdout, "Updated the following packages:")
-		for original, replacement := range replacements {
-			fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Updated the following packages:")
+			for original, replacement := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
+			}
 		}
 	}
 
@@ -1233,25 +1266,46 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 		return InsertDefaultBaseResult{}, err
 	}
 
-	if len(yamlFiles) == 0 {
-		fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
-	} else if !result.HasChanges() {
-		fmt.Fprintln(s.Stdout, "No run files were missing base.")
-	} else {
-		if len(result.UpdatedRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
-			for _, runFile := range result.UpdatedRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
-			}
-			if len(result.ErroredRunFiles) > 0 {
-				fmt.Fprintln(s.Stdout)
-			}
+	if cfg.Json {
+		addedBases := make(map[string]string)
+		for _, runFile := range result.UpdatedRunFiles {
+			addedBases[relativePathFromWd(runFile.OriginalPath)] = runFile.ResolvedBase.Image
 		}
+		erroredBases := make(map[string]string)
+		for _, runFile := range result.ErroredRunFiles {
+			erroredBases[relativePathFromWd(runFile.OriginalPath)] = runFile.Error.Error()
+		}
+		output := struct {
+			AddedBases   map[string]string `json:"added_bases"`
+			ErroredBases map[string]string `json:"errored_bases,omitempty"`
+		}{
+			AddedBases:   addedBases,
+			ErroredBases: erroredBases,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return InsertDefaultBaseResult{}, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(yamlFiles) == 0 {
+			fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
+		} else if !result.HasChanges() {
+			fmt.Fprintln(s.Stdout, "No run files were missing base.")
+		} else {
+			if len(result.UpdatedRunFiles) > 0 {
+				fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
+				for _, runFile := range result.UpdatedRunFiles {
+					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
+				}
+				if len(result.ErroredRunFiles) > 0 {
+					fmt.Fprintln(s.Stdout)
+				}
+			}
 
-		if len(result.ErroredRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Failed to add base to the following run definitions:")
-			for _, runFile := range result.ErroredRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
+			if len(result.ErroredRunFiles) > 0 {
+				fmt.Fprintln(s.Stdout, "Failed to add base to the following run definitions:")
+				for _, runFile := range result.ErroredRunFiles {
+					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
+				}
 			}
 		}
 	}

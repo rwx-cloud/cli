@@ -171,6 +171,7 @@ type SetSecretsInVaultConfig struct {
 	Secrets []string
 	Vault   string
 	File    string
+	Json    bool
 }
 
 func (c SetSecretsInVaultConfig) Validate() error {
@@ -189,6 +190,7 @@ type UpdatePackagesConfig struct {
 	RwxDirectory             string
 	Files                    []string
 	ReplacementVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)
+	Json                     bool
 }
 
 func (c UpdatePackagesConfig) Validate() error {
@@ -202,6 +204,7 @@ func (c UpdatePackagesConfig) Validate() error {
 type InsertBaseConfig struct {
 	RwxDirectory string
 	Files        []string
+	Json         bool
 }
 
 func (c InsertBaseConfig) Validate() error {
@@ -233,6 +236,7 @@ type ResolvePackagesConfig struct {
 	RwxDirectory        string
 	Files               []string
 	LatestVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error)
+	Json                bool
 }
 
 func (c ResolvePackagesConfig) PickLatestVersion(versions api.PackageVersionsResult, rwxPackage string) (string, error) {

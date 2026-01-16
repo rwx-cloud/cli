@@ -30,6 +30,11 @@ var resolveCmd = &cobra.Command{
 }
 
 var (
+	ResolvePackagesJson   bool
+	ResolvePackagesOutput string
+	ResolveBaseJson       bool
+	ResolveBaseOutput     string
+
 	resolveBaseCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return resolveBase(args)
@@ -53,31 +58,41 @@ var (
 )
 
 func resolveBase(files []string) error {
+	useJson := ResolveBaseOutput == "json" || ResolveBaseJson
 	base, err := service.InsertBase(cli.InsertBaseConfig{
 		Files:        files,
 		RwxDirectory: RwxDirectory,
+		Json:         useJson,
 	})
 	if err != nil {
 		return err
 	}
-	if base.HasChanges() {
+	if !useJson && base.HasChanges() {
 		fmt.Println()
 	}
 	return nil
 }
 
 func resolvePackages(files []string) error {
+	useJson := ResolvePackagesOutput == "json" || ResolvePackagesJson
 	_, err := service.ResolvePackages(cli.ResolvePackagesConfig{
 		Files:               files,
 		RwxDirectory:        RwxDirectory,
 		LatestVersionPicker: cli.PickLatestMajorVersion,
+		Json:                useJson,
 	})
 	return err
 }
 
 func init() {
+	resolveBaseCmd.Flags().BoolVar(&ResolveBaseJson, "json", false, "output JSON instead of text")
+	_ = resolveBaseCmd.Flags().MarkHidden("json")
+	resolveBaseCmd.Flags().StringVar(&ResolveBaseOutput, "output", "text", "output format: text or json")
 	addRwxDirFlag(resolveBaseCmd)
 
+	resolvePackagesCmd.Flags().BoolVar(&ResolvePackagesJson, "json", false, "output JSON instead of text")
+	_ = resolvePackagesCmd.Flags().MarkHidden("json")
+	resolvePackagesCmd.Flags().StringVar(&ResolvePackagesOutput, "output", "text", "output format: text or json")
 	addRwxDirFlag(resolvePackagesCmd)
 
 	resolveCmd.AddCommand(resolveBaseCmd)
