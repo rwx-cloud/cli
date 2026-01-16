@@ -113,6 +113,7 @@ const (
 	LintOutputNone LintOutputFormat = iota
 	LintOutputOneLine
 	LintOutputMultiLine
+	LintOutputJSON
 )
 
 type LintConfig struct {
@@ -134,8 +135,10 @@ func NewLintConfig(rwxDir string, formatString string) (LintConfig, error) {
 		format = LintOutputOneLine
 	case "multiline":
 		format = LintOutputMultiLine
+	case "json":
+		format = LintOutputJSON
 	default:
-		return LintConfig{}, errors.New("unknown output format, expected one of: none, oneline, multiline")
+		return LintConfig{}, errors.New("unknown output format, expected one of: none, oneline, multiline, json")
 	}
 
 	return LintConfig{

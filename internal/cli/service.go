@@ -402,6 +402,8 @@ func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 		err = outputLintOneLine(s.Stdout, lintResult.Problems)
 	case LintOutputMultiLine:
 		err = outputLintMultiLine(s.Stdout, lintResult.Problems, len(targetedPaths))
+	case LintOutputJSON:
+		err = outputLintJSON(s.Stdout, lintResult.Problems)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to output lint results")
@@ -466,6 +468,15 @@ func outputLintOneLine(w io.Writer, lintedFiles []api.LintProblem) error {
 	}
 
 	return nil
+}
+
+func outputLintJSON(w io.Writer, problems []api.LintProblem) error {
+	output := struct {
+		Problems []api.LintProblem `json:"problems"`
+	}{
+		Problems: problems,
+	}
+	return json.NewEncoder(w).Encode(output)
 }
 
 func (s Service) Login(cfg LoginConfig) error {
