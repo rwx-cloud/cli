@@ -29,6 +29,8 @@ var updateCmd = &cobra.Command{
 
 var (
 	AllowMajorVersionChange bool
+	UpdatePackagesJson      bool
+	UpdatePackagesOutput    string
 
 	updateBaseCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,10 +67,12 @@ func updatePackages(files []string) error {
 		replacementVersionPicker = cli.PickLatestMajorVersion
 	}
 
+	useJson := UpdatePackagesOutput == "json" || UpdatePackagesJson
 	return service.UpdatePackages(cli.UpdatePackagesConfig{
 		Files:                    files,
 		RwxDirectory:             RwxDirectory,
 		ReplacementVersionPicker: replacementVersionPicker,
+		Json:                     useJson,
 	})
 }
 
@@ -76,6 +80,9 @@ func init() {
 	addRwxDirFlag(updateBaseCmd)
 
 	updatePackagesCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update packages to the latest major version")
+	updatePackagesCmd.Flags().BoolVar(&UpdatePackagesJson, "json", false, "output JSON instead of text")
+	_ = updatePackagesCmd.Flags().MarkHidden("json")
+	updatePackagesCmd.Flags().StringVar(&UpdatePackagesOutput, "output", "text", "output format: text or json")
 	addRwxDirFlag(updatePackagesCmd)
 
 	updateCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update to the latest major version")

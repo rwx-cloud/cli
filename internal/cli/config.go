@@ -190,6 +190,7 @@ type UpdatePackagesConfig struct {
 	RwxDirectory             string
 	Files                    []string
 	ReplacementVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)
+	Json                     bool
 }
 
 func (c UpdatePackagesConfig) Validate() error {

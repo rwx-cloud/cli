@@ -1113,12 +1113,23 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 		return err
 	}
 
-	if len(replacements) == 0 {
-		fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
+	if cfg.Json {
+		output := struct {
+			UpdatedPackages map[string]string `json:"updated_packages"`
+		}{
+			UpdatedPackages: replacements,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
 	} else {
-		fmt.Fprintln(s.Stdout, "Updated the following packages:")
-		for original, replacement := range replacements {
-			fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
+		if len(replacements) == 0 {
+			fmt.Fprintln(s.Stdout, "All packages are up-to-date.")
+		} else {
+			fmt.Fprintln(s.Stdout, "Updated the following packages:")
+			for original, replacement := range replacements {
+				fmt.Fprintf(s.Stdout, "\t%s → %s\n", original, replacement)
+			}
 		}
 	}
 
