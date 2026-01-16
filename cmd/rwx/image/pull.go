@@ -10,6 +10,8 @@ import (
 var (
 	pullTags    []string
 	pullTimeout time.Duration
+	pullJSON    bool
+	pullOutput  string
 
 	PullCmd *cobra.Command
 )
@@ -24,17 +26,21 @@ func InitPull(requireAccessToken func() error, getService func() cli.Service) {
 			taskID := args[0]
 
 			config := cli.PullImageConfig{
-				TaskID:  taskID,
-				Tags:    pullTags,
-				Timeout: pullTimeout,
+				TaskID:     taskID,
+				Tags:       pullTags,
+				Timeout:    pullTimeout,
+				OutputJSON: pullOutput == "json" || pullJSON,
 			}
 
 			return getService().PullImage(config)
 		},
 		Short: "Pull an existing RWX task as an OCI image",
-		Use:   "pull <taskId>",
+		Use:   "pull <taskId> [--output json]",
 	}
 
 	PullCmd.Flags().StringArrayVar(&pullTags, "tag", []string{}, "tag the pulled image (can be specified multiple times)")
 	PullCmd.Flags().DurationVar(&pullTimeout, "timeout", 10*time.Minute, "timeout for pulling the image")
+	PullCmd.Flags().BoolVar(&pullJSON, "json", false, "output JSON instead of human-readable text")
+	_ = PullCmd.Flags().MarkHidden("json")
+	PullCmd.Flags().StringVar(&pullOutput, "output", "text", "output format: text or json")
 }
