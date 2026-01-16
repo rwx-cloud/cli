@@ -101,7 +101,7 @@ func (s Service) BuildImage(config BuildImageConfig) error {
 		ServerAddress: registry,
 	}
 
-	if err := s.DockerCLI.Pull(ctx, imageRef, authConfig); err != nil {
+	if err := s.DockerCLI.Pull(ctx, imageRef, authConfig, false); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return fmt.Errorf("timeout while pulling image after %s\n\nThe image may still be available at: %s", config.Timeout, imageRef)
 		}

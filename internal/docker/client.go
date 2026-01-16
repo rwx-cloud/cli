@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/docker/cli/cli/command"
@@ -33,7 +34,7 @@ func (c Config) Validate() error {
 
 type Client interface {
 	GetAuthConfig(string) (cliTypes.AuthConfig, error)
-	Pull(context.Context, string, cliTypes.AuthConfig) error
+	Pull(ctx context.Context, imageRef string, authConfig cliTypes.AuthConfig, quiet bool) error
 	Tag(context.Context, string, string) error
 	Registry() string
 	Password() string
@@ -49,7 +50,7 @@ func (r realDockerCLI) GetAuthConfig(registry string) (cliTypes.AuthConfig, erro
 	return r.ConfigFile().GetAuthConfig(registry)
 }
 
-func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cliTypes.AuthConfig) error {
+func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cliTypes.AuthConfig, quiet bool) error {
 	encodedAuth, err := encodeAuthConfig(authConfig)
 	if err != nil {
 		return fmt.Errorf("unable to encode auth config: %w", err)
@@ -62,6 +63,12 @@ func (r realDockerCLI) Pull(ctx context.Context, imageRef string, authConfig cli
 		return fmt.Errorf("unable to pull image: %w", err)
 	}
 	defer responseBody.Close()
+
+	if quiet {
+		// Consume the response body to complete the pull but discard output
+		_, err = io.Copy(io.Discard, responseBody)
+		return err
+	}
 
 	fd := os.Stdout.Fd()
 	isTerminal := term.IsTerminal(int(fd))

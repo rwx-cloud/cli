@@ -323,9 +323,10 @@ func (c BuildImageConfig) Validate() error {
 }
 
 type PullImageConfig struct {
-	TaskID  string
-	Tags    []string
-	Timeout time.Duration
+	TaskID     string
+	Tags       []string
+	Timeout    time.Duration
+	OutputJSON bool
 }
 
 func (c PullImageConfig) Validate() error {

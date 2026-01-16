@@ -83,7 +83,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
 			require.Equal(t, "my-org", authConfig.Username)
 			require.Equal(t, "test-password", authConfig.Password)
@@ -140,7 +140,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
 			return nil
 		}
@@ -362,7 +362,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			return fmt.Errorf("failed to pull image: not found")
 		}
 
@@ -410,7 +410,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			return nil
 		}
 
@@ -563,7 +563,7 @@ func TestService_BuildImage(t *testing.T) {
 		}
 
 		pullCalled := false
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			pullCalled = true
 			return nil
 		}
@@ -623,7 +623,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			require.Equal(t, "cloud.rwx.com/my-org:task-456", imageRef)
 			return nil
 		}
@@ -701,7 +701,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig) error {
+		s.mockDocker.PullFunc = func(ctx context.Context, imageRef string, authConfig types.AuthConfig, quiet bool) error {
 			return nil
 		}
 

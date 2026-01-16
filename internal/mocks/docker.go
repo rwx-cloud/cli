@@ -8,7 +8,7 @@ import (
 
 type DockerClient struct {
 	GetAuthConfigFunc func(string) (cliTypes.AuthConfig, error)
-	PullFunc          func(context.Context, string, cliTypes.AuthConfig) error
+	PullFunc          func(context.Context, string, cliTypes.AuthConfig, bool) error
 	TagFunc           func(context.Context, string, string) error
 	RegistryValue     string
 	PasswordValue     string
@@ -21,9 +21,9 @@ func (m *DockerClient) GetAuthConfig(registry string) (cliTypes.AuthConfig, erro
 	return cliTypes.AuthConfig{}, nil
 }
 
-func (m *DockerClient) Pull(ctx context.Context, imageRef string, authConfig cliTypes.AuthConfig) error {
+func (m *DockerClient) Pull(ctx context.Context, imageRef string, authConfig cliTypes.AuthConfig, quiet bool) error {
 	if m.PullFunc != nil {
-		return m.PullFunc(ctx, imageRef, authConfig)
+		return m.PullFunc(ctx, imageRef, authConfig, quiet)
 	}
 	return nil
 }
