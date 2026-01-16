@@ -909,15 +909,14 @@ func extractTar(data []byte, destDir string) ([]string, error) {
 	return extractedFiles, nil
 }
 
-func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
+func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, error) {
 	defer s.outputLatestVersionMessage()
 
 	var stopSpinner func()
-	if !cfg.Json {
+	if cfg.Wait && !cfg.Json {
 		stopSpinner = Spin("Waiting for run to complete...", s.StdoutIsTTY, s.Stdout)
 	}
 
-	var result *WaitForRunResult
 	for {
 		statusResult, err := s.APIClient.RunStatus(api.RunStatusConfig{RunID: cfg.RunID})
 		if err != nil {
@@ -927,19 +926,20 @@ func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
 			return nil, errors.Wrap(err, "unable to get run status")
 		}
 
-		if statusResult.Polling.Completed {
+		status := ""
+		if statusResult.Status != nil {
+			status = statusResult.Status.Result
+		}
+
+		if !cfg.Wait || statusResult.Polling.Completed {
 			if stopSpinner != nil {
 				stopSpinner()
 			}
-			status := ""
-			if statusResult.Status != nil {
-				status = statusResult.Status.Result
-			}
-			result = &WaitForRunResult{
+			return &GetRunStatusResult{
 				RunID:        cfg.RunID,
 				ResultStatus: status,
-			}
-			break
+				Completed:    statusResult.Polling.Completed,
+			}, nil
 		}
 
 		if statusResult.Polling.BackoffMs == nil {
@@ -950,8 +950,6 @@ func (s Service) WaitForRun(cfg WaitForRunConfig) (*WaitForRunResult, error) {
 		}
 		time.Sleep(time.Duration(*statusResult.Polling.BackoffMs) * time.Millisecond)
 	}
-
-	return result, nil
 }
 
 func (s Service) GetRunPrompt(runID string) (string, error) {
