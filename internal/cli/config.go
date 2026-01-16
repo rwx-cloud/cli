@@ -204,6 +204,7 @@ func (c UpdatePackagesConfig) Validate() error {
 type InsertBaseConfig struct {
 	RwxDirectory string
 	Files        []string
+	Json         bool
 }
 
 func (c InsertBaseConfig) Validate() error {

@@ -31,6 +31,8 @@ var (
 	AllowMajorVersionChange bool
 	UpdatePackagesJson      bool
 	UpdatePackagesOutput    string
+	UpdateBaseJson          bool
+	UpdateBaseOutput        string
 
 	updateBaseCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,9 +56,11 @@ var (
 )
 
 func updateBase(files []string) error {
+	useJson := UpdateBaseOutput == "json" || UpdateBaseJson
 	_, err := service.InsertBase(cli.InsertBaseConfig{
 		Files:        files,
 		RwxDirectory: RwxDirectory,
+		Json:         useJson,
 	})
 	return err
 }
@@ -77,6 +81,9 @@ func updatePackages(files []string) error {
 }
 
 func init() {
+	updateBaseCmd.Flags().BoolVar(&UpdateBaseJson, "json", false, "output JSON instead of text")
+	_ = updateBaseCmd.Flags().MarkHidden("json")
+	updateBaseCmd.Flags().StringVar(&UpdateBaseOutput, "output", "text", "output format: text or json")
 	addRwxDirFlag(updateBaseCmd)
 
 	updatePackagesCmd.Flags().BoolVar(&AllowMajorVersionChange, "allow-major-version-change", false, "update packages to the latest major version")

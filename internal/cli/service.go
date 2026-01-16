@@ -1266,25 +1266,46 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 		return InsertDefaultBaseResult{}, err
 	}
 
-	if len(yamlFiles) == 0 {
-		fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
-	} else if !result.HasChanges() {
-		fmt.Fprintln(s.Stdout, "No run files were missing base.")
-	} else {
-		if len(result.UpdatedRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
-			for _, runFile := range result.UpdatedRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
-			}
-			if len(result.ErroredRunFiles) > 0 {
-				fmt.Fprintln(s.Stdout)
-			}
+	if cfg.Json {
+		addedBases := make(map[string]string)
+		for _, runFile := range result.UpdatedRunFiles {
+			addedBases[relativePathFromWd(runFile.OriginalPath)] = runFile.ResolvedBase.Image
 		}
+		erroredBases := make(map[string]string)
+		for _, runFile := range result.ErroredRunFiles {
+			erroredBases[relativePathFromWd(runFile.OriginalPath)] = runFile.Error.Error()
+		}
+		output := struct {
+			AddedBases   map[string]string `json:"added_bases"`
+			ErroredBases map[string]string `json:"errored_bases,omitempty"`
+		}{
+			AddedBases:   addedBases,
+			ErroredBases: erroredBases,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return InsertDefaultBaseResult{}, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(yamlFiles) == 0 {
+			fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
+		} else if !result.HasChanges() {
+			fmt.Fprintln(s.Stdout, "No run files were missing base.")
+		} else {
+			if len(result.UpdatedRunFiles) > 0 {
+				fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
+				for _, runFile := range result.UpdatedRunFiles {
+					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
+				}
+				if len(result.ErroredRunFiles) > 0 {
+					fmt.Fprintln(s.Stdout)
+				}
+			}
 
-		if len(result.ErroredRunFiles) > 0 {
-			fmt.Fprintln(s.Stdout, "Failed to add base to the following run definitions:")
-			for _, runFile := range result.ErroredRunFiles {
-				fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
+			if len(result.ErroredRunFiles) > 0 {
+				fmt.Fprintln(s.Stdout, "Failed to add base to the following run definitions:")
+				for _, runFile := range result.ErroredRunFiles {
+					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
+				}
 			}
 		}
 	}
