@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService_WaitForRun(t *testing.T) {
+func TestService_GetRunStatus(t *testing.T) {
 	t.Run("returns result when run completes immediately", func(t *testing.T) {
 		setup := setupTest(t)
 
@@ -21,14 +21,16 @@ func TestService_WaitForRun(t *testing.T) {
 			}, nil
 		}
 
-		result, err := setup.service.WaitForRun(cli.WaitForRunConfig{
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
 			RunID: "run-123",
+			Wait:  true,
 			Json:  false,
 		})
 
 		require.NoError(t, err)
 		require.Equal(t, "run-123", result.RunID)
 		require.Equal(t, "succeeded", result.ResultStatus)
+		require.True(t, result.Completed)
 	})
 
 	t.Run("polls until run completes", func(t *testing.T) {
@@ -52,8 +54,9 @@ func TestService_WaitForRun(t *testing.T) {
 			}, nil
 		}
 
-		result, err := setup.service.WaitForRun(cli.WaitForRunConfig{
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
 			RunID: "run-456",
+			Wait:  true,
 			Json:  false,
 		})
 
@@ -74,8 +77,9 @@ func TestService_WaitForRun(t *testing.T) {
 			}, nil
 		}
 
-		_, err := setup.service.WaitForRun(cli.WaitForRunConfig{
+		_, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
 			RunID: "run-789",
+			Wait:  true,
 			Json:  false,
 		})
 
@@ -93,8 +97,9 @@ func TestService_WaitForRun(t *testing.T) {
 			}, nil
 		}
 
-		result, err := setup.service.WaitForRun(cli.WaitForRunConfig{
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
 			RunID: "nonexistent",
+			Wait:  true,
 			Json:  false,
 		})
 
@@ -110,12 +115,39 @@ func TestService_WaitForRun(t *testing.T) {
 			return api.RunStatusResult{}, api.ErrNotFound
 		}
 
-		_, err := setup.service.WaitForRun(cli.WaitForRunConfig{
+		_, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
 			RunID: "run-123",
+			Wait:  true,
 			Json:  false,
 		})
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get run status")
+	})
+
+	t.Run("returns current status without waiting when Wait is false", func(t *testing.T) {
+		setup := setupTest(t)
+
+		callCount := 0
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			callCount++
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "in_progress"},
+				RunID:   "run-123",
+				Polling: api.PollingResult{Completed: false},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			RunID: "run-123",
+			Wait:  false,
+			Json:  false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 1, callCount)
+		require.Equal(t, "run-123", result.RunID)
+		require.Equal(t, "in_progress", result.ResultStatus)
+		require.False(t, result.Completed)
 	})
 }

@@ -131,6 +131,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(vaultsCmd)
+	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(whoamiCmd)
 
 	cobra.OnInitialize(func() {
