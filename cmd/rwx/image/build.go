@@ -53,7 +53,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				openURL = func(input string) error { return nil }
 			}
 
-			config := cli.BuildImageConfig{
+			config := cli.ImageBuildConfig{
 				InitParameters:   initParams,
 				RwxDirectory:     buildRwxDirectory,
 				MintFilePath:     buildMintFilePath,
@@ -66,7 +66,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				OpenURL:          openURL,
 			}
 
-			return getService().BuildImage(config)
+			return getService().ImageBuild(config)
 		},
 		Short: "Launch a targeted RWX run and pull its result as an OCI image",
 		Use:   "build <file> --target <task-key> [flags]",

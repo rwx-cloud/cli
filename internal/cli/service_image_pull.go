@@ -9,12 +9,12 @@ import (
 	cliTypes "github.com/docker/cli/cli/config/types"
 )
 
-type PullImageOutput struct {
+type ImagePullOutput struct {
 	ImageRef string   `json:"image_ref"`
 	Tags     []string `json:"tags,omitempty"`
 }
 
-func (s Service) PullImage(config PullImageConfig) error {
+func (s Service) ImagePull(config ImagePullConfig) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (s Service) PullImage(config PullImageConfig) error {
 	}
 
 	if config.OutputJSON {
-		output := PullImageOutput{
+		output := ImagePullOutput{
 			ImageRef: imageRef,
 			Tags:     config.Tags,
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupBuildImageTest(t *testing.T, s *testSetup) {
+func setupImageBuildTest(t *testing.T, s *testSetup) {
 	err := os.WriteFile("test.yml", []byte("base:\n  os: ubuntu 24.04\n  tag: 1.0\ntasks:\n  - key: build-task\n    run: echo 'building'\n"), 0o644)
 	require.NoError(t, err)
 
@@ -33,10 +33,10 @@ func setupBuildImageTest(t *testing.T, s *testSetup) {
 	s.mockGit.MockGetOriginUrl = "git@github.com:test/test.git"
 }
 
-func TestService_BuildImage(t *testing.T) {
+func TestService_ImageBuild(t *testing.T) {
 	t.Run("successful build with no tags", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -91,7 +91,7 @@ func TestService_BuildImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{"key": "value"},
 			MintFilePath:   "test.yml",
 			NoCache:        false,
@@ -101,7 +101,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), "Building image for build-task")
@@ -113,7 +113,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("successful build with tags", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -152,7 +152,7 @@ func TestService_BuildImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{"key": "value"},
 			MintFilePath:   "test.yml",
 			NoCache:        false,
@@ -162,7 +162,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{
@@ -175,13 +175,13 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when run initiation fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return nil, fmt.Errorf("failed to initiate run")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -189,7 +189,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to initiate run")
@@ -197,7 +197,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when task status polling fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -210,7 +210,7 @@ func TestService_BuildImage(t *testing.T) {
 			return api.TaskStatusResult{}, fmt.Errorf("failed to get task status")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -218,7 +218,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get build status")
@@ -227,7 +227,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when build fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -245,7 +245,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -253,7 +253,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -261,7 +261,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when build fails without error message", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -279,7 +279,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -287,7 +287,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -295,7 +295,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when whoami fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -318,7 +318,7 @@ func TestService_BuildImage(t *testing.T) {
 			return nil, fmt.Errorf("unauthorized")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -326,7 +326,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
@@ -335,7 +335,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when image pull fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -366,7 +366,7 @@ func TestService_BuildImage(t *testing.T) {
 			return fmt.Errorf("failed to pull image: not found")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -374,7 +374,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to pull image")
@@ -383,7 +383,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when image tagging fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -418,7 +418,7 @@ func TestService_BuildImage(t *testing.T) {
 			return fmt.Errorf("failed to tag image")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -427,7 +427,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to tag image as latest")
@@ -435,7 +435,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("returns unknown status error for unexpected status", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -453,7 +453,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -461,7 +461,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -469,7 +469,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when status is nil", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -487,7 +487,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -495,7 +495,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -503,7 +503,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when backoff instructions aren't included", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
@@ -522,7 +522,7 @@ func TestService_BuildImage(t *testing.T) {
 			}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -530,7 +530,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -538,7 +538,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("skips pull when no-pull flag is set", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -574,7 +574,7 @@ func TestService_BuildImage(t *testing.T) {
 			return nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters: map[string]string{},
 			MintFilePath:   "test.yml",
 			TargetTaskKey:  "build-task",
@@ -583,7 +583,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.False(t, pullCalled, "Pull should not be called when NoPull is true")
@@ -598,7 +598,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("successful build with push-to references", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -653,7 +653,7 @@ func TestService_BuildImage(t *testing.T) {
 			return api.ImagePushStatusResult{Status: "succeeded"}, nil
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters:   map[string]string{"key": "value"},
 			MintFilePath:     "test.yml",
 			NoCache:          false,
@@ -664,7 +664,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:          func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), "Build succeeded!")
@@ -676,7 +676,7 @@ func TestService_BuildImage(t *testing.T) {
 
 	t.Run("fails when push fails", func(t *testing.T) {
 		s := setupTest(t)
-		setupBuildImageTest(t, s)
+		setupImageBuildTest(t, s)
 		s.mockDocker.RegistryValue = "cloud.rwx.com"
 		s.mockDocker.PasswordValue = "test-password"
 
@@ -709,7 +709,7 @@ func TestService_BuildImage(t *testing.T) {
 			return types.AuthConfig{}, fmt.Errorf("no credentials available")
 		}
 
-		cfg := cli.BuildImageConfig{
+		cfg := cli.ImageBuildConfig{
 			InitParameters:   map[string]string{},
 			MintFilePath:     "test.yml",
 			TargetTaskKey:    "build-task",
@@ -718,7 +718,7 @@ func TestService_BuildImage(t *testing.T) {
 			OpenURL:          func(string) error { return nil },
 		}
 
-		err := s.service.BuildImage(cfg)
+		err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no credentials available")
