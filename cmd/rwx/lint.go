@@ -58,5 +58,5 @@ var (
 func init() {
 	lintCmd.Flags().BoolVar(&LintWarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
 	lintCmd.Flags().StringVarP(&LintRwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
-	lintCmd.Flags().StringVarP(&LintOutputFormat, "output", "o", "multiline", "output format: multiline, oneline, none")
+	lintCmd.Flags().StringVarP(&LintOutputFormat, "output", "o", "multiline", "output format: multiline, oneline, json, none")
 }
