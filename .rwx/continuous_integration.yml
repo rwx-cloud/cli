@@ -137,54 +137,13 @@ tasks:
   - key: run-rwx-testing-tests
     use: [rwx-testing-code, jq, rwx-cli]
     run: |
-      initiate_run_result=$(./rwx run --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
-      echo "${initiate_run_result}"
-      run_id=$(echo "${initiate_run_result}" | jq -r ".RunId")
+      run_result=$(./rwx run --wait --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
+      echo "${run_result}"
+      result_status=$(echo "${run_result}" | jq -r ".result_status")
 
-      while true; do
-        response=$(curl -H "Authorization: Bearer ${RWX_ACCESS_TOKEN}" -s -o response.json --http1.1 -w "%{http_code}" "https://cloud.rwx.com/mint/api/runs/${run_id}")
-
-        if [ "$response" -ne 200 ]; then
-          echo "Error: Cloud server returned unexpected status ${response} when polling run"
-          exit 1
-        fi
-
-        execution_status=$(jq -r .run_status.execution response.json)
-        result_status=$(jq -r .run_status.result response.json)
-
-        echo "Execution status: ${execution_status}"
-        echo "Result status: ${result_status}"
-
-        case $execution_status in
-          "waiting")
-            echo "Retrying in 5 seconds..."
-            sleep 5
-            ;;
-          "in_progress")
-            echo "Retrying in 5 seconds..."
-            sleep 5
-            ;;
-          "aborted")
-            exit 1
-            ;;
-          "finished")
-            case $result_status in
-              "failed")
-                exit 1
-                ;;
-              "succeeded")
-                exit 0
-                ;;
-              *)
-                exit 1
-                ;;
-            esac
-            ;;
-          *)
-            exit 1
-            ;;
-        esac
-      done
+      if [ "$result_status" != "succeeded" ]; then
+        exit 1
+      fi
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
     filter:
