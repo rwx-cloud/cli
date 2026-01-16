@@ -107,7 +107,7 @@ func init() {
 
 	// Define command groups for help output ordering
 	rootCmd.AddGroup(&cobra.Group{ID: "execution", Title: "Execution:"})
-	rootCmd.AddGroup(&cobra.Group{ID: "results", Title: "Results:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "outputs", Title: "Outputs:"})
 	rootCmd.AddGroup(&cobra.Group{ID: "api", Title: "API:"})
 	rootCmd.AddGroup(&cobra.Group{ID: "definitions", Title: "Definitions:"})
 	rootCmd.AddGroup(&cobra.Group{ID: "setup", Title: "Setup:"})
@@ -131,7 +131,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(vaultsCmd)
-	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(resultsCmd)
 	rootCmd.AddCommand(whoamiCmd)
 
 	cobra.OnInitialize(func() {
