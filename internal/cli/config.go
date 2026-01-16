@@ -171,6 +171,7 @@ type SetSecretsInVaultConfig struct {
 	Secrets []string
 	Vault   string
 	File    string
+	Json    bool
 }
 
 func (c SetSecretsInVaultConfig) Validate() error {

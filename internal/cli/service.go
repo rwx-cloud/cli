@@ -1008,13 +1008,24 @@ func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) error {
 		Secrets:   secrets,
 	})
 
-	if result != nil && len(result.SetSecrets) > 0 {
-		fmt.Fprintln(s.Stdout)
-		fmt.Fprintf(s.Stdout, "Successfully set the following secrets: %s", strings.Join(result.SetSecrets, ", "))
-	}
-
 	if err != nil {
 		return errors.Wrap(err, "unable to set secrets")
+	}
+
+	if cfg.Json {
+		output := struct {
+			Vault      string   `json:"vault"`
+			SetSecrets []string `json:"set_secrets"`
+		}{
+			Vault:      cfg.Vault,
+			SetSecrets: result.SetSecrets,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else if result != nil && len(result.SetSecrets) > 0 {
+		fmt.Fprintln(s.Stdout)
+		fmt.Fprintf(s.Stdout, "Successfully set the following secrets: %s", strings.Join(result.SetSecrets, ", "))
 	}
 
 	return nil
