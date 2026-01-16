@@ -20,7 +20,7 @@ var (
 	LogsOpen        bool
 
 	logsCmd = &cobra.Command{
-		GroupID: "results",
+		GroupID: "outputs",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},

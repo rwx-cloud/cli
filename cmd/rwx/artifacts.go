@@ -7,7 +7,7 @@ import (
 )
 
 var artifactsCmd = &cobra.Command{
-	GroupID: "results",
+	GroupID: "outputs",
 	Use:     "artifacts",
 	Short:   "Manage task artifacts",
 }

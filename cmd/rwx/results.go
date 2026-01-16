@@ -10,23 +10,26 @@ import (
 )
 
 var (
-	GetRunWait   bool
-	GetRunJson   bool
-	GetRunOutput string
+	ResultsWait   bool
+	ResultsJson   bool
+	ResultsOutput string
 
-	getRunCmd = &cobra.Command{
-		Args: cobra.ExactArgs(1),
+	resultsCmd = &cobra.Command{
+		GroupID: "outputs",
+		Use:     "results <run-id>",
+		Short:   "Get results for a run",
+		Args:    cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runID := args[0]
-			useJson := GetRunOutput == "json" || GetRunJson
-			useLLM := GetRunOutput == "llm"
+			useJson := ResultsOutput == "json" || ResultsJson
+			useLLM := ResultsOutput == "llm"
 
 			result, err := service.GetRunStatus(cli.GetRunStatusConfig{
 				RunID: runID,
-				Wait:  GetRunWait,
+				Wait:  ResultsWait,
 				Json:  useJson,
 			})
 			if err != nil {
@@ -65,14 +68,12 @@ var (
 
 			return nil
 		},
-		Short: "Get the status of a run",
-		Use:   "run <run-id>",
 	}
 )
 
 func init() {
-	getRunCmd.Flags().BoolVar(&GetRunWait, "wait", false, "wait for the run to complete")
-	getRunCmd.Flags().BoolVar(&GetRunJson, "json", false, "output json data to stdout")
-	_ = getRunCmd.Flags().MarkHidden("json")
-	getRunCmd.Flags().StringVar(&GetRunOutput, "output", "text", "output format: text, json, or llm")
+	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "wait for the run to complete")
+	resultsCmd.Flags().BoolVar(&ResultsJson, "json", false, "output json data to stdout")
+	_ = resultsCmd.Flags().MarkHidden("json")
+	resultsCmd.Flags().StringVar(&ResultsOutput, "output", "text", "output format: text, json, or llm")
 }
