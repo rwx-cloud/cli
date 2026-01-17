@@ -61,7 +61,7 @@ var (
 			}
 
 			useJson := LogsOutput == "json" || LogsJson
-			err = service.DownloadLogs(cli.DownloadLogsConfig{
+			_, err = service.DownloadLogs(cli.DownloadLogsConfig{
 				TaskID:      taskId,
 				OutputDir:   absOutputDir,
 				OutputFile:  absOutputFile,
@@ -69,11 +69,7 @@ var (
 				AutoExtract: LogsAutoExtract,
 				Open:        LogsOpen,
 			})
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		},
 		Short: "Download logs for a task",
 		Use:   "logs <taskId> [flags]",

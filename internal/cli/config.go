@@ -402,3 +402,7 @@ type UpdatePackagesResult struct {
 type DownloadArtifactResult struct {
 	OutputFiles []string `json:"output_files"`
 }
+
+type DownloadLogsResult struct {
+	OutputFiles []string `json:"output_files"`
+}
