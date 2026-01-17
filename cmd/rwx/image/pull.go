@@ -32,7 +32,8 @@ func InitPull(requireAccessToken func() error, getService func() cli.Service) {
 				OutputJSON: pullOutput == "json" || pullJSON,
 			}
 
-			return getService().ImagePull(config)
+			_, err := getService().ImagePull(config)
+			return err
 		},
 		Short: "Pull an existing RWX task as an OCI image",
 		Use:   "pull <taskId> [--output json]",

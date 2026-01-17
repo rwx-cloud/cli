@@ -9,19 +9,19 @@ import (
 	cliTypes "github.com/docker/cli/cli/config/types"
 )
 
-type ImagePullOutput struct {
+type ImagePullResult struct {
 	ImageRef string   `json:"image_ref"`
 	Tags     []string `json:"tags,omitempty"`
 }
 
-func (s Service) ImagePull(config ImagePullConfig) error {
+func (s Service) ImagePull(config ImagePullConfig) (*ImagePullResult, error) {
 	if err := config.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	whoamiResult, err := s.APIClient.Whoami()
 	if err != nil {
-		return fmt.Errorf("failed to get organization info: %w\nTry running `rwx login` again", err)
+		return nil, fmt.Errorf("failed to get organization info: %w\nTry running `rwx login` again", err)
 	}
 
 	registry := s.DockerCLI.Registry()
@@ -42,9 +42,9 @@ func (s Service) ImagePull(config ImagePullConfig) error {
 
 	if err := s.DockerCLI.Pull(ctx, imageRef, authConfig, config.OutputJSON); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("timeout while pulling image after %s\n\nThe image may still be available at: %s", config.Timeout, imageRef)
+			return nil, fmt.Errorf("timeout while pulling image after %s\n\nThe image may still be available at: %s", config.Timeout, imageRef)
 		}
-		return fmt.Errorf("failed to pull image: %w", err)
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 
 	if !config.OutputJSON {
@@ -58,21 +58,22 @@ func (s Service) ImagePull(config ImagePullConfig) error {
 
 		if err := s.DockerCLI.Tag(ctx, imageRef, tag); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				return fmt.Errorf("timeout while tagging image after %s", config.Timeout)
+				return nil, fmt.Errorf("timeout while tagging image after %s", config.Timeout)
 			}
-			return fmt.Errorf("failed to tag image as %s: %w", tag, err)
+			return nil, fmt.Errorf("failed to tag image as %s: %w", tag, err)
 		}
+	}
+
+	result := &ImagePullResult{
+		ImageRef: imageRef,
+		Tags:     config.Tags,
 	}
 
 	if config.OutputJSON {
-		output := ImagePullOutput{
-			ImageRef: imageRef,
-			Tags:     config.Tags,
-		}
-		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-			return fmt.Errorf("unable to encode output: %w", err)
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, fmt.Errorf("unable to encode output: %w", err)
 		}
 	}
 
-	return nil
+	return result, nil
 }

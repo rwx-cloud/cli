@@ -38,9 +38,11 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
+		require.Equal(t, "cloud.rwx.com/my-org:task-456", result.ImageRef)
+		require.Empty(t, result.Tags)
 		require.Contains(t, s.mockStdout.String(), "Pulling image: cloud.rwx.com/my-org:task-456")
 		require.Contains(t, s.mockStdout.String(), "Image pulled successfully!")
 	})
@@ -74,9 +76,11 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
+		require.Equal(t, "cloud.rwx.com/my-org:task-456", result.ImageRef)
+		require.Equal(t, []string{"latest", "v1.0.0"}, result.Tags)
 		require.ElementsMatch(t, []string{
 			"latest",
 			"v1.0.0",
@@ -93,8 +97,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "task ID must be provided")
 	})
@@ -111,8 +116,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
 		require.Contains(t, err.Error(), "Try running `rwx login` again")
@@ -138,8 +144,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to pull image")
 		require.Contains(t, err.Error(), "not found")
@@ -165,8 +172,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "timeout while pulling image after 1s")
 		require.Contains(t, err.Error(), "The image may still be available at: cloud.rwx.com/my-org:task-456")
@@ -197,8 +205,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to tag image as latest")
 	})
@@ -228,8 +237,9 @@ func TestService_ImagePull(t *testing.T) {
 			Timeout: 1 * time.Second,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "timeout while tagging image after 1s")
 	})
@@ -264,9 +274,11 @@ func TestService_ImagePull(t *testing.T) {
 			OutputJSON: true,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
+		require.Equal(t, "cloud.rwx.com/my-org:task-456", result.ImageRef)
+		require.Equal(t, []string{"latest", "v1.0.0"}, result.Tags)
 		require.ElementsMatch(t, []string{"latest", "v1.0.0"}, taggedRefs)
 
 		// Verify no human-readable output
@@ -302,9 +314,11 @@ func TestService_ImagePull(t *testing.T) {
 			OutputJSON: true,
 		}
 
-		err := s.service.ImagePull(cfg)
+		result, err := s.service.ImagePull(cfg)
 
 		require.NoError(t, err)
+		require.Equal(t, "cloud.rwx.com/my-org:task-456", result.ImageRef)
+		require.Empty(t, result.Tags)
 		require.Contains(t, s.mockStdout.String(), `"image_ref":"cloud.rwx.com/my-org:task-456"`)
 		// Tags should be omitted if empty (omitempty)
 		require.NotContains(t, s.mockStdout.String(), `"tags"`)
