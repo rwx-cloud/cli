@@ -139,7 +139,7 @@ tasks:
     run: |
       run_result=$(./rwx run --wait --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
       echo "${run_result}"
-      result_status=$(echo "${run_result}" | jq -r ".result_status")
+      result_status=$(echo "${run_result}" | jq -r ".ResultStatus")
 
       if [ "$result_status" != "succeeded" ]; then
         exit 1
