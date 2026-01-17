@@ -28,12 +28,13 @@ var (
 			}
 
 			useJson := VaultsSetSecretsOutput == "json" || VaultsSetSecretsJson
-			return service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
+			_, err := service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 				Vault:   Vault,
 				File:    File,
 				Secrets: secrets,
 				Json:    useJson,
 			})
+			return err
 		},
 		Short: "Set secrets in a vault",
 		Use:   "set-secrets [flags] [SECRETNAME=secretvalue]",

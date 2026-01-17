@@ -23,11 +23,12 @@ func TestService_SettingSecrets(t *testing.T) {
 			return nil, errors.New("error setting secret")
 		}
 
-		err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
+		result, err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{"ABC=123"},
 		})
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error setting secret")
 	})
@@ -46,12 +47,13 @@ func TestService_SettingSecrets(t *testing.T) {
 			}, nil
 		}
 
-		err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
+		result, err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{"ABC=123", `DEF="xyz"`},
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, []string{"ABC", "DEF"}, result.SetSecrets)
 		require.Equal(t, "\nSuccessfully set the following secrets: ABC, DEF", s.mockStdout.String())
 	})
 
@@ -80,13 +82,14 @@ func TestService_SettingSecrets(t *testing.T) {
 		err := os.WriteFile(secretsFile, []byte("A=123\nB=\"xyz\"\nC='q\\nqq'\nD=\"a multiline\nstring\nspanning lines\""), 0o644)
 		require.NoError(t, err)
 
-		err = s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
+		result, err := s.service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 			Vault:   "default",
 			Secrets: []string{},
 			File:    secretsFile,
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, []string{"A", "B", "C", "D"}, result.SetSecrets)
 		require.Equal(t, "\nSuccessfully set the following secrets: A, B, C, D", s.mockStdout.String())
 	})
 }
