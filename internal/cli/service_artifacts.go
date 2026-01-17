@@ -16,19 +16,19 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
-func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
+func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifactResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
-		return errors.Wrap(err, "validation failed")
+		return nil, errors.Wrap(err, "validation failed")
 	}
 
 	artifactDownloadRequest, err := s.APIClient.GetArtifactDownloadRequest(cfg.TaskID, cfg.ArtifactKey)
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
-			return errors.New(fmt.Sprintf("Artifact %s for task %s not found", cfg.ArtifactKey, cfg.TaskID))
+			return nil, errors.New(fmt.Sprintf("Artifact %s for task %s not found", cfg.ArtifactKey, cfg.TaskID))
 		}
-		return errors.Wrap(err, "unable to fetch artifact download request")
+		return nil, errors.Wrap(err, "unable to fetch artifact download request")
 	}
 
 	stopSpinner := Spin(
@@ -40,7 +40,7 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 	artifactBytes, err := s.APIClient.DownloadArtifact(artifactDownloadRequest)
 	stopSpinner()
 	if err != nil {
-		return errors.Wrap(err, "unable to download artifact")
+		return nil, errors.Wrap(err, "unable to download artifact")
 	}
 
 	// For files, always extract the single file from the tar
@@ -67,19 +67,19 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 		}
 
 		if err := os.MkdirAll(extractDir, 0755); err != nil {
-			return errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
+			return nil, errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
 		}
 
 		extractedFiles, err := extractTar(artifactBytes, extractDir)
 		if err != nil {
-			return errors.Wrapf(err, "unable to extract tar archive")
+			return nil, errors.Wrapf(err, "unable to extract tar archive")
 		}
 
 		// For single file artifacts, if OutputFile is specified, rename the extracted file
 		if artifactDownloadRequest.Kind == "file" && cfg.OutputFile != "" && len(extractedFiles) == 1 {
 			newPath := cfg.OutputFile
 			if err := os.Rename(extractedFiles[0], newPath); err != nil {
-				return errors.Wrapf(err, "unable to rename extracted file to %s", newPath)
+				return nil, errors.Wrapf(err, "unable to rename extracted file to %s", newPath)
 			}
 			outputFiles = []string{newPath}
 		} else {
@@ -100,7 +100,7 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 
 		outputDir := filepath.Dir(outputPath)
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
-			return errors.Wrapf(err, "unable to create output directory %s", outputDir)
+			return nil, errors.Wrapf(err, "unable to create output directory %s", outputDir)
 		}
 
 		if _, err := os.Stat(outputPath); err == nil {
@@ -110,7 +110,7 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 		}
 
 		if err := os.WriteFile(outputPath, artifactBytes, 0644); err != nil {
-			return errors.Wrapf(err, "unable to write artifact file to %s", outputPath)
+			return nil, errors.Wrapf(err, "unable to write artifact file to %s", outputPath)
 		}
 
 		outputFiles = []string{outputPath}
@@ -126,14 +126,11 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 		}
 	}
 
+	result := &DownloadArtifactResult{OutputFiles: outputFiles}
+
 	if cfg.Json {
-		output := struct {
-			OutputFiles []string `json:"outputFiles"`
-		}{
-			OutputFiles: outputFiles,
-		}
-		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-			return errors.Wrap(err, "unable to encode JSON output")
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
 	} else {
 		if len(outputFiles) == 1 {
@@ -146,7 +143,7 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) error {
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 func extractTar(data []byte, destDir string) ([]string, error) {

@@ -398,3 +398,7 @@ type GetRunPromptResult struct {
 type UpdatePackagesResult struct {
 	UpdatedPackages map[string]string `json:"updated_packages"`
 }
+
+type DownloadArtifactResult struct {
+	OutputFiles []string `json:"output_files"`
+}
