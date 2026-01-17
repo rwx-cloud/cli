@@ -138,7 +138,7 @@ func (s Service) ImageBuild(config ImageBuildConfig) error {
 			return err
 		}
 
-		if err := s.ImagePush(pushConfig); err != nil {
+		if _, err := s.ImagePush(pushConfig); err != nil {
 			return err
 		}
 	}

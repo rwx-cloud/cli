@@ -62,7 +62,7 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 			}
 
 			useJson := downloadOutput == "json" || downloadJSON
-			err = getService().DownloadArtifact(cli.DownloadArtifactConfig{
+			_, err = getService().DownloadArtifact(cli.DownloadArtifactConfig{
 				TaskID:                 taskID,
 				ArtifactKey:            artifactKey,
 				OutputDir:              absOutputDir,
@@ -72,11 +72,7 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 				AutoExtract:            downloadAutoExtract,
 				Open:                   downloadOpen,
 			})
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		},
 		Short: "Download an artifact from a task",
 		Use:   "download <task-id> <artifact-key> [flags]",

@@ -5,20 +5,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
-func (s Service) Whoami(cfg WhoamiConfig) error {
+func (s Service) Whoami(cfg WhoamiConfig) (*api.WhoamiResult, error) {
 	result, err := s.APIClient.Whoami()
 	s.outputLatestVersionMessage()
 	if err != nil {
-		return errors.Wrap(err, "unable to determine details about the access token")
+		return nil, errors.Wrap(err, "unable to determine details about the access token")
 	}
 
 	if cfg.Json {
 		encoded, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
-			return errors.Wrap(err, "unable to JSON encode the result")
+			return nil, errors.Wrap(err, "unable to JSON encode the result")
 		}
 
 		fmt.Fprint(s.Stdout, string(encoded))
@@ -30,5 +31,5 @@ func (s Service) Whoami(cfg WhoamiConfig) error {
 		}
 	}
 
-	return nil
+	return result, nil
 }

@@ -57,9 +57,9 @@ var (
 					fmt.Printf("Run status: %s (in progress)\n", result.ResultStatus)
 				}
 
-				prompt, err := service.GetRunPrompt(runID)
+				promptResult, err := service.GetRunPrompt(runID)
 				if err == nil {
-					fmt.Print(prompt)
+					fmt.Print(promptResult.Prompt)
 				}
 			}
 

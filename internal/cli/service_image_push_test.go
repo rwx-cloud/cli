@@ -33,8 +33,9 @@ func TestService_ImagePush(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(t, "all image references must have the same registry: a.registry.com != b.registry.com", err.Error())
 	})
@@ -54,8 +55,9 @@ func TestService_ImagePush(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(t, "all image references must have the same repository: repo-one != repo-two", err.Error())
 	})
@@ -77,8 +79,9 @@ func TestService_ImagePush(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(
 			t,
@@ -106,8 +109,9 @@ func TestService_ImagePush(t *testing.T) {
 			OpenURL: func(url string) error { return nil },
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(
 			t,
@@ -151,8 +155,9 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(t, "task failed", err.Error())
 
@@ -193,8 +198,9 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Equal(t, "failed to start push", err.Error())
 
@@ -242,8 +248,9 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get image push status")
 
@@ -294,10 +301,14 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "image push failed, inspect the run at \"some-run-url\" to see why", err.Error())
+		require.NotNil(t, result)
+		require.Equal(t, "some-push-id", result.PushID)
+		require.Equal(t, "some-run-url", result.RunURL)
+		require.Equal(t, "failed", result.Status)
 
 		require.True(t, didOpenURL)
 
@@ -346,9 +357,13 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
 		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, "some-push-id", result.PushID)
+		require.Equal(t, "some-run-url", result.RunURL)
+		require.Equal(t, "succeeded", result.Status)
 
 		require.True(t, didOpenURL)
 
@@ -402,9 +417,13 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
 		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, "some-push-id", result.PushID)
+		require.Equal(t, "some-run-url", result.RunURL)
+		require.Equal(t, "succeeded", result.Status)
 
 		require.True(t, didOpenURL)
 
@@ -452,8 +471,9 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.ErrorContains(t, err, "RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
 	})
 
@@ -495,8 +515,9 @@ func TestService_ImagePush(t *testing.T) {
 			},
 		}
 
-		err := s.service.ImagePush(cfg)
+		result, err := s.service.ImagePush(cfg)
 
+		require.Nil(t, result)
 		require.ErrorContains(t, err, "RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
 	})
 }

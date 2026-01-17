@@ -11,13 +11,13 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 )
 
-type ImagePushOutput struct {
+type ImagePushResult struct {
 	PushID string `json:"push_id,omitempty"`
 	RunURL string `json:"run_url,omitempty"`
 	Status string `json:"status,omitempty"`
 }
 
-func (s Service) ImagePush(config ImagePushConfig) error {
+func (s Service) ImagePush(config ImagePushConfig) (*ImagePushResult, error) {
 	request := api.StartImagePushConfig{
 		TaskID:      config.TaskID,
 		Image:       api.StartImagePushConfigImage{},
@@ -40,13 +40,13 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 		if request.Image.Registry == "" {
 			request.Image.Registry = registry
 		} else if request.Image.Registry != registry {
-			return fmt.Errorf("all image references must have the same registry: %v != %v", request.Image.Registry, registry)
+			return nil, fmt.Errorf("all image references must have the same registry: %v != %v", request.Image.Registry, registry)
 		}
 
 		if request.Image.Repository == "" {
 			request.Image.Repository = repository
 		} else if request.Image.Repository != repository {
-			return fmt.Errorf("all image references must have the same repository: %v != %v", request.Image.Repository, repository)
+			return nil, fmt.Errorf("all image references must have the same repository: %v != %v", request.Image.Repository, repository)
 		}
 
 		request.Image.Tags = append(request.Image.Tags, tag)
@@ -56,9 +56,9 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 	request.Credentials.Password = os.Getenv("RWX_PUSH_PASSWORD")
 
 	if request.Credentials.Username == "" && request.Credentials.Password != "" {
-		return fmt.Errorf("RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
+		return nil, fmt.Errorf("RWX_PUSH_USERNAME must be set if RWX_PUSH_PASSWORD is set")
 	} else if request.Credentials.Username != "" && request.Credentials.Password == "" {
-		return fmt.Errorf("RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
+		return nil, fmt.Errorf("RWX_PUSH_PASSWORD must be set if RWX_PUSH_USERNAME is set")
 	} else if request.Credentials.Username == "" && request.Credentials.Password == "" {
 		credentialsHost := request.Image.Registry
 		if credentialsHost == "registry-1.docker.io" {
@@ -67,10 +67,10 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 
 		credentials, err := s.DockerCLI.GetAuthConfig(credentialsHost)
 		if err != nil {
-			return fmt.Errorf("unable to get credentials for registry %q from docker: %w", request.Image.Registry, err)
+			return nil, fmt.Errorf("unable to get credentials for registry %q from docker: %w", request.Image.Registry, err)
 		}
 		if credentials.Username == "" || credentials.Password == "" {
-			return fmt.Errorf("no credentials found for registry %q in docker config", request.Image.Registry)
+			return nil, fmt.Errorf("no credentials found for registry %q in docker config", request.Image.Registry)
 		}
 
 		request.Credentials.Username = credentials.Username
@@ -99,14 +99,14 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 		select {
 		case <-taskStatusTimeout.Done():
 			stopStartSpinner()
-			return fmt.Errorf("timed out waiting for task %s to complete", config.TaskID)
+			return nil, fmt.Errorf("timed out waiting for task %s to complete", config.TaskID)
 		default:
 		}
 
 		result, err := s.APIClient.TaskIDStatus(api.TaskIDStatusConfig{TaskID: config.TaskID})
 		if err != nil {
 			stopStartSpinner()
-			return fmt.Errorf("failed to get task status: %w", err)
+			return nil, fmt.Errorf("failed to get task status: %w", err)
 		}
 
 		if result.Polling.Completed {
@@ -114,7 +114,7 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 				succeeded = true
 			} else {
 				stopStartSpinner()
-				return fmt.Errorf("task failed")
+				return nil, fmt.Errorf("task failed")
 			}
 		} else {
 			time.Sleep(time.Duration(*result.Polling.BackoffMs) * time.Millisecond)
@@ -124,7 +124,7 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 	result, err := s.APIClient.StartImagePush(request)
 	stopStartSpinner()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !config.JSON {
@@ -138,17 +138,16 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 	}
 
 	if !config.Wait {
+		output := &ImagePushResult{PushID: result.PushID, RunURL: result.RunURL}
 		if config.JSON {
-			output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL}
 			if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-				return fmt.Errorf("unable to encode output: %w", err)
+				return nil, fmt.Errorf("unable to encode output: %w", err)
 			}
-			return nil
 		} else {
 			fmt.Fprintln(s.Stdout, "Your image is being pushed. This may take some time for large images.")
 			fmt.Fprintln(s.Stdout)
-			return nil
 		}
+		return output, nil
 	}
 
 	stopWaitingSpinner := func() {}
@@ -170,51 +169,45 @@ func (s Service) ImagePush(config ImagePushConfig) error {
 	var finalPushResult api.ImagePushStatusResult
 statusloop:
 	for range ticker.C {
-		result, err := s.APIClient.ImagePushStatus(result.PushID)
+		pushStatus, err := s.APIClient.ImagePushStatus(result.PushID)
 		if err != nil {
 			stopWaitingSpinner()
-			return fmt.Errorf("unable to get image push status: %w", err)
+			return nil, fmt.Errorf("unable to get image push status: %w", err)
 		}
 
-		switch result.Status {
+		switch pushStatus.Status {
 		case "succeeded", "failed":
-			finalPushResult = result
+			finalPushResult = pushStatus
 			stopWaitingSpinner()
 			break statusloop
 		case "in_progress", "waiting":
 			// continue waiting
 		default:
 			stopWaitingSpinner()
-			return fmt.Errorf("unknown image push status: %q", result.Status)
+			return nil, fmt.Errorf("unknown image push status: %q", pushStatus.Status)
 		}
 	}
+
+	output := &ImagePushResult{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
 
 	switch finalPushResult.Status {
 	case "succeeded":
-		{
-			if config.JSON {
-				output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
-				if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-					return fmt.Errorf("unable to encode output: %w", err)
-				}
-			} else {
-				fmt.Fprintf(s.Stdout, "Image push succeeded!\n")
-				return nil
+		if config.JSON {
+			if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+				return nil, fmt.Errorf("unable to encode output: %w", err)
 			}
+		} else {
+			fmt.Fprintf(s.Stdout, "Image push succeeded!\n")
 		}
+		return output, nil
 	case "failed":
-		{
-			if config.JSON {
-				output := ImagePushOutput{PushID: result.PushID, RunURL: result.RunURL, Status: finalPushResult.Status}
-				if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-					return fmt.Errorf("unable to encode output: %w", err)
-				}
+		if config.JSON {
+			if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+				return nil, fmt.Errorf("unable to encode output: %w", err)
 			}
-			return fmt.Errorf("image push failed, inspect the run at %q to see why", result.RunURL)
 		}
+		return output, fmt.Errorf("image push failed, inspect the run at %q to see why", result.RunURL)
 	default:
-		return fmt.Errorf("unknown image push status: %q", finalPushResult.Status)
+		return nil, fmt.Errorf("unknown image push status: %q", finalPushResult.Status)
 	}
-
-	return nil
 }

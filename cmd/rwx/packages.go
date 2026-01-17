@@ -25,12 +25,13 @@ var (
 			}
 
 			useJson := PackagesUpdateOutput == "json" || PackagesUpdateJson
-			return service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err := service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    args,
 				RwxDirectory:             RwxDirectory,
 				ReplacementVersionPicker: replacementVersionPicker,
 				Json:                     useJson,
 			})
+			return err
 		},
 		Short: "Update all packages to their latest (minor) version",
 		Long: "Update all packages to their latest (minor) version.\n" +

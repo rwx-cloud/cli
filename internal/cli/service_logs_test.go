@@ -22,7 +22,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return api.LogDownloadRequestResult{}, api.ErrNotFound
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: s.tmp,
 		})
@@ -38,7 +38,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return api.LogDownloadRequestResult{}, errors.New("network error")
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: s.tmp,
 		})
@@ -66,7 +66,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return nil, errors.New("download failed")
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: s.tmp,
 		})
@@ -94,7 +94,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		}
 
 		nestedDir := filepath.Join(s.tmp, "nonexistent", "subdir")
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: nestedDir,
 		})
@@ -131,7 +131,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return logContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: s.tmp,
 		})
@@ -174,7 +174,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return zipContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-456",
 			OutputDir: s.tmp,
 		})
@@ -196,7 +196,7 @@ func TestService_DownloadLogs(t *testing.T) {
 	t.Run("when validation fails - missing task ID", func(t *testing.T) {
 		s := setupTest(t)
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "",
 			OutputDir: s.tmp,
 		})
@@ -209,7 +209,7 @@ func TestService_DownloadLogs(t *testing.T) {
 	t.Run("when validation fails - both output-dir and output-file set", func(t *testing.T) {
 		s := setupTest(t)
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:     "task-123",
 			OutputDir:  s.tmp,
 			OutputFile: filepath.Join(s.tmp, "custom.log"),
@@ -239,7 +239,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return logContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:     "task-789",
 			OutputFile: customOutputFile,
 		})
@@ -275,7 +275,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return logContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:     "task-999",
 			OutputFile: nestedOutputFile,
 		})
@@ -301,7 +301,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return logContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:    "task-123",
 			OutputDir: s.tmp,
 			Json:      true,
@@ -336,7 +336,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return zipBytes, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:      "task-456",
 			OutputDir:   s.tmp,
 			AutoExtract: true,
@@ -376,7 +376,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return logContents, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:      "task-789",
 			OutputDir:   s.tmp,
 			AutoExtract: true, // Should not extract non-zip files
@@ -412,7 +412,7 @@ func TestService_DownloadLogs(t *testing.T) {
 			return zipBytes, nil
 		}
 
-		err := s.service.DownloadLogs(cli.DownloadLogsConfig{
+		_, err := s.service.DownloadLogs(cli.DownloadLogsConfig{
 			TaskID:      "task-extract",
 			OutputDir:   s.tmp,
 			AutoExtract: true,

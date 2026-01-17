@@ -390,3 +390,19 @@ type GetRunStatusResult struct {
 	ResultStatus string `json:"result_status"`
 	Completed    bool   `json:"completed"`
 }
+
+type GetRunPromptResult struct {
+	Prompt string `json:"prompt"`
+}
+
+type UpdatePackagesResult struct {
+	UpdatedPackages map[string]string `json:"updated_packages"`
+}
+
+type DownloadArtifactResult struct {
+	OutputFiles []string `json:"outputFiles"`
+}
+
+type DownloadLogsResult struct {
+	OutputFiles []string `json:"outputFiles"`
+}

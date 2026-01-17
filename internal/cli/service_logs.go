@@ -15,19 +15,19 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
-func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
+func (s Service) DownloadLogs(cfg DownloadLogsConfig) (*DownloadLogsResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
-		return errors.Wrap(err, "validation failed")
+		return nil, errors.Wrap(err, "validation failed")
 	}
 
 	LogDownloadRequest, err := s.APIClient.GetLogDownloadRequest(cfg.TaskID)
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
-			return errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID))
+			return nil, errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID))
 		}
-		return errors.Wrap(err, "unable to fetch log archive request")
+		return nil, errors.Wrap(err, "unable to fetch log archive request")
 	}
 
 	stopSpinner := Spin(
@@ -39,7 +39,7 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 	logBytes, err := s.APIClient.DownloadLogs(LogDownloadRequest)
 	stopSpinner()
 	if err != nil {
-		return errors.Wrap(err, "unable to download logs")
+		return nil, errors.Wrap(err, "unable to download logs")
 	}
 
 	var outputPath string
@@ -51,7 +51,7 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 
 	outputDir := filepath.Dir(outputPath)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return errors.Wrapf(err, "unable to create output directory %s", outputDir)
+		return nil, errors.Wrapf(err, "unable to create output directory %s", outputDir)
 	}
 
 	if _, err := os.Stat(outputPath); err == nil {
@@ -61,7 +61,7 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 	}
 
 	if err := os.WriteFile(outputPath, logBytes, 0644); err != nil {
-		return errors.Wrapf(err, "unable to write log file to %s", outputPath)
+		return nil, errors.Wrapf(err, "unable to write log file to %s", outputPath)
 	}
 
 	var outputFiles []string
@@ -74,12 +74,12 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 		extractDir := filepath.Join(filepath.Dir(outputPath), extractDirName)
 
 		if err := os.MkdirAll(extractDir, 0755); err != nil {
-			return errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
+			return nil, errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
 		}
 
 		extractedFiles, err := extractZip(outputPath, extractDir)
 		if err != nil {
-			return errors.Wrapf(err, "unable to extract zip archive %s", outputPath)
+			return nil, errors.Wrapf(err, "unable to extract zip archive %s", outputPath)
 		}
 		outputFiles = extractedFiles
 
@@ -98,14 +98,11 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 		}
 	}
 
+	result := &DownloadLogsResult{OutputFiles: outputFiles}
+
 	if cfg.Json {
-		output := struct {
-			OutputFiles []string `json:"outputFiles"`
-		}{
-			OutputFiles: outputFiles,
-		}
-		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-			return errors.Wrap(err, "unable to encode JSON output")
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
 	} else {
 		if len(outputFiles) == 1 {
@@ -117,7 +114,7 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) error {
 			}
 		}
 	}
-	return nil
+	return result, nil
 }
 
 func extractZip(zipPath, destDir string) ([]string, error) {

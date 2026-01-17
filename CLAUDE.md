@@ -41,6 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Patterns
 
+- **Service Return Types**: Service methods return `(*ResultType, error)`. Result struct names end in `Result` (e.g., `ImagePullResult`, `DownloadLogsResult`). Services handle their own stdout/stderr output but also return structured results, allowing commands to control JSON output or chain multiple service calls.
 - **Error Handling**: Uses `github.com/pkg/errors` for error wrapping. `cli.HandledError` indicates errors already reported to user.
 - **Configuration**: YAML-based configuration files parsed via `github.com/goccy/go-yaml`
 - **SSH Operations**: `internal/ssh/client.go` handles secure connections to RWX infrastructure

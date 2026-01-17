@@ -19,7 +19,7 @@ func TestService_GetRunPrompt(t *testing.T) {
 		result, err := setup.service.GetRunPrompt("run-123")
 
 		require.NoError(t, err)
-		require.Equal(t, "prompt text", result)
+		require.Equal(t, "prompt text", result.Prompt)
 	})
 
 	t.Run("returns error when API fails", func(t *testing.T) {
@@ -29,8 +29,9 @@ func TestService_GetRunPrompt(t *testing.T) {
 			return "", api.ErrNotFound
 		}
 
-		_, err := setup.service.GetRunPrompt("run-123")
+		result, err := setup.service.GetRunPrompt("run-123")
 
+		require.Nil(t, result)
 		require.Error(t, err)
 	})
 }

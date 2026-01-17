@@ -23,7 +23,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return api.ArtifactDownloadRequestResult{}, api.ErrNotFound
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "my-artifact",
 			OutputDir:   s.tmp,
@@ -40,7 +40,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return api.ArtifactDownloadRequestResult{}, errors.New("network error")
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "my-artifact",
 			OutputDir:   s.tmp,
@@ -69,7 +69,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return nil, errors.New("download failed")
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "my-artifact",
 			OutputDir:   s.tmp,
@@ -84,7 +84,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 	t.Run("when validation fails - missing task ID", func(t *testing.T) {
 		s := setupTest(t)
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "",
 			ArtifactKey: "my-artifact",
 			OutputDir:   s.tmp,
@@ -98,7 +98,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 	t.Run("when validation fails - missing artifact key", func(t *testing.T) {
 		s := setupTest(t)
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "",
 			OutputDir:   s.tmp,
@@ -112,7 +112,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 	t.Run("when validation fails - both output-dir and output-file set", func(t *testing.T) {
 		s := setupTest(t)
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "my-artifact",
 			OutputDir:   s.tmp,
@@ -147,7 +147,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-123",
 			ArtifactKey: "my-file",
 			OutputDir:   s.tmp,
@@ -190,7 +190,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-456",
 			ArtifactKey: "my-dir",
 			OutputDir:   s.tmp,
@@ -232,7 +232,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-789",
 			ArtifactKey: "my-dir",
 			OutputDir:   s.tmp,
@@ -278,7 +278,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-999",
 			ArtifactKey: "my-file",
 			OutputFile:  customOutputFile,
@@ -316,7 +316,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-111",
 			ArtifactKey: "result",
 			OutputDir:   s.tmp,
@@ -351,7 +351,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-222",
 			ArtifactKey: "my-dir",
 			OutputDir:   s.tmp,
@@ -411,7 +411,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return buf.Bytes(), nil
 		}
 
-		err = s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err = s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-444",
 			ArtifactKey: "dotslash",
 			OutputDir:   s.tmp,
@@ -447,7 +447,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 			return tarBytes, nil
 		}
 
-		err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
+		_, err := s.service.DownloadArtifact(cli.DownloadArtifactConfig{
 			TaskID:      "task-999",
 			ArtifactKey: "evil",
 			OutputDir:   s.tmp,
