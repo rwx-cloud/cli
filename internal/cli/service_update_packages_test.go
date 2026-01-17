@@ -25,7 +25,7 @@ func TestService_UpdatingPackages(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.json"), []byte("some json"), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{},
 				RwxDirectory:             mintDir,
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -74,7 +74,7 @@ tasks:
 				}, nil
 			}
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{},
 				RwxDirectory:             mintDir,
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
@@ -108,7 +108,7 @@ tasks:
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(""), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -133,7 +133,7 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -204,7 +204,7 @@ tasks:
 			require.NoError(t, err)
 
 			t.Run("with major version updates", func(t *testing.T) {
-				err := s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err := s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml"), filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMajorVersion,
 				})
@@ -246,7 +246,7 @@ tasks:
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml"), filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
 				})
@@ -288,7 +288,7 @@ tasks:
 				err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 				require.NoError(t, err)
 
-				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "bar.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMajorVersion,
 				})
@@ -321,7 +321,7 @@ tasks:
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalContents), 0o644)
 				require.NoError(t, err)
 
-				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMajorVersion,
 				})
@@ -378,7 +378,7 @@ tasks:
 			err = os.WriteFile(filepath.Join(mintDir, "_qux.yaml"), []byte(originalQuxContents), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
 			})
 			require.NoError(t, err)
@@ -415,7 +415,7 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -448,7 +448,7 @@ tasks:
 `), 0o644)
 			require.NoError(t, err)
 
-			err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+			_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 				Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 				ReplacementVersionPicker: cli.PickLatestMajorVersion,
 			})
@@ -488,7 +488,7 @@ tasks:
 `), 0o644)
 				require.NoError(t, err)
 
-				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
 				})
@@ -513,7 +513,7 @@ tasks:
 `), 0o644)
 				require.NoError(t, err)
 
-				err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
+				_, err = s.service.UpdatePackages(cli.UpdatePackagesConfig{
 					Files:                    []string{filepath.Join(s.tmp, "foo.yaml")},
 					ReplacementVersionPicker: cli.PickLatestMinorVersion,
 				})

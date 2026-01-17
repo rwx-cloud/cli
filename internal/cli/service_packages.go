@@ -63,25 +63,25 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 	return ResolvePackagesResult{ResolvedPackages: replacements}, nil
 }
 
-func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
+func (s Service) UpdatePackages(cfg UpdatePackagesConfig) (*UpdatePackagesResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
-		return errors.Wrap(err, "validation failed")
+		return nil, errors.Wrap(err, "validation failed")
 	}
 
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath(cfg.RwxDirectory)
 	if err != nil {
-		return errors.Wrap(err, "unable to find .rwx directory")
+		return nil, errors.Wrap(err, "unable to find .rwx directory")
 	}
 
 	yamlFiles, err := getFileOrDirectoryYAMLEntries(cfg.Files, rwxDirectoryPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(yamlFiles) == 0 {
-		return errors.New(fmt.Sprintf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath))
+		return nil, errors.New(fmt.Sprintf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath))
 	}
 
 	mintFiles := filterYAMLFilesForModification(yamlFiles, func(doc *YAMLDoc) bool {
@@ -90,17 +90,14 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 
 	replacements, err := s.resolveOrUpdatePackagesForFiles(mintFiles, true, cfg.ReplacementVersionPicker)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	result := &UpdatePackagesResult{UpdatedPackages: replacements}
+
 	if cfg.Json {
-		output := struct {
-			UpdatedPackages map[string]string `json:"updated_packages"`
-		}{
-			UpdatedPackages: replacements,
-		}
-		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
-			return errors.Wrap(err, "unable to encode JSON output")
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
 	} else {
 		if len(replacements) == 0 {
@@ -113,7 +110,7 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) error {
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 var rePackageVersion = regexp.MustCompile(`([a-z0-9-]+\/[a-z0-9-]+)(?:\s+(([0-9]+)\.[0-9]+\.[0-9]+))?`)

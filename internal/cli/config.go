@@ -394,3 +394,7 @@ type GetRunStatusResult struct {
 type GetRunPromptResult struct {
 	Prompt string `json:"prompt"`
 }
+
+type UpdatePackagesResult struct {
+	UpdatedPackages map[string]string `json:"updated_packages"`
+}

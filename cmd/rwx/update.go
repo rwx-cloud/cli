@@ -72,12 +72,13 @@ func updatePackages(files []string) error {
 	}
 
 	useJson := UpdatePackagesOutput == "json" || UpdatePackagesJson
-	return service.UpdatePackages(cli.UpdatePackagesConfig{
+	_, err := service.UpdatePackages(cli.UpdatePackagesConfig{
 		Files:                    files,
 		RwxDirectory:             RwxDirectory,
 		ReplacementVersionPicker: replacementVersionPicker,
 		Json:                     useJson,
 	})
+	return err
 }
 
 func init() {
