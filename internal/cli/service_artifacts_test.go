@@ -325,7 +325,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 
 		require.NoError(t, err)
 		output := s.mockStdout.String()
-		require.Contains(t, output, `"outputFiles"`)
+		require.Contains(t, output, `"OutputFiles"`)
 		require.Contains(t, output, "result.json")
 		require.NotContains(t, output, "Artifact downloaded to")
 	})
@@ -361,7 +361,7 @@ func TestService_DownloadArtifact(t *testing.T) {
 
 		require.NoError(t, err)
 		output := s.mockStdout.String()
-		require.Contains(t, output, `"outputFiles"`)
+		require.Contains(t, output, `"OutputFiles"`)
 		require.Contains(t, output, "file1.txt")
 		require.Contains(t, output, "file2.txt")
 		require.NotContains(t, output, "Extracted")
