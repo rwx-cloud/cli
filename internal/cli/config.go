@@ -390,3 +390,7 @@ type GetRunStatusResult struct {
 	ResultStatus string `json:"result_status"`
 	Completed    bool   `json:"completed"`
 }
+
+type GetRunPromptResult struct {
+	Prompt string `json:"prompt"`
+}

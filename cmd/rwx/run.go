@@ -137,9 +137,9 @@ var (
 				} else {
 					fmt.Printf("Run result status: %s\n", waitResult.ResultStatus)
 
-					prompt, err := service.GetRunPrompt(runResult.RunId)
+					promptResult, err := service.GetRunPrompt(runResult.RunId)
 					if err == nil {
-						fmt.Print(prompt)
+						fmt.Print(promptResult.Prompt)
 					}
 				}
 			}

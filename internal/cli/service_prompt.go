@@ -1,5 +1,9 @@
 package cli
 
-func (s Service) GetRunPrompt(runID string) (string, error) {
-	return s.APIClient.GetRunPrompt(runID)
+func (s Service) GetRunPrompt(runID string) (*GetRunPromptResult, error) {
+	prompt, err := s.APIClient.GetRunPrompt(runID)
+	if err != nil {
+		return nil, err
+	}
+	return &GetRunPromptResult{Prompt: prompt}, nil
 }
