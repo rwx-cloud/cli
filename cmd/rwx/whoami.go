@@ -17,13 +17,8 @@ var (
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			useJson := WhoamiOutput == "json" || WhoamiJson
-			err := service.Whoami(cli.WhoamiConfig{Json: useJson})
-			if err != nil {
-				return err
-			}
-
-			return nil
-
+			_, err := service.Whoami(cli.WhoamiConfig{Json: useJson})
+			return err
 		},
 		Short: "Outputs details about the access token in use",
 		Use:   "whoami [flags]",

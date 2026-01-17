@@ -18,10 +18,11 @@ func TestService_Whoami(t *testing.T) {
 				return nil, errors.New("uh oh can't figure out who you are")
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
 
+			require.Nil(t, result)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "unable to determine details about the access token")
 			require.Contains(t, err.Error(), "can't figure out who you are")
@@ -30,8 +31,8 @@ func TestService_Whoami(t *testing.T) {
 		t.Run("when there is an email", func(t *testing.T) {
 			s := setupTest(t)
 
+			email := "someone@rwx.com"
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
-				email := "someone@rwx.com"
 				return &api.WhoamiResult{
 					TokenKind:        "personal_access_token",
 					OrganizationSlug: "rwx",
@@ -39,11 +40,14 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
 
 			require.NoError(t, err)
+			require.Equal(t, "personal_access_token", result.TokenKind)
+			require.Equal(t, "rwx", result.OrganizationSlug)
+			require.Equal(t, &email, result.UserEmail)
 			require.Contains(t, s.mockStdout.String(), `"token_kind": "personal_access_token"`)
 			require.Contains(t, s.mockStdout.String(), `"organization_slug": "rwx"`)
 			require.Contains(t, s.mockStdout.String(), `"user_email": "someone@rwx.com"`)
@@ -59,11 +63,14 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: true,
 			})
 
 			require.NoError(t, err)
+			require.Equal(t, "organization_access_token", result.TokenKind)
+			require.Equal(t, "rwx", result.OrganizationSlug)
+			require.Nil(t, result.UserEmail)
 			require.Contains(t, s.mockStdout.String(), `"token_kind": "organization_access_token"`)
 			require.Contains(t, s.mockStdout.String(), `"organization_slug": "rwx"`)
 			require.NotContains(t, s.mockStdout.String(), `"user_email"`)
@@ -78,10 +85,11 @@ func TestService_Whoami(t *testing.T) {
 				return nil, errors.New("uh oh can't figure out who you are")
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})
 
+			require.Nil(t, result)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "unable to determine details about the access token")
 			require.Contains(t, err.Error(), "can't figure out who you are")
@@ -90,8 +98,8 @@ func TestService_Whoami(t *testing.T) {
 		t.Run("when there is an email", func(t *testing.T) {
 			s := setupTest(t)
 
+			email := "someone@rwx.com"
 			s.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
-				email := "someone@rwx.com"
 				return &api.WhoamiResult{
 					TokenKind:        "personal_access_token",
 					OrganizationSlug: "rwx",
@@ -99,11 +107,14 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})
 
 			require.NoError(t, err)
+			require.Equal(t, "personal_access_token", result.TokenKind)
+			require.Equal(t, "rwx", result.OrganizationSlug)
+			require.Equal(t, &email, result.UserEmail)
 			require.Contains(t, s.mockStdout.String(), "Token Kind: personal access token")
 			require.Contains(t, s.mockStdout.String(), "Organization: rwx")
 			require.Contains(t, s.mockStdout.String(), "User: someone@rwx.com")
@@ -119,11 +130,14 @@ func TestService_Whoami(t *testing.T) {
 				}, nil
 			}
 
-			err := s.service.Whoami(cli.WhoamiConfig{
+			result, err := s.service.Whoami(cli.WhoamiConfig{
 				Json: false,
 			})
 
 			require.NoError(t, err)
+			require.Equal(t, "organization_access_token", result.TokenKind)
+			require.Equal(t, "rwx", result.OrganizationSlug)
+			require.Nil(t, result.UserEmail)
 			require.Contains(t, s.mockStdout.String(), "Token Kind: organization access token")
 			require.Contains(t, s.mockStdout.String(), "Organization: rwx")
 			require.NotContains(t, s.mockStdout.String(), "User:")
