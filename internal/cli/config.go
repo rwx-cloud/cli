@@ -400,9 +400,9 @@ type UpdatePackagesResult struct {
 }
 
 type DownloadArtifactResult struct {
-	OutputFiles []string `json:"outputFiles"`
+	OutputFiles []string
 }
 
 type DownloadLogsResult struct {
-	OutputFiles []string `json:"outputFiles"`
+	OutputFiles []string
 }
