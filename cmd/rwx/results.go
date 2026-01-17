@@ -25,7 +25,6 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runID := args[0]
 			useJson := ResultsOutput == "json" || ResultsJson
-			useLLM := ResultsOutput == "llm"
 
 			result, err := service.GetRunStatus(cli.GetRunStatusConfig{
 				RunID: runID,
@@ -57,9 +56,7 @@ var (
 				} else {
 					fmt.Printf("Run status: %s (in progress)\n", result.ResultStatus)
 				}
-			}
 
-			if useLLM && result.Completed {
 				prompt, err := service.GetRunPrompt(runID)
 				if err == nil {
 					fmt.Print(prompt)
@@ -75,5 +72,5 @@ func init() {
 	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "wait for the run to complete")
 	resultsCmd.Flags().BoolVar(&ResultsJson, "json", false, "output json data to stdout")
 	_ = resultsCmd.Flags().MarkHidden("json")
-	resultsCmd.Flags().StringVar(&ResultsOutput, "output", "text", "output format: text, json, or llm")
+	resultsCmd.Flags().StringVar(&ResultsOutput, "output", "text", "output format: text or json")
 }
