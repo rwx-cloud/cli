@@ -386,17 +386,17 @@ type GetRunStatusConfig struct {
 }
 
 type GetRunStatusResult struct {
-	RunID        string `json:"run_id"`
-	ResultStatus string `json:"result_status"`
-	Completed    bool   `json:"completed"`
+	RunID        string
+	ResultStatus string
+	Completed    bool
 }
 
 type GetRunPromptResult struct {
-	Prompt string `json:"prompt"`
+	Prompt string
 }
 
 type UpdatePackagesResult struct {
-	UpdatedPackages map[string]string `json:"updated_packages"`
+	UpdatedPackages map[string]string
 }
 
 type DownloadArtifactResult struct {

@@ -42,7 +42,7 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 
 	if cfg.Json {
 		output := struct {
-			ResolvedPackages map[string]string `json:"resolved_packages"`
+			ResolvedPackages map[string]string
 		}{
 			ResolvedPackages: replacements,
 		}

@@ -68,8 +68,8 @@ func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*api.SetSecrets
 
 	if cfg.Json {
 		output := struct {
-			Vault      string   `json:"vault"`
-			SetSecrets []string `json:"set_secrets"`
+			Vault      string
+			SetSecrets []string
 		}{
 			Vault:      cfg.Vault,
 			SetSecrets: result.SetSecrets,

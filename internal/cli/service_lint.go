@@ -140,7 +140,7 @@ func outputLintOneLine(w io.Writer, lintedFiles []api.LintProblem) error {
 
 func outputLintJSON(w io.Writer, problems []api.LintProblem) error {
 	output := struct {
-		Problems []api.LintProblem `json:"problems"`
+		Problems []api.LintProblem
 	}{
 		Problems: problems,
 	}
