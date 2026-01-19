@@ -45,8 +45,8 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 			erroredBases[relativePathFromWd(runFile.OriginalPath)] = runFile.Error.Error()
 		}
 		output := struct {
-			AddedBases   map[string]string `json:"added_bases"`
-			ErroredBases map[string]string `json:"errored_bases,omitempty"`
+			AddedBases   map[string]string
+			ErroredBases map[string]string `json:",omitempty"`
 		}{
 			AddedBases:   addedBases,
 			ErroredBases: erroredBases,

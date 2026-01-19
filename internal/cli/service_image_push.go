@@ -12,9 +12,9 @@ import (
 )
 
 type ImagePushResult struct {
-	PushID string `json:"push_id,omitempty"`
-	RunURL string `json:"run_url,omitempty"`
-	Status string `json:"status,omitempty"`
+	PushID string `json:",omitempty"`
+	RunURL string `json:",omitempty"`
+	Status string `json:",omitempty"`
 }
 
 func (s Service) ImagePush(config ImagePushConfig) (*ImagePushResult, error) {

@@ -10,8 +10,8 @@ import (
 )
 
 type ImagePullResult struct {
-	ImageRef string   `json:"image_ref"`
-	Tags     []string `json:"tags,omitempty"`
+	ImageRef string   `json:",omitempty"`
+	Tags     []string `json:",omitempty"`
 }
 
 func (s Service) ImagePull(config ImagePullConfig) (*ImagePullResult, error) {

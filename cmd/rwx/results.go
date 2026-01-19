@@ -37,9 +37,9 @@ var (
 
 			if useJson {
 				jsonOutput := struct {
-					RunID        string `json:"run_id"`
-					ResultStatus string `json:"result_status"`
-					Completed    bool   `json:"completed"`
+					RunID        string
+					ResultStatus string
+					Completed    bool
 				}{
 					RunID:        result.RunID,
 					ResultStatus: result.ResultStatus,

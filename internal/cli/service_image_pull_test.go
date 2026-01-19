@@ -287,8 +287,8 @@ func TestService_ImagePull(t *testing.T) {
 		require.NotContains(t, s.mockStdout.String(), "Tagging image as:")
 
 		// Verify JSON output
-		require.Contains(t, s.mockStdout.String(), `"image_ref":"cloud.rwx.com/my-org:task-456"`)
-		require.Contains(t, s.mockStdout.String(), `"tags":["latest","v1.0.0"]`)
+		require.Contains(t, s.mockStdout.String(), `"ImageRef":"cloud.rwx.com/my-org:task-456"`)
+		require.Contains(t, s.mockStdout.String(), `"Tags":["latest","v1.0.0"]`)
 	})
 
 	t.Run("JSON output with no tags", func(t *testing.T) {
@@ -319,7 +319,7 @@ func TestService_ImagePull(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "cloud.rwx.com/my-org:task-456", result.ImageRef)
 		require.Empty(t, result.Tags)
-		require.Contains(t, s.mockStdout.String(), `"image_ref":"cloud.rwx.com/my-org:task-456"`)
+		require.Contains(t, s.mockStdout.String(), `"ImageRef":"cloud.rwx.com/my-org:task-456"`)
 		// Tags should be omitted if empty (omitempty)
 		require.NotContains(t, s.mockStdout.String(), `"tags"`)
 	})

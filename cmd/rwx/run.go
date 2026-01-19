@@ -91,7 +91,7 @@ var (
 				TargetedTaskKeys []string
 				DefinitionPath   string
 				Message          string
-				ResultStatus     string `json:"result_status,omitempty"`
+				ResultStatus     string `json:",omitempty"`
 			}{
 				RunId:            runResult.RunId,
 				RunURL:           runResult.RunURL,

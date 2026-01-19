@@ -309,7 +309,7 @@ func TestService_DownloadLogs(t *testing.T) {
 
 		require.NoError(t, err)
 		output := s.mockStdout.String()
-		require.Contains(t, output, `"outputFiles"`)
+		require.Contains(t, output, `"OutputFiles"`)
 		require.Contains(t, output, "task-123.log")
 		require.NotContains(t, output, "Logs downloaded to")
 	})
@@ -351,7 +351,7 @@ func TestService_DownloadLogs(t *testing.T) {
 		require.FileExists(t, filepath.Join(extractDir, "subdir", "file3.log"))
 
 		output := s.mockStdout.String()
-		require.Contains(t, output, `"outputFiles"`)
+		require.Contains(t, output, `"OutputFiles"`)
 		require.Contains(t, output, "task-456-logs/file1.log")
 		require.Contains(t, output, "task-456-logs/file2.log")
 		require.Contains(t, output, "task-456-logs/subdir/file3.log")
