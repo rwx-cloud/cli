@@ -170,7 +170,7 @@ var (
 			return nil
 
 		},
-		Short: "Start a new run",
+		Short: "Launch a run from a local RWX definitions file",
 		Use:   "run <file> [flags]",
 	}
 )

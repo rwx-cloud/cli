@@ -24,7 +24,7 @@ var (
 	DispatchRef    string
 
 	dispatchCmd = &cobra.Command{
-		GroupID: "execution",
+		GroupID: "api",
 		Args:    cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return requireAccessToken()
@@ -113,7 +113,7 @@ var (
 			return nil
 
 		},
-		Short: "Dispatch a run",
+		Short: "Launch a run from a pre-configured RWX workflow",
 		Use:   "dispatch <dispatch-key> [flags]",
 	}
 )
