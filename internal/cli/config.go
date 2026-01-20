@@ -310,6 +310,7 @@ type ImageBuildConfig struct {
 	PushToReferences []string
 	Timeout          time.Duration
 	OpenURL          func(string) error
+	OutputJSON       bool
 }
 
 func (c ImageBuildConfig) Validate() error {

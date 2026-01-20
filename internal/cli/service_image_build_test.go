@@ -101,7 +101,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), "Building image for build-task")
@@ -162,7 +162,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{
@@ -189,7 +189,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to initiate run")
@@ -218,7 +218,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get build status")
@@ -253,7 +253,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -287,7 +287,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -326,7 +326,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get organization info: unauthorized")
@@ -374,7 +374,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to pull image")
@@ -427,7 +427,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to tag image as latest")
@@ -461,7 +461,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -495,7 +495,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -530,7 +530,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Equal(t, "build failed", err.Error())
@@ -583,7 +583,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:        func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.False(t, pullCalled, "Pull should not be called when NoPull is true")
@@ -664,7 +664,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:          func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.NoError(t, err)
 		require.Contains(t, s.mockStdout.String(), "Build succeeded!")
@@ -718,7 +718,7 @@ func TestService_ImageBuild(t *testing.T) {
 			OpenURL:          func(string) error { return nil },
 		}
 
-		err := s.service.ImageBuild(cfg)
+		_, err := s.service.ImageBuild(cfg)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no credentials available")
