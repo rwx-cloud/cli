@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -10,9 +11,17 @@ import (
 	"github.com/rwx-cloud/cli/internal/api"
 )
 
-func (s Service) ImageBuild(config ImageBuildConfig) error {
+type ImageBuildResult struct {
+	RunURL   string           `json:",omitempty"`
+	ImageRef string           `json:",omitempty"`
+	TaskID   string           `json:",omitempty"`
+	Tags     []string         `json:",omitempty"`
+	Push     *ImagePushResult `json:",omitempty"`
+}
+
+func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) {
 	if err := config.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	runResult, err := s.InitiateRun(InitiateRunConfig{
@@ -23,21 +32,30 @@ func (s Service) ImageBuild(config ImageBuildConfig) error {
 		TargetedTasks:  []string{config.TargetTaskKey},
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Fprintf(s.Stdout, "Building image for %s\n", config.TargetTaskKey)
-	fmt.Fprintf(s.Stdout, "Run URL: %s\n\n", runResult.RunURL)
+	result := &ImageBuildResult{
+		RunURL: runResult.RunURL,
+	}
+
+	if !config.OutputJSON {
+		fmt.Fprintf(s.Stdout, "Building image for %s\n", config.TargetTaskKey)
+		fmt.Fprintf(s.Stdout, "Run URL: %s\n\n", runResult.RunURL)
+	}
 
 	if err := config.OpenURL(runResult.RunURL); err != nil {
-		return fmt.Errorf("failed to open URL: %w", err)
+		return nil, fmt.Errorf("failed to open URL: %w", err)
 	}
 
-	stopSpinner := Spin(
-		"Polling for build completion...",
-		s.StderrIsTTY,
-		s.Stderr,
-	)
+	stopSpinner := func() {}
+	if !config.OutputJSON {
+		stopSpinner = Spin(
+			"Polling for build completion...",
+			s.StderrIsTTY,
+			s.Stderr,
+		)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
@@ -48,52 +66,65 @@ func (s Service) ImageBuild(config ImageBuildConfig) error {
 		select {
 		case <-ctx.Done():
 			stopSpinner()
-			return fmt.Errorf("timeout waiting for build to complete after %s\n\nThe build may still be running. Check the status at: %s", config.Timeout, runResult.RunURL)
+			return nil, fmt.Errorf("timeout waiting for build to complete after %s\n\nThe build may still be running. Check the status at: %s", config.Timeout, runResult.RunURL)
 		default:
 		}
 
-		result, err := s.APIClient.TaskKeyStatus(api.TaskKeyStatusConfig{
+		statusResult, err := s.APIClient.TaskKeyStatus(api.TaskKeyStatusConfig{
 			RunID:   runResult.RunId,
 			TaskKey: config.TargetTaskKey,
 		})
 		if err != nil {
 			stopSpinner()
-			return fmt.Errorf("failed to get build status: %w", err)
+			return nil, fmt.Errorf("failed to get build status: %w", err)
 		}
 
-		if result.Polling.Completed {
-			if result.Status != nil && result.Status.Result == api.TaskStatusSucceeded {
-				taskID = result.TaskID
+		if statusResult.Polling.Completed {
+			if statusResult.Status != nil && statusResult.Status.Result == api.TaskStatusSucceeded {
+				taskID = statusResult.TaskID
 				stopSpinner()
-				fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
+				if !config.OutputJSON {
+					fmt.Fprintf(s.Stdout, "\nBuild succeeded!\n\n")
+				}
 				succeeded = true
 			} else {
 				stopSpinner()
-				return fmt.Errorf("build failed")
+				return nil, fmt.Errorf("build failed")
 			}
 		} else {
-			if result.Polling.BackoffMs == nil {
+			if statusResult.Polling.BackoffMs == nil {
 				stopSpinner()
-				return fmt.Errorf("build failed")
+				return nil, fmt.Errorf("build failed")
 			}
-			time.Sleep(time.Duration(*result.Polling.BackoffMs) * time.Millisecond)
+			time.Sleep(time.Duration(*statusResult.Polling.BackoffMs) * time.Millisecond)
 		}
 	}
 
+	result.TaskID = taskID
+
 	whoamiResult, err := s.APIClient.Whoami()
 	if err != nil {
-		return fmt.Errorf("failed to get organization info: %w\nTry running `rwx login` again", err)
+		return nil, fmt.Errorf("failed to get organization info: %w\nTry running `rwx login` again", err)
 	}
 
 	registry := s.DockerCLI.Registry()
 	imageRef := fmt.Sprintf("%s/%s:%s", registry, whoamiResult.OrganizationSlug, taskID)
+	result.ImageRef = imageRef
 
 	if config.NoPull {
-		fmt.Fprintf(s.Stdout, "Image available at: %s\n", imageRef)
-		return nil
+		if !config.OutputJSON {
+			fmt.Fprintf(s.Stdout, "Image available at: %s\n", imageRef)
+		} else {
+			if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+				return nil, fmt.Errorf("unable to encode output: %w", err)
+			}
+		}
+		return result, nil
 	}
 
-	fmt.Fprintf(s.Stdout, "Pulling image: %s\n", imageRef)
+	if !config.OutputJSON {
+		fmt.Fprintf(s.Stdout, "Pulling image: %s\n", imageRef)
+	}
 
 	authConfig := cliTypes.AuthConfig{
 		Username:      whoamiResult.OrganizationSlug,
@@ -101,47 +132,64 @@ func (s Service) ImageBuild(config ImageBuildConfig) error {
 		ServerAddress: registry,
 	}
 
-	if err := s.DockerCLI.Pull(ctx, imageRef, authConfig, false); err != nil {
+	if err := s.DockerCLI.Pull(ctx, imageRef, authConfig, config.OutputJSON); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("timeout while pulling image after %s\n\nThe image may still be available at: %s", config.Timeout, imageRef)
+			return nil, fmt.Errorf("timeout while pulling image after %s\n\nThe image may still be available at: %s", config.Timeout, imageRef)
 		}
-		return fmt.Errorf("failed to pull image: %w", err)
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 
-	fmt.Fprintf(s.Stdout, "\nImage pulled successfully!\n")
+	if !config.OutputJSON {
+		fmt.Fprintf(s.Stdout, "\nImage pulled successfully!\n")
+	}
 
 	for _, tag := range config.Tags {
-		fmt.Fprintf(s.Stdout, "Tagging image as: %s\n", tag)
+		if !config.OutputJSON {
+			fmt.Fprintf(s.Stdout, "Tagging image as: %s\n", tag)
+		}
 
 		if err := s.DockerCLI.Tag(ctx, imageRef, tag); err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				return fmt.Errorf("timeout while tagging image after %s", config.Timeout)
+				return nil, fmt.Errorf("timeout while tagging image after %s", config.Timeout)
 			}
-			return fmt.Errorf("failed to tag image as %s: %w", tag, err)
+			return nil, fmt.Errorf("failed to tag image as %s: %w", tag, err)
 		}
 	}
+	result.Tags = config.Tags
 
 	if len(config.PushToReferences) > 0 {
-		fmt.Fprintf(s.Stdout, "\n")
+		if !config.OutputJSON {
+			fmt.Fprintf(s.Stdout, "\n")
+		}
 
 		pushConfig, err := NewImagePushConfig(
 			taskID,
 			config.PushToReferences,
-			false,
+			config.OutputJSON,
 			true,
 			func(url string) error {
-				fmt.Fprintf(s.Stdout, "Run URL: %s\n", url)
+				if !config.OutputJSON {
+					fmt.Fprintf(s.Stdout, "Run URL: %s\n", url)
+				}
 				return nil
 			},
 		)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		if _, err := s.ImagePush(pushConfig); err != nil {
-			return err
+		pushResult, err := s.ImagePush(pushConfig)
+		if err != nil {
+			return nil, err
+		}
+		result.Push = pushResult
+	}
+
+	if config.OutputJSON {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, fmt.Errorf("unable to encode output: %w", err)
 		}
 	}
 
-	return nil
+	return result, nil
 }

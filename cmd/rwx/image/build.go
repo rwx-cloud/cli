@@ -20,6 +20,8 @@ var (
 	buildPushToReferences []string
 	buildTimeout          time.Duration
 	buildOpen             bool
+	buildJSON             bool
+	buildOutput           string
 
 	BuildCmd *cobra.Command
 )
@@ -64,9 +66,11 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				PushToReferences: buildPushToReferences,
 				Timeout:          buildTimeout,
 				OpenURL:          openURL,
+				OutputJSON:       buildOutput == "json" || buildJSON,
 			}
 
-			return getService().ImageBuild(config)
+			_, err = getService().ImageBuild(config)
+			return err
 		},
 		Short: "Launch a targeted RWX run and pull its result as an OCI image",
 		Use:   "build <file> --target <task-key> [flags]",
@@ -82,6 +86,9 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().StringArrayVar(&buildPushToReferences, "push-to", []string{}, "push the built image to the specified OCI reference (can be specified multiple times)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
 	BuildCmd.Flags().BoolVar(&buildOpen, "open", false, "open the build URL in the default browser once the build starts")
+	BuildCmd.Flags().BoolVar(&buildJSON, "json", false, "output JSON instead of human-readable text")
+	_ = BuildCmd.Flags().MarkHidden("json")
+	BuildCmd.Flags().StringVar(&buildOutput, "output", "text", "output format: text or json")
 
 	_ = BuildCmd.MarkFlagRequired("target")
 }
