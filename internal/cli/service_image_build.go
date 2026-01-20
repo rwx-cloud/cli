@@ -12,11 +12,11 @@ import (
 )
 
 type ImageBuildResult struct {
-	RunURL   string            `json:",omitempty"`
-	ImageRef string            `json:",omitempty"`
-	TaskID   string            `json:",omitempty"`
-	Tags     []string          `json:",omitempty"`
-	Push     *ImagePushResult  `json:",omitempty"`
+	RunURL   string           `json:",omitempty"`
+	ImageRef string           `json:",omitempty"`
+	TaskID   string           `json:",omitempty"`
+	Tags     []string         `json:",omitempty"`
+	Push     *ImagePushResult `json:",omitempty"`
 }
 
 func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) {
