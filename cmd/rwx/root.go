@@ -19,7 +19,6 @@ import (
 
 var (
 	AccessToken string
-	Verbose     bool
 
 	rwxHost            string
 	service            cli.Service
@@ -102,8 +101,6 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
-	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "enable debug output")
-	_ = rootCmd.PersistentFlags().MarkHidden("verbose")
 
 	// Define command groups for help output ordering
 	rootCmd.AddGroup(&cobra.Group{ID: "execution", Title: "Execution:"})
