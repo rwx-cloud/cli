@@ -12,10 +12,8 @@ var vaultsCmd = &cobra.Command{
 }
 
 var (
-	Vault                  string
-	File                   string
-	VaultsSetSecretsJson   bool
-	VaultsSetSecretsOutput string
+	Vault string
+	File  string
 
 	vaultsSetSecretsCmd = &cobra.Command{
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -27,7 +25,7 @@ var (
 				secrets = args
 			}
 
-			useJson := VaultsSetSecretsOutput == "json" || VaultsSetSecretsJson
+			useJson := useJsonOutput()
 			_, err := service.SetSecretsInVault(cli.SetSecretsInVaultConfig{
 				Vault:   Vault,
 				File:    File,
@@ -44,8 +42,5 @@ var (
 func init() {
 	vaultsSetSecretsCmd.Flags().StringVar(&Vault, "vault", "default", "the name of the vault to set the secrets in")
 	vaultsSetSecretsCmd.Flags().StringVar(&File, "file", "", "the path to a file in dotenv format to read the secrets from")
-	vaultsSetSecretsCmd.Flags().BoolVar(&VaultsSetSecretsJson, "json", false, "output JSON instead of text")
-	_ = vaultsSetSecretsCmd.Flags().MarkHidden("json")
-	vaultsSetSecretsCmd.Flags().StringVar(&VaultsSetSecretsOutput, "output", "text", "output format: text or json")
 	vaultsCmd.AddCommand(vaultsSetSecretsCmd)
 }

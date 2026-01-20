@@ -20,13 +20,11 @@ var (
 	buildPushToReferences []string
 	buildTimeout          time.Duration
 	buildOpen             bool
-	buildJSON             bool
-	buildOutput           string
 
 	BuildCmd *cobra.Command
 )
 
-func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), getService func() cli.Service) {
+func InitBuild(requireAccessToken func() error, parseInitParameters func([]string) (map[string]string, error), getService func() cli.Service, useJsonOutput func() bool) {
 	BuildCmd = &cobra.Command{
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -66,7 +64,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				PushToReferences: buildPushToReferences,
 				Timeout:          buildTimeout,
 				OpenURL:          openURL,
-				OutputJSON:       buildOutput == "json" || buildJSON,
+				OutputJSON:       useJsonOutput(),
 			}
 
 			_, err = getService().ImageBuild(config)
@@ -86,9 +84,6 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().StringArrayVar(&buildPushToReferences, "push-to", []string{}, "push the built image to the specified OCI reference (can be specified multiple times)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
 	BuildCmd.Flags().BoolVar(&buildOpen, "open", false, "open the build URL in the default browser once the build starts")
-	BuildCmd.Flags().BoolVar(&buildJSON, "json", false, "output JSON instead of human-readable text")
-	_ = BuildCmd.Flags().MarkHidden("json")
-	BuildCmd.Flags().StringVar(&buildOutput, "output", "text", "output format: text or json")
 
 	_ = BuildCmd.MarkFlagRequired("target")
 }

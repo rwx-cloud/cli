@@ -39,12 +39,12 @@ func NewLintConfig(rwxDir string, formatString string) (LintConfig, error) {
 		format = LintOutputNone
 	case "oneline":
 		format = LintOutputOneLine
-	case "multiline":
+	case "text", "multiline":
 		format = LintOutputMultiLine
 	case "json":
 		format = LintOutputJSON
 	default:
-		return LintConfig{}, errors.New("unknown output format, expected one of: none, oneline, multiline, json")
+		return LintConfig{}, errors.New("unknown output format, expected one of: none, oneline, multiline, json, text")
 	}
 
 	return LintConfig{
