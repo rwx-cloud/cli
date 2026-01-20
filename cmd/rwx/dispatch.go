@@ -113,7 +113,7 @@ var (
 			return nil
 
 		},
-		Short: "Dispatch a run",
+		Short: "Launch a run from a pre-configured RWX workflow",
 		Use:   "dispatch <dispatch-key> [flags]",
 	}
 )
