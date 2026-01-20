@@ -7,6 +7,18 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type GetRunStatusConfig struct {
+	RunID string
+	Wait  bool
+	Json  bool
+}
+
+type GetRunStatusResult struct {
+	RunID        string
+	ResultStatus string
+	Completed    bool
+}
+
 func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, error) {
 	defer s.outputLatestVersionMessage()
 

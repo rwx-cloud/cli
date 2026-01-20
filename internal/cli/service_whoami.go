@@ -9,6 +9,14 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type WhoamiConfig struct {
+	Json bool
+}
+
+func (c WhoamiConfig) Validate() error {
+	return nil
+}
+
 func (s Service) Whoami(cfg WhoamiConfig) (*api.WhoamiResult, error) {
 	result, err := s.APIClient.Whoami()
 	s.outputLatestVersionMessage()

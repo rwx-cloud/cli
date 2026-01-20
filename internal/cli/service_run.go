@@ -10,6 +10,26 @@ import (
 	"github.com/rwx-cloud/cli/internal/git"
 )
 
+type InitiateRunConfig struct {
+	InitParameters map[string]string
+	Json           bool
+	RwxDirectory   string
+	MintFilePath   string
+	NoCache        bool
+	TargetedTasks  []string
+	Title          string
+	GitBranch      string
+	GitSha         string
+}
+
+func (c InitiateRunConfig) Validate() error {
+	if c.MintFilePath == "" {
+		return errors.New("the path to a run definition must be provided using the --file flag.")
+	}
+
+	return nil
+}
+
 // InitiateRun will connect to the Cloud API and start a new run in Mint.
 func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, error) {
 	defer s.outputLatestVersionMessage()

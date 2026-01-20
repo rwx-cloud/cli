@@ -8,6 +8,18 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type DebugTaskConfig struct {
+	DebugKey string
+}
+
+func (c DebugTaskConfig) Validate() error {
+	if c.DebugKey == "" {
+		return errors.New("you must specify a run ID, a task ID, or an RWX Cloud URL")
+	}
+
+	return nil
+}
+
 // DebugTask will connect to a running task over SSH. Key exchange is facilitated over the Cloud API.
 func (s Service) DebugTask(cfg DebugTaskConfig) error {
 	defer s.outputLatestVersionMessage()

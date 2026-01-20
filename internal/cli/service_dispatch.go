@@ -5,6 +5,31 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type InitiateDispatchConfig struct {
+	DispatchKey string
+	Params      map[string]string
+	Ref         string
+	Json        bool
+	Title       string
+}
+
+func (c InitiateDispatchConfig) Validate() error {
+	if c.DispatchKey == "" {
+		return errors.New("a dispatch key must be provided")
+	}
+
+	return nil
+}
+
+type GetDispatchConfig struct {
+	DispatchId string
+}
+
+type GetDispatchRun struct {
+	RunId  string
+	RunUrl string
+}
+
 func (s Service) InitiateDispatch(cfg InitiateDispatchConfig) (*api.InitiateDispatchResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

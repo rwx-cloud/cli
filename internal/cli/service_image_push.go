@@ -9,12 +9,50 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/errors"
 )
+
+type ImagePushConfig struct {
+	TaskID       string
+	References   []reference.Named
+	JSON         bool
+	Wait         bool
+	OpenURL      func(url string) error
+	PollInterval time.Duration
+}
 
 type ImagePushResult struct {
 	PushID string `json:",omitempty"`
 	RunURL string `json:",omitempty"`
 	Status string `json:",omitempty"`
+}
+
+func NewImagePushConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (ImagePushConfig, error) {
+	if taskID == "" {
+		return ImagePushConfig{}, errors.New("a task ID must be provided")
+	}
+
+	if len(references) == 0 {
+		return ImagePushConfig{}, errors.New("at least one OCI reference must be provided")
+	}
+
+	parsedReferences := make([]reference.Named, 0, len(references))
+	for _, refStr := range references {
+		ref, err := reference.ParseNormalizedNamed(refStr)
+		if err != nil {
+			return ImagePushConfig{}, errors.Wrapf(err, "invalid OCI reference: %s", refStr)
+		}
+		parsedReferences = append(parsedReferences, ref)
+	}
+
+	return ImagePushConfig{
+		TaskID:       taskID,
+		References:   parsedReferences,
+		JSON:         json,
+		Wait:         wait,
+		OpenURL:      openURL,
+		PollInterval: 1 * time.Second,
+	}, nil
 }
 
 func (s Service) ImagePush(config ImagePushConfig) (*ImagePushResult, error) {
