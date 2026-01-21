@@ -57,7 +57,7 @@ var (
 
 				promptResult, err := service.GetRunPrompt(runID)
 				if err == nil {
-					fmt.Print(promptResult.Prompt)
+					fmt.Printf("\n%s", promptResult.Prompt)
 				}
 			}
 
