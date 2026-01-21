@@ -16,6 +16,34 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type DownloadArtifactConfig struct {
+	TaskID                 string
+	ArtifactKey            string
+	OutputDir              string
+	OutputFile             string
+	OutputDirExplicitlySet bool
+	Json                   bool
+	AutoExtract            bool
+	Open                   bool
+}
+
+func (c DownloadArtifactConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	if c.ArtifactKey == "" {
+		return errors.New("artifact key must be provided")
+	}
+	if c.OutputDir != "" && c.OutputFile != "" {
+		return errors.New("output-dir and output-file cannot be used together")
+	}
+	return nil
+}
+
+type DownloadArtifactResult struct {
+	OutputFiles []string
+}
+
 func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifactResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

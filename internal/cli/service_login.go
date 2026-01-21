@@ -9,6 +9,21 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type LoginConfig struct {
+	DeviceName         string
+	AccessTokenBackend accesstoken.Backend
+	OpenUrl            func(url string) error
+	PollInterval       time.Duration
+}
+
+func (c LoginConfig) Validate() error {
+	if c.DeviceName == "" {
+		return errors.New("the device name must be provided")
+	}
+
+	return nil
+}
+
 func (s Service) Login(cfg LoginConfig) error {
 	err := cfg.Validate()
 	if err != nil {

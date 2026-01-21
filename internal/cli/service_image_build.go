@@ -3,13 +3,37 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	cliTypes "github.com/docker/cli/cli/config/types"
 	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/cli/internal/errors"
 )
+
+type ImageBuildConfig struct {
+	InitParameters   map[string]string
+	RwxDirectory     string
+	MintFilePath     string
+	NoCache          bool
+	NoPull           bool
+	TargetTaskKey    string
+	Tags             []string
+	PushToReferences []string
+	Timeout          time.Duration
+	OpenURL          func(string) error
+	OutputJSON       bool
+}
+
+func (c ImageBuildConfig) Validate() error {
+	if c.MintFilePath == "" {
+		return errors.New("the path to a run definition must be provided")
+	}
+	if c.TargetTaskKey == "" {
+		return errors.New("a target task key must be provided")
+	}
+	return nil
+}
 
 type ImageBuildResult struct {
 	RunURL   string           `json:",omitempty"`

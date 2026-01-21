@@ -3,11 +3,26 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"time"
 
 	cliTypes "github.com/docker/cli/cli/config/types"
+	"github.com/rwx-cloud/cli/internal/errors"
 )
+
+type ImagePullConfig struct {
+	TaskID     string
+	Tags       []string
+	Timeout    time.Duration
+	OutputJSON bool
+}
+
+func (c ImagePullConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}
 
 type ImagePullResult struct {
 	ImageRef string   `json:",omitempty"`

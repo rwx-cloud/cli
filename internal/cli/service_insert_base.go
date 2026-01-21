@@ -9,6 +9,37 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+type InsertBaseConfig struct {
+	RwxDirectory string
+	Files        []string
+	Json         bool
+}
+
+func (c InsertBaseConfig) Validate() error {
+	return nil
+}
+
+type BaseSpec struct {
+	Image  string `yaml:"image"`
+	Config string `yaml:"config"`
+	Arch   string `yaml:"arch"`
+}
+
+type BaseLayerRunFile struct {
+	ResolvedBase BaseSpec
+	OriginalPath string
+	Error        error
+}
+
+type InsertDefaultBaseResult struct {
+	ErroredRunFiles []BaseLayerRunFile
+	UpdatedRunFiles []BaseLayerRunFile
+}
+
+func (r InsertDefaultBaseResult) HasChanges() bool {
+	return len(r.ErroredRunFiles) > 0 || len(r.UpdatedRunFiles) > 0
+}
+
 func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

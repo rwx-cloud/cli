@@ -11,6 +11,52 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
+type UpdatePackagesConfig struct {
+	RwxDirectory             string
+	Files                    []string
+	ReplacementVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, major string) (string, error)
+	Json                     bool
+}
+
+func (c UpdatePackagesConfig) Validate() error {
+	if c.ReplacementVersionPicker == nil {
+		return errors.New("a replacement version picker must be provided")
+	}
+
+	return nil
+}
+
+type ResolvePackagesConfig struct {
+	RwxDirectory        string
+	Files               []string
+	LatestVersionPicker func(versions api.PackageVersionsResult, rwxPackage string, _ string) (string, error)
+	Json                bool
+}
+
+func (c ResolvePackagesConfig) PickLatestVersion(versions api.PackageVersionsResult, rwxPackage string) (string, error) {
+	return c.LatestVersionPicker(versions, rwxPackage, "")
+}
+
+func (c ResolvePackagesConfig) Validate() error {
+	if c.LatestVersionPicker == nil {
+		return errors.New("a latest version picker must be provided")
+	}
+
+	return nil
+}
+
+type UpdatePackagesResult struct {
+	UpdatedPackages map[string]string
+}
+
+type ResolvePackagesResult struct {
+	ResolvedPackages map[string]string
+}
+
+func (r ResolvePackagesResult) HasChanges() bool {
+	return len(r.ResolvedPackages) > 0
+}
+
 func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResult, error) {
 	err := cfg.Validate()
 	if err != nil {

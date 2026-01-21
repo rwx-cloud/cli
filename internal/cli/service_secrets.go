@@ -12,6 +12,25 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 )
 
+type SetSecretsInVaultConfig struct {
+	Secrets []string
+	Vault   string
+	File    string
+	Json    bool
+}
+
+func (c SetSecretsInVaultConfig) Validate() error {
+	if c.Vault == "" {
+		return errors.New("the vault name must be provided")
+	}
+
+	if len(c.Secrets) == 0 && c.File == "" {
+		return errors.New("the secrets to set must be provided")
+	}
+
+	return nil
+}
+
 func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()

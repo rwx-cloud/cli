@@ -13,6 +13,46 @@ import (
 	"github.com/rwx-cloud/cli/internal/messages"
 )
 
+type LintOutputFormat int
+
+const (
+	LintOutputNone LintOutputFormat = iota
+	LintOutputOneLine
+	LintOutputMultiLine
+	LintOutputJSON
+)
+
+type LintConfig struct {
+	RwxDirectory string
+	OutputFormat LintOutputFormat
+}
+
+func (c LintConfig) Validate() error {
+	return nil
+}
+
+func NewLintConfig(rwxDir string, formatString string) (LintConfig, error) {
+	var format LintOutputFormat
+
+	switch formatString {
+	case "none":
+		format = LintOutputNone
+	case "oneline":
+		format = LintOutputOneLine
+	case "multiline":
+		format = LintOutputMultiLine
+	case "json":
+		format = LintOutputJSON
+	default:
+		return LintConfig{}, errors.New("unknown output format, expected one of: none, oneline, multiline, json")
+	}
+
+	return LintConfig{
+		RwxDirectory: rwxDir,
+		OutputFormat: format,
+	}, nil
+}
+
 func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
 	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
