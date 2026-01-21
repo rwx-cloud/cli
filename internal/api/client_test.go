@@ -782,18 +782,18 @@ func TestAPIClient_RunStatus(t *testing.T) {
 	t.Run("parses the response when run is in progress", func(t *testing.T) {
 		backoffMs := 2000
 		body := struct {
-			Status  *api.RunStatus    `json:"status"`
+			Status  *api.RunStatus    `json:"run_status"`
 			RunID   string            `json:"run_id"`
 			Polling api.PollingResult `json:"polling"`
 		}{
-			Status:  &api.RunStatus{Result: "in_progress"},
+			Status:  &api.RunStatus{Result: ""},
 			RunID:   "run-123",
 			Polling: api.PollingResult{Completed: false, BackoffMs: &backoffMs},
 		}
 		bodyBytes, _ := json.Marshal(body)
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/runs/run-123/status", req.URL.Path)
+			require.Equal(t, "/mint/api/runs/run-123", req.URL.Path)
 			require.Equal(t, "true", req.URL.Query().Get("fail_fast"))
 			require.Equal(t, http.MethodGet, req.Method)
 			return &http.Response{
@@ -808,7 +808,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 		result, err := c.RunStatus(api.RunStatusConfig{RunID: "run-123"})
 		require.NoError(t, err)
 		require.NotNil(t, result.Status)
-		require.Equal(t, "in_progress", result.Status.Result)
+		require.Equal(t, "", result.Status.Result)
 		require.Equal(t, "run-123", result.RunID)
 		require.False(t, result.Polling.Completed)
 		require.NotNil(t, result.Polling.BackoffMs)
@@ -817,7 +817,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 
 	t.Run("parses the response when run is completed", func(t *testing.T) {
 		body := struct {
-			Status  *api.RunStatus    `json:"status"`
+			Status  *api.RunStatus    `json:"run_status"`
 			RunID   string            `json:"run_id"`
 			Polling api.PollingResult `json:"polling"`
 		}{
@@ -828,7 +828,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 		bodyBytes, _ := json.Marshal(body)
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/runs/run-456/status", req.URL.Path)
+			require.Equal(t, "/mint/api/runs/run-456", req.URL.Path)
 			require.Equal(t, http.MethodGet, req.Method)
 			return &http.Response{
 				Status:     "200 OK",
@@ -850,7 +850,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 
 	t.Run("parses the response when run is not found", func(t *testing.T) {
 		body := struct {
-			Status  *api.RunStatus    `json:"status"`
+			Status  *api.RunStatus    `json:"run_status"`
 			Polling api.PollingResult `json:"polling"`
 		}{
 			Status:  nil,

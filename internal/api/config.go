@@ -309,7 +309,7 @@ type RunStatus struct {
 }
 
 type RunStatusResult struct {
-	Status  *RunStatus    `json:"status,omitempty"`
+	Status  *RunStatus    `json:"run_status,omitempty"`
 	RunID   string        `json:"run_id,omitempty"`
 	Polling PollingResult `json:"polling"`
 }

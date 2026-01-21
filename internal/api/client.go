@@ -601,7 +601,7 @@ func (c Client) TaskIDStatus(cfg TaskIDStatusConfig) (TaskStatusResult, error) {
 }
 
 func (c Client) RunStatus(cfg RunStatusConfig) (RunStatusResult, error) {
-	endpoint := fmt.Sprintf("/mint/api/runs/%s/status?fail_fast=true", url.PathEscape(cfg.RunID))
+	endpoint := fmt.Sprintf("/mint/api/runs/%s?fail_fast=true", url.PathEscape(cfg.RunID))
 	result := RunStatusResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
