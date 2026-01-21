@@ -14,8 +14,6 @@ import (
 var (
 	LogsOutputDir   string
 	LogsOutputFile  string
-	LogsJson        bool
-	LogsOutput      string
 	LogsAutoExtract bool
 	LogsOpen        bool
 
@@ -60,7 +58,7 @@ var (
 				}
 			}
 
-			useJson := LogsOutput == "json" || LogsJson
+			useJson := useJsonOutput()
 			_, err = service.DownloadLogs(cli.DownloadLogsConfig{
 				TaskID:      taskId,
 				OutputDir:   absOutputDir,
@@ -80,9 +78,6 @@ func init() {
 	logsCmd.Flags().StringVar(&LogsOutputDir, "output-dir", "", "output directory for the downloaded log file (defaults to Downloads folder)")
 	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
-	logsCmd.Flags().BoolVar(&LogsJson, "json", false, "output file locations as JSON")
-	_ = logsCmd.Flags().MarkHidden("json")
-	logsCmd.Flags().StringVar(&LogsOutput, "output", "text", "output format: text or json")
 	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
 	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
 }

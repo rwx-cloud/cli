@@ -13,6 +13,6 @@ var artifactsCmd = &cobra.Command{
 }
 
 func init() {
-	artifacts.InitDownload(requireAccessToken, func() cli.Service { return service })
+	artifacts.InitDownload(requireAccessToken, func() cli.Service { return service }, useJsonOutput)
 	artifactsCmd.AddCommand(artifacts.DownloadCmd)
 }

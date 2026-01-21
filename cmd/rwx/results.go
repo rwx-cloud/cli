@@ -10,9 +10,7 @@ import (
 )
 
 var (
-	ResultsWait   bool
-	ResultsJson   bool
-	ResultsOutput string
+	ResultsWait bool
 
 	resultsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -24,7 +22,7 @@ var (
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runID := args[0]
-			useJson := ResultsOutput == "json" || ResultsJson
+			useJson := useJsonOutput()
 
 			result, err := service.GetRunStatus(cli.GetRunStatusConfig{
 				RunID: runID,
@@ -70,7 +68,4 @@ var (
 
 func init() {
 	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "wait for the run to complete")
-	resultsCmd.Flags().BoolVar(&ResultsJson, "json", false, "output json data to stdout")
-	_ = resultsCmd.Flags().MarkHidden("json")
-	resultsCmd.Flags().StringVar(&ResultsOutput, "output", "text", "output format: text or json")
 }

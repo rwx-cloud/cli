@@ -10,13 +10,11 @@ import (
 var (
 	pullTags    []string
 	pullTimeout time.Duration
-	pullJSON    bool
-	pullOutput  string
 
 	PullCmd *cobra.Command
 )
 
-func InitPull(requireAccessToken func() error, getService func() cli.Service) {
+func InitPull(requireAccessToken func() error, getService func() cli.Service, useJsonOutput func() bool) {
 	PullCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -29,7 +27,7 @@ func InitPull(requireAccessToken func() error, getService func() cli.Service) {
 				TaskID:     taskID,
 				Tags:       pullTags,
 				Timeout:    pullTimeout,
-				OutputJSON: pullOutput == "json" || pullJSON,
+				OutputJSON: useJsonOutput(),
 			}
 
 			_, err := getService().ImagePull(config)
@@ -41,7 +39,4 @@ func InitPull(requireAccessToken func() error, getService func() cli.Service) {
 
 	PullCmd.Flags().StringArrayVar(&pullTags, "tag", []string{}, "tag the pulled image (can be specified multiple times)")
 	PullCmd.Flags().DurationVar(&pullTimeout, "timeout", 10*time.Minute, "timeout for pulling the image")
-	PullCmd.Flags().BoolVar(&pullJSON, "json", false, "output JSON instead of human-readable text")
-	_ = PullCmd.Flags().MarkHidden("json")
-	PullCmd.Flags().StringVar(&pullOutput, "output", "text", "output format: text or json")
 }

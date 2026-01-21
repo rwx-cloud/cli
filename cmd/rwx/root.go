@@ -19,6 +19,8 @@ import (
 
 var (
 	AccessToken string
+	Json        bool
+	Output      string
 
 	rwxHost            string
 	service            cli.Service
@@ -87,6 +89,10 @@ func addRwxDirFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
 }
 
+func useJsonOutput() bool {
+	return Output == "json" || Json
+}
+
 func init() {
 	// A different host can only be set over the environment
 	mintHostEnv := os.Getenv("MINT_HOST")
@@ -101,6 +107,9 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
+	rootCmd.PersistentFlags().BoolVar(&Json, "json", false, "output json data to stdout")
+	_ = rootCmd.PersistentFlags().MarkHidden("json")
+	rootCmd.PersistentFlags().StringVar(&Output, "output", "text", "output format: text or json")
 
 	// Define command groups for help output ordering
 	rootCmd.AddGroup(&cobra.Group{ID: "execution", Title: "Execution:"})
