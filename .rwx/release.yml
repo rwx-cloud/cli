@@ -79,13 +79,13 @@ tasks:
       printf "$aliasedVersion" > "$RWX_VALUES/aliased-version"
 
   - key: code
-    call: git/clone 1.9.5
+    call: git/clone 2.0.0
     after: verify-inputs
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
       ref: ${{ init.commit }}
-      github-access-token: ${{ github-apps.rwx-cloud-bot.token }}
+      github-token: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: go-deps
     use: [go, code]

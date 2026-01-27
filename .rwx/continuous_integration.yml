@@ -21,12 +21,12 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 1.9.5
+    call: git/clone 2.0.0
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
       ref: ${{ init.commit-sha }}
-      github-access-token: ${{ github['rwx-cloud'].token }}
+      github-token: ${{ github['rwx-cloud'].token }}
 
   - key: tool-versions
     use: code
@@ -121,12 +121,12 @@ tasks:
       fi
 
   - key: rwx-testing-code
-    call: git/clone 1.9.5
+    call: git/clone 2.0.0
     with:
       path: ./rwx-testing
       repository: https://github.com/rwx-cloud/rwx-testing.git
       ref: main
-      github-access-token: ${{ github['rwx-cloud'].token }}
+      github-token: ${{ github['rwx-cloud'].token }}
 
   - key: jq
     run: |
