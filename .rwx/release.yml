@@ -89,10 +89,10 @@ tasks:
 
   - key: go-deps
     use: [go, code]
-    run: go mod download
-    filter:
-      - go.mod
-      - go.sum
+    call: golang/mod-download 1.0.0
+    filter: [go.mod, go.sum]
+    with:
+      tool-cache: cli-go-deps
 
   - key: gh-cli
     run: |
