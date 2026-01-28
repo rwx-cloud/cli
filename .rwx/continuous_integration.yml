@@ -49,11 +49,11 @@ tasks:
       curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sudo sh -s -- -b /usr/local/bin v${{ tasks.tool-versions.values.golangci-lint }}
 
   - key: go-deps
-    use: [code, go]
-    run: go mod download
-    filter:
-      - go.mod
-      - go.sum
+    use: [go, code]
+    call: golang/mod-download 1.0.0
+    filter: [go.mod, go.sum]
+    with:
+      tool-cache: cli-go-deps
 
   - key: gotestsum
     use: go
