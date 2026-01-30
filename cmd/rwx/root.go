@@ -135,6 +135,7 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(resolveCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(sandboxCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(vaultsCmd)
 	rootCmd.AddCommand(resultsCmd)
