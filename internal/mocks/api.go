@@ -8,6 +8,7 @@ import (
 type API struct {
 	MockInitiateRun                func(api.InitiateRunConfig) (*api.InitiateRunResult, error)
 	MockGetDebugConnectionInfo     func(runID string) (api.DebugConnectionInfo, error)
+	MockGetSandboxConnectionInfo   func(runID string) (api.SandboxConnectionInfo, error)
 	MockObtainAuthCode             func(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
 	MockAcquireToken               func(tokenUrl string) (*api.AcquireTokenResult, error)
 	MockWhoami                     func() (*api.WhoamiResult, error)
@@ -44,6 +45,14 @@ func (c *API) GetDebugConnectionInfo(runID string) (api.DebugConnectionInfo, err
 	}
 
 	return api.DebugConnectionInfo{}, errors.New("MockGetDebugConnectionInfo was not configured")
+}
+
+func (c *API) GetSandboxConnectionInfo(runID string) (api.SandboxConnectionInfo, error) {
+	if c.MockGetSandboxConnectionInfo != nil {
+		return c.MockGetSandboxConnectionInfo(runID)
+	}
+
+	return api.SandboxConnectionInfo{}, errors.New("MockGetSandboxConnectionInfo was not configured")
 }
 
 func (c *API) ObtainAuthCode(cfg api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {

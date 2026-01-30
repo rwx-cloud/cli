@@ -110,6 +110,57 @@ func (c Client) GetDebugConnectionInfo(debugKey string) (DebugConnectionInfo, er
 	return connectionInfo, nil
 }
 
+func (c Client) GetSandboxConnectionInfo(runID string) (SandboxConnectionInfo, error) {
+	connectionInfo := SandboxConnectionInfo{}
+
+	if runID == "" {
+		return connectionInfo, errors.New("missing runID")
+	}
+
+	endpoint := fmt.Sprintf("/mint/api/sandbox_connection_info?sandbox_key=%s", url.QueryEscape(runID))
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return connectionInfo, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return connectionInfo, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case 200:
+		break
+	case 400:
+		connectionError := SandboxConnectionInfoError{}
+		if err := json.NewDecoder(resp.Body).Decode(&connectionError); err == nil && connectionError.Error != "" {
+			return connectionInfo, errors.New(connectionError.Error)
+		}
+		return connectionInfo, errors.ErrBadRequest
+	case 404:
+		connectionError := SandboxConnectionInfoError{}
+		if err := json.NewDecoder(resp.Body).Decode(&connectionError); err == nil && connectionError.Error != "" {
+			return connectionInfo, errors.New(connectionError.Error)
+		}
+		return connectionInfo, errors.ErrNotFound
+	case 410:
+		connectionError := SandboxConnectionInfoError{}
+		if err := json.NewDecoder(resp.Body).Decode(&connectionError); err == nil && connectionError.Error != "" {
+			return connectionInfo, errors.New(connectionError.Error)
+		}
+		return connectionInfo, errors.ErrGone
+	default:
+		return connectionInfo, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&connectionInfo); err != nil {
+		return connectionInfo, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return connectionInfo, nil
+}
+
 // InitiateRun sends a request to Mint for starting a new run
 func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 	endpoint := "/mint/api/runs"
