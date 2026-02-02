@@ -875,6 +875,116 @@ func TestAPIClient_RunStatus(t *testing.T) {
 	})
 }
 
+func TestAPIClient_GetSandboxConnectionInfo(t *testing.T) {
+	t.Run("returns connection info when sandbox is ready", func(t *testing.T) {
+		backoffMs := 1000
+		body := struct {
+			Sandboxable    bool              `json:"sandboxable"`
+			Address        string            `json:"address"`
+			PublicHostKey  string            `json:"public_host_key"`
+			PrivateUserKey string            `json:"private_user_key"`
+			Polling        api.PollingResult `json:"polling"`
+		}{
+			Sandboxable:    true,
+			Address:        "192.168.1.1:22",
+			PublicHostKey:  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...",
+			PrivateUserKey: "-----BEGIN OPENSSH PRIVATE KEY-----...",
+			Polling:        api.PollingResult{Completed: false, BackoffMs: &backoffMs},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/sandbox_connection_info", req.URL.Path)
+			require.Equal(t, "run-123", req.URL.Query().Get("sandbox_key"))
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetSandboxConnectionInfo("run-123")
+		require.NoError(t, err)
+		require.True(t, result.Sandboxable)
+		require.Equal(t, "192.168.1.1:22", result.Address)
+		require.Equal(t, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...", result.PublicHostKey)
+		require.Equal(t, "-----BEGIN OPENSSH PRIVATE KEY-----...", result.PrivateUserKey)
+		require.False(t, result.Polling.Completed)
+	})
+
+	t.Run("returns connection info when sandbox is not ready yet", func(t *testing.T) {
+		backoffMs := 2000
+		body := struct {
+			Sandboxable bool              `json:"sandboxable"`
+			Polling     api.PollingResult `json:"polling"`
+		}{
+			Sandboxable: false,
+			Polling:     api.PollingResult{Completed: false, BackoffMs: &backoffMs},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetSandboxConnectionInfo("run-456")
+		require.NoError(t, err)
+		require.False(t, result.Sandboxable)
+		require.NotNil(t, result.Polling.BackoffMs)
+		require.Equal(t, 2000, *result.Polling.BackoffMs)
+	})
+
+	t.Run("returns error on 404", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Run not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetSandboxConnectionInfo("nonexistent")
+		require.Error(t, err)
+	})
+
+	t.Run("returns error on 410 gone", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "410 Gone",
+				StatusCode: 410,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Run has ended"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetSandboxConnectionInfo("ended-run")
+		require.Error(t, err)
+	})
+
+	t.Run("returns error when runID is empty", func(t *testing.T) {
+		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
+			t.Fatal("should not make request")
+			return nil, nil
+		})
+
+		_, err := c.GetSandboxConnectionInfo("")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing runID")
+	})
+}
+
 func TestAPIClient_GetRunPrompt(t *testing.T) {
 	t.Run("builds the request and returns the prompt text", func(t *testing.T) {
 		roundTrip := func(req *http.Request) (*http.Response, error) {

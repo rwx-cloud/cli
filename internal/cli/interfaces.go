@@ -10,6 +10,7 @@ import (
 
 type APIClient interface {
 	GetDebugConnectionInfo(debugKey string) (api.DebugConnectionInfo, error)
+	GetSandboxConnectionInfo(runID string) (api.SandboxConnectionInfo, error)
 	GetDispatch(api.GetDispatchConfig) (*api.GetDispatchResult, error)
 	InitiateRun(api.InitiateRunConfig) (*api.InitiateRunResult, error)
 	InitiateDispatch(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
@@ -38,6 +39,7 @@ type SSHClient interface {
 	Close() error
 	Connect(addr string, cfg gossh.ClientConfig) error
 	InteractiveSession() error
+	ExecuteCommand(command string) (int, error)
 }
 
 var _ SSHClient = (*ssh.Client)(nil)

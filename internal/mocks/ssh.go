@@ -9,6 +9,7 @@ import (
 type SSH struct {
 	MockConnect            func(addr string, cfg ssh.ClientConfig) error
 	MockInteractiveSession func() error
+	MockExecuteCommand     func(command string) (int, error)
 }
 
 func (s *SSH) Close() error {
@@ -29,4 +30,12 @@ func (s *SSH) InteractiveSession() error {
 	}
 
 	return errors.New("MockInteractiveSession was not configured")
+}
+
+func (s *SSH) ExecuteCommand(command string) (int, error) {
+	if s.MockExecuteCommand != nil {
+		return s.MockExecuteCommand(command)
+	}
+
+	return -1, errors.New("MockExecuteCommand was not configured")
 }
