@@ -162,6 +162,7 @@ var sandboxExecCmd = &cobra.Command{
 			RunID:        sandboxRunID,
 			RwxDirectory: sandboxRwxDir,
 			Json:         useJson,
+			Sync:         !sandboxNoSync,
 		})
 		if err != nil {
 			return err
@@ -292,6 +293,7 @@ var (
 	sandboxRwxDir  string
 	sandboxOpen    bool
 	sandboxWait    bool
+	sandboxNoSync  bool
 )
 
 func init() {
@@ -311,6 +313,7 @@ func init() {
 	sandboxExecCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
 	sandboxExecCmd.Flags().StringVar(&sandboxRunID, "id", "", "Use specific run ID")
 	sandboxExecCmd.Flags().BoolVar(&sandboxOpen, "open", false, "Open the run in a browser")
+	sandboxExecCmd.Flags().BoolVar(&sandboxNoSync, "no-sync", false, "Skip syncing local changes before execution")
 
 	// stop flags
 	sandboxStopCmd.Flags().StringVar(&sandboxRunID, "id", "", "Stop specific sandbox by run ID")

@@ -202,6 +202,61 @@ func TestGetOriginUrl(t *testing.T) {
 	})
 }
 
+func TestGeneratePatch(t *testing.T) {
+	t.Run("returns nil when git is not installed", func(t *testing.T) {
+		client := &git.Client{Binary: "fake", Dir: ""}
+		patch, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns nil when we can't determine a base commit", func(t *testing.T) {
+		client := &git.Client{Binary: "git", Dir: "/tmp"}
+		patch, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns nil patch when there is no diff", func(t *testing.T) {
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns patch bytes when there's a diff", func(t *testing.T) {
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, patch)
+		require.Contains(t, string(patch), "new file mode 100644")
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns patch bytes for unstaged changes", func(t *testing.T) {
+		// This fixture has unstaged binary changes (not added)
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, patch) // Now includes unstaged changes
+		require.Nil(t, lfs)
+	})
+}
+
 func TestGeneratePatchFile(t *testing.T) {
 	t.Run("does not write a patch file", func(t *testing.T) {
 		t.Run("when git is not installed", func(t *testing.T) {

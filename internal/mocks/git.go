@@ -12,6 +12,7 @@ type Git struct {
 	MockGetCommit         string
 	MockGetOriginUrl      string
 	MockGeneratePatchFile git.PatchFile
+	MockGeneratePatch     func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
 }
 
 func (c *Git) GetBranch() string {
@@ -48,4 +49,11 @@ func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 	}
 
 	return c.MockGeneratePatchFile
+}
+
+func (c *Git) GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+	if c.MockGeneratePatch != nil {
+		return c.MockGeneratePatch(pathspec)
+	}
+	return nil, nil, nil
 }

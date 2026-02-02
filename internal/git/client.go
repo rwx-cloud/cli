@@ -109,11 +109,20 @@ type PatchFile struct {
 	LFSChangedFiles LFSChangedFilesMetadata
 }
 
-func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile {
+// patchResult holds the result of generating patch data
+type patchResult struct {
+	patch     []byte
+	sha       string
+	untracked UntrackedFilesMetadata
+	lfs       LFSChangedFilesMetadata
+	ok        bool
+}
+
+// generatePatchData generates patch data for working tree changes relative to the base commit on origin.
+func (c *Client) generatePatchData(pathspec []string) patchResult {
 	sha := c.GetCommit()
 	if sha == "" {
-		// We can't determine a patch
-		return PatchFile{}
+		return patchResult{}
 	}
 
 	diffArgs := []string{"diff", sha, "--name-only"}
@@ -126,20 +135,21 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 
 	files, err := cmd.Output()
 	if err != nil {
-		// We can't determine a patch
-		return PatchFile{}
+		return patchResult{}
 	}
 
 	lfsChangedFiles := []string{}
 
 	for _, file := range strings.Split(strings.TrimSpace(string(files)), "\n") {
+		if file == "" {
+			continue
+		}
 		cmd := exec.Command(c.Binary, "check-attr", "filter", "--", file)
 		cmd.Dir = c.Dir
 
 		attrs, err := cmd.CombinedOutput()
 		if err != nil {
-			// We can't determine a patch
-			return PatchFile{}
+			return patchResult{}
 		}
 
 		if strings.Contains(string(attrs), "filter: lfs") {
@@ -150,14 +160,13 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 	}
 
 	if len(lfsChangedFiles) > 0 {
-		// There are changes to LFS tracked files
-		lfsMetadata := LFSChangedFilesMetadata{
-			Files: lfsChangedFiles,
-			Count: len(lfsChangedFiles),
-		}
-
-		return PatchFile{
-			LFSChangedFiles: lfsMetadata,
+		return patchResult{
+			sha: sha,
+			lfs: LFSChangedFilesMetadata{
+				Files: lfsChangedFiles,
+				Count: len(lfsChangedFiles),
+			},
+			ok: true,
 		}
 	}
 
@@ -171,15 +180,10 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 
 	untracked, err := cmd.Output()
 	if err != nil {
-		// We can't determine untracked files
-		return PatchFile{}
+		return patchResult{}
 	}
 
 	untrackedFiles := strings.Fields(string(untracked))
-	untrackedMetadata := UntrackedFilesMetadata{
-		Files: untrackedFiles,
-		Count: len(untrackedFiles),
-	}
 
 	patchArgs := []string{"diff", sha, "-p", "--binary"}
 	if len(pathspec) > 0 {
@@ -191,29 +195,65 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 
 	patch, err := cmd.Output()
 	if err != nil {
-		// We can't determine a patch
+		return patchResult{}
+	}
+
+	return patchResult{
+		patch: patch,
+		sha:   sha,
+		untracked: UntrackedFilesMetadata{
+			Files: untrackedFiles,
+			Count: len(untrackedFiles),
+		},
+		ok: true,
+	}
+}
+
+func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile {
+	data := c.generatePatchData(pathspec)
+	if !data.ok {
 		return PatchFile{}
 	}
 
-	if string(patch) == "" {
-		// There is no patch
+	if data.lfs.Count > 0 {
+		return PatchFile{LFSChangedFiles: data.lfs}
+	}
+
+	if len(data.patch) == 0 {
 		return PatchFile{}
 	}
 
-	outputPath := filepath.Join(destDir, sha)
+	outputPath := filepath.Join(destDir, data.sha)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-		// We can't write a patch
 		return PatchFile{}
 	}
 
-	if err = os.WriteFile(outputPath, patch, 0644); err != nil {
-		// We can't write a patch
+	if err := os.WriteFile(outputPath, data.patch, 0644); err != nil {
 		return PatchFile{}
 	}
 
 	return PatchFile{
 		Written:        true,
 		Path:           outputPath,
-		UntrackedFiles: untrackedMetadata,
+		UntrackedFiles: data.untracked,
 	}
+}
+
+// GeneratePatch returns patch bytes for working tree changes relative to the base commit on origin.
+// Returns (nil, nil, nil) if no changes or unable to generate patch.
+func (c *Client) GeneratePatch(pathspec []string) ([]byte, *LFSChangedFilesMetadata, error) {
+	data := c.generatePatchData(pathspec)
+	if !data.ok {
+		return nil, nil, nil
+	}
+
+	if data.lfs.Count > 0 {
+		return nil, &data.lfs, nil
+	}
+
+	if len(data.patch) == 0 {
+		return nil, nil, nil
+	}
+
+	return data.patch, nil, nil
 }
