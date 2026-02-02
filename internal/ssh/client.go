@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"io"
 	"os"
 
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -88,6 +89,33 @@ func (c *Client) ExecuteCommand(command string) (int, error) {
 	}
 	defer session.Close()
 
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+
+	err = session.Run(command)
+	if err != nil {
+		if exitErr, ok := err.(*ssh.ExitError); ok {
+			return exitErr.ExitStatus(), nil
+		}
+		return -1, errors.Wrap(err, "SSH command execution failed")
+	}
+	return 0, nil
+}
+
+// ExecuteCommandWithStdin runs a command non-interactively over SSH, piping data to stdin.
+//
+// Return values:
+//   - (0, nil)   = command succeeded with exit code 0
+//   - (N, nil)   = command completed with non-zero exit code N
+//   - (-1, err)  = SSH/connection error (command may not have run)
+func (c *Client) ExecuteCommandWithStdin(command string, stdin io.Reader) (int, error) {
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return -1, errors.Wrap(err, "unable to create SSH session")
+	}
+	defer session.Close()
+
+	session.Stdin = stdin
 	session.Stdout = os.Stdout
 	session.Stderr = os.Stderr
 

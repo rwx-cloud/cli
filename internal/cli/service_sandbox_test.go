@@ -1,10 +1,12 @@
 package cli_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )
@@ -153,6 +155,415 @@ func TestService_ExecSandbox(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "completed before becoming ready")
+	})
+}
+
+func TestService_ExecSandbox_Sync(t *testing.T) {
+	t.Run("syncs changes when Sync is true", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-sync-123"
+		address := "192.168.1.1:22"
+		patchApplied := false
+		var appliedPatch []byte
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", command)
+			appliedPatch, _ = io.ReadAll(stdin)
+			patchApplied = true
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.True(t, patchApplied)
+		require.Equal(t, "diff --git a/file.txt b/file.txt\n", string(appliedPatch))
+	})
+
+	t.Run("skips sync when Sync is false", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-sync-123"
+		address := "192.168.1.1:22"
+		patchApplied := false
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			patchApplied = true
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.False(t, patchApplied)
+	})
+
+	t.Run("skips sync when no changes", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-changes-123"
+		address := "192.168.1.1:22"
+		patchApplied := false
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil, nil, nil // No changes
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			patchApplied = true
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.False(t, patchApplied)
+	})
+
+	t.Run("warns about untracked files", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-untracked-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), &git.UntrackedFilesMetadata{Files: []string{"new.txt"}, Count: 1}, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       false, // Enable warning output
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.Contains(t, setup.mockStderr.String(), "untracked file(s) not synced")
+	})
+
+	t.Run("warns and skips sync for LFS files", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lfs-123"
+		address := "192.168.1.1:22"
+		patchApplied := false
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil, &git.LFSChangedFilesMetadata{Files: []string{"large.bin"}, Count: 1}, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			patchApplied = true
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       false, // Enable warning output
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.False(t, patchApplied)
+		require.Contains(t, setup.mockStderr.String(), "LFS file(s) changed")
+	})
+
+	t.Run("returns error when git apply fails", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-apply-fail-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("invalid patch"), nil, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil // git reset succeeds
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			return 1, nil // git apply failed
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "git apply failed")
+	})
+
+	t.Run("returns error when git reset fails", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reset-fail-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			if cmd == "{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1" {
+				return 1, nil // git reset failed
+			}
+			return 0, nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "git reset failed")
+	})
+
+	t.Run("returns helpful error when git is not installed", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-git-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil // git reset succeeds
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			return 127, nil // command not found
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "git is not installed")
+	})
+
+	t.Run("resets sandbox before applying patch", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reset-order-123"
+		address := "192.168.1.1:22"
+		var commandOrder []string
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
+			commandOrder = append(commandOrder, command)
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.Len(t, commandOrder, 3)
+		require.Equal(t, "{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1", commandOrder[0])
+		require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", commandOrder[1])
+		require.Equal(t, "echo hello", commandOrder[2])
 	})
 }
 

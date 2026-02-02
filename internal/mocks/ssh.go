@@ -1,15 +1,18 @@
 package mocks
 
 import (
+	"io"
+
 	"github.com/rwx-cloud/cli/internal/errors"
 
 	"golang.org/x/crypto/ssh"
 )
 
 type SSH struct {
-	MockConnect            func(addr string, cfg ssh.ClientConfig) error
-	MockInteractiveSession func() error
-	MockExecuteCommand     func(command string) (int, error)
+	MockConnect                 func(addr string, cfg ssh.ClientConfig) error
+	MockInteractiveSession      func() error
+	MockExecuteCommand          func(command string) (int, error)
+	MockExecuteCommandWithStdin func(command string, stdin io.Reader) (int, error)
 }
 
 func (s *SSH) Close() error {
@@ -38,4 +41,12 @@ func (s *SSH) ExecuteCommand(command string) (int, error) {
 	}
 
 	return -1, errors.New("MockExecuteCommand was not configured")
+}
+
+func (s *SSH) ExecuteCommandWithStdin(command string, stdin io.Reader) (int, error) {
+	if s.MockExecuteCommandWithStdin != nil {
+		return s.MockExecuteCommandWithStdin(command, stdin)
+	}
+
+	return -1, errors.New("MockExecuteCommandWithStdin was not configured")
 }

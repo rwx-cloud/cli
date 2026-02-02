@@ -202,6 +202,91 @@ func TestGetOriginUrl(t *testing.T) {
 	})
 }
 
+func TestGeneratePatch(t *testing.T) {
+	t.Run("returns nil when git is not installed", func(t *testing.T) {
+		client := &git.Client{Binary: "fake", Dir: ""}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, untracked)
+		require.Nil(t, unstaged)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns nil when we can't determine a diff", func(t *testing.T) {
+		client := &git.Client{Binary: "git", Dir: "/tmp"}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, untracked)
+		require.Nil(t, unstaged)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns nil patch when there is no diff", func(t *testing.T) {
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-no-diff")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch)
+		require.Nil(t, untracked)
+		require.Nil(t, unstaged)
+		require.Nil(t, lfs)
+	})
+
+	t.Run("returns patch bytes when there's a staged diff", func(t *testing.T) {
+		// This fixture stages the file with git add
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, patch)
+		require.Contains(t, string(patch), "new file mode 100644")
+		require.Nil(t, untracked)
+		require.Nil(t, lfs)
+		// unstaged includes the staged file since git diff HEAD shows all changes
+		require.NotNil(t, unstaged)
+	})
+
+	t.Run("returns untracked files metadata with staged changes", func(t *testing.T) {
+		// This fixture stages foo.txt but leaves bar.txt untracked
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, patch)
+		require.NotNil(t, untracked)
+		require.Equal(t, []string{"bar.txt"}, untracked.Files)
+		require.Equal(t, 1, untracked.Count)
+		require.Nil(t, lfs)
+		// unstaged includes the staged file since git diff HEAD shows all changes
+		require.NotNil(t, unstaged)
+	})
+
+	t.Run("returns nil patch when changes are unstaged", func(t *testing.T) {
+		// This fixture has unstaged binary changes (not added)
+		tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff-binary")
+
+		client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+		patch, untracked, unstaged, lfs, err := client.GeneratePatch(nil)
+
+		require.NoError(t, err)
+		require.Nil(t, patch) // No staged changes
+		require.Nil(t, untracked)
+		require.NotNil(t, unstaged) // But unstaged changes exist
+		require.Equal(t, 1, unstaged.Count)
+		require.Nil(t, lfs)
+	})
+}
+
 func TestGeneratePatchFile(t *testing.T) {
 	t.Run("does not write a patch file", func(t *testing.T) {
 		t.Run("when git is not installed", func(t *testing.T) {

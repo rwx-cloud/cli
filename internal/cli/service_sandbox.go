@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -28,6 +29,7 @@ type ExecSandboxConfig struct {
 	RunID        string
 	RwxDirectory string
 	Json         bool
+	Sync         bool
 }
 
 type ListSandboxesConfig struct {
@@ -367,6 +369,13 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	}
 	defer s.SSHClient.Close()
 
+	// Sync local changes to sandbox if enabled
+	if cfg.Sync {
+		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
+			return nil, errors.Wrap(err, "failed to sync changes to sandbox")
+		}
+	}
+
 	// Execute command
 	command := strings.Join(cfg.Command, " ")
 	exitCode, err := s.SSHClient.ExecuteCommand(command)
@@ -624,6 +633,60 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 
 	if err = s.SSHClient.Connect(connInfo.Address, sshConfig); err != nil {
 		return errors.Wrap(err, "unable to establish SSH connection to remote host")
+	}
+
+	return nil
+}
+
+func (s Service) syncChangesToSandbox(jsonMode bool) error {
+	patch, untrackedFiles, unstagedFiles, lfsFiles, err := s.GitClient.GeneratePatch(nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate patch")
+	}
+
+	// Warn about LFS files
+	if lfsFiles != nil && lfsFiles.Count > 0 {
+		if !jsonMode {
+			fmt.Fprintf(s.Stderr, "Warning: %d LFS file(s) changed locally and cannot be synced.\n", lfsFiles.Count)
+		}
+		return nil
+	}
+
+	// Warn about unsynced changes
+	if !jsonMode {
+		if untrackedFiles != nil && untrackedFiles.Count > 0 && unstagedFiles != nil && unstagedFiles.Count > 0 {
+			fmt.Fprintf(s.Stderr, "Warning: %d untracked file(s) and %d file(s) with unstaged changes not synced. Use `git add` to stage changes.\n", untrackedFiles.Count, unstagedFiles.Count)
+		} else if untrackedFiles != nil && untrackedFiles.Count > 0 {
+			fmt.Fprintf(s.Stderr, "Warning: %d untracked file(s) not synced. Use `git add` to stage changes.\n", untrackedFiles.Count)
+		} else if unstagedFiles != nil && unstagedFiles.Count > 0 {
+			fmt.Fprintf(s.Stderr, "Warning: %d file(s) with unstaged changes not synced. Use `git add` to stage changes.\n", unstagedFiles.Count)
+		}
+	}
+
+	// Always reset working directory to HEAD (clears any previous patches)
+	exitCode, err := s.SSHClient.ExecuteCommand("{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1")
+	if err != nil {
+		return errors.Wrap(err, "failed to reset sandbox working directory")
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("git reset failed with exit code %d", exitCode)
+	}
+
+	// Skip applying patch if no staged changes
+	if len(patch) == 0 {
+		return nil
+	}
+
+	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
+	exitCode, err = s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+	if err != nil {
+		return errors.Wrap(err, "failed to apply patch on sandbox")
+	}
+	if exitCode == 127 {
+		return fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("git apply failed with exit code %d", exitCode)
 	}
 
 	return nil
