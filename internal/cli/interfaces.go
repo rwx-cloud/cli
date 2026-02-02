@@ -33,6 +33,7 @@ type APIClient interface {
 	GetArtifactDownloadRequest(taskId, artifactKey string) (api.ArtifactDownloadRequestResult, error)
 	DownloadArtifact(api.ArtifactDownloadRequestResult) ([]byte, error)
 	GetRunPrompt(runID string) (string, error)
+	GetSandboxInitTemplate() (api.SandboxInitTemplateResult, error)
 }
 
 var _ APIClient = api.Client{}

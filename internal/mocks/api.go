@@ -29,6 +29,7 @@ type API struct {
 	MockGetArtifactDownloadRequest func(string, string) (api.ArtifactDownloadRequestResult, error)
 	MockDownloadArtifact           func(api.ArtifactDownloadRequestResult) ([]byte, error)
 	MockGetRunPrompt               func(string) (string, error)
+	MockGetSandboxInitTemplate     func() (api.SandboxInitTemplateResult, error)
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -213,4 +214,12 @@ func (c *API) GetRunPrompt(runID string) (string, error) {
 	}
 
 	return "", errors.New("MockGetRunPrompt was not configured")
+}
+
+func (c *API) GetSandboxInitTemplate() (api.SandboxInitTemplateResult, error) {
+	if c.MockGetSandboxInitTemplate != nil {
+		return c.MockGetSandboxInitTemplate()
+	}
+
+	return api.SandboxInitTemplateResult{}, errors.New("MockGetSandboxInitTemplate was not configured")
 }

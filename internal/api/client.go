@@ -888,6 +888,30 @@ func (c Client) DownloadArtifact(request ArtifactDownloadRequestResult) ([]byte,
 	return nil, errors.New(errMsg)
 }
 
+func (c Client) GetSandboxInitTemplate() (SandboxInitTemplateResult, error) {
+	endpoint := "/mint/api/sandbox_init_template"
+	result := SandboxInitTemplateResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
 func decodeResponseJSON(resp *http.Response, result any) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if result == nil {

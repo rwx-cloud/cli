@@ -313,3 +313,7 @@ type RunStatusResult struct {
 	RunID   string        `json:"run_id,omitempty"`
 	Polling PollingResult `json:"polling"`
 }
+
+type SandboxInitTemplateResult struct {
+	Template string `json:"template"`
+}

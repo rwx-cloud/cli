@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/manifoldco/promptui"
 	"github.com/rwx-cloud/cli/internal/cli"
@@ -245,6 +246,46 @@ var sandboxStopCmd = &cobra.Command{
 	},
 }
 
+var sandboxInitCmd = &cobra.Command{
+	Use:   "init [output-file]",
+	Short: "Initialize a sandbox configuration file",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		outputFile := ".rwx/sandbox.yml"
+		if len(args) > 0 {
+			outputFile = args[0]
+		}
+
+		if _, err := os.Stat(outputFile); err == nil {
+			fmt.Fprintf(os.Stderr, "File already exists: %s\n", outputFile)
+			return nil
+		}
+
+		useJson := useJsonOutput()
+		result, err := service.GetSandboxInitTemplate(cli.GetSandboxInitTemplateConfig{
+			Json: useJson,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Create parent directory if it doesn't exist
+		dir := filepath.Dir(outputFile)
+		if dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", dir, err)
+			}
+		}
+
+		if err := os.WriteFile(outputFile, []byte(result.Template), 0644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+
+		fmt.Fprintf(os.Stdout, "Created sandbox configuration: %s\n", outputFile)
+		return nil
+	},
+}
+
 var sandboxResetCmd = &cobra.Command{
 	Use:   "reset [config-file]",
 	Short: "Stop and restart a sandbox",
@@ -297,6 +338,7 @@ var (
 )
 
 func init() {
+	sandboxCmd.AddCommand(sandboxInitCmd)
 	sandboxCmd.AddCommand(sandboxStartCmd)
 	sandboxCmd.AddCommand(sandboxExecCmd)
 	sandboxCmd.AddCommand(sandboxListCmd)

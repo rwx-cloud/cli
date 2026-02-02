@@ -89,7 +89,26 @@ type ResetSandboxResult struct {
 	RunURL   string
 }
 
+type GetSandboxInitTemplateConfig struct {
+	Json bool
+}
+
+type GetSandboxInitTemplateResult struct {
+	Template string
+}
+
 // Service methods
+
+func (s Service) GetSandboxInitTemplate(cfg GetSandboxInitTemplateConfig) (*GetSandboxInitTemplateResult, error) {
+	result, err := s.APIClient.GetSandboxInitTemplate()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to fetch sandbox init template")
+	}
+
+	return &GetSandboxInitTemplateResult{
+		Template: result.Template,
+	}, nil
+}
 
 type CheckExistingSandboxResult struct {
 	Exists     bool
