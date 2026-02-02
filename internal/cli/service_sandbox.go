@@ -639,7 +639,7 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 }
 
 func (s Service) syncChangesToSandbox(jsonMode bool) error {
-	patch, untrackedFiles, unstagedFiles, lfsFiles, err := s.GitClient.GeneratePatch(nil)
+	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate patch")
 	}
@@ -652,19 +652,22 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Warn about unsynced changes
-	if !jsonMode {
-		if untrackedFiles != nil && untrackedFiles.Count > 0 && unstagedFiles != nil && unstagedFiles.Count > 0 {
-			fmt.Fprintf(s.Stderr, "Warning: %d untracked file(s) and %d file(s) with unstaged changes not synced. Use `git add` to stage changes.\n", untrackedFiles.Count, unstagedFiles.Count)
-		} else if untrackedFiles != nil && untrackedFiles.Count > 0 {
-			fmt.Fprintf(s.Stderr, "Warning: %d untracked file(s) not synced. Use `git add` to stage changes.\n", untrackedFiles.Count)
-		} else if unstagedFiles != nil && unstagedFiles.Count > 0 {
-			fmt.Fprintf(s.Stderr, "Warning: %d file(s) with unstaged changes not synced. Use `git add` to stage changes.\n", unstagedFiles.Count)
-		}
+	// Get COMMIT_SHA from sandbox environment to reset to the correct base commit
+	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $COMMIT_SHA")
+	if err != nil {
+		return errors.Wrap(err, "failed to get COMMIT_SHA from sandbox")
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("failed to get COMMIT_SHA from sandbox (exit code %d)", exitCode)
 	}
 
-	// Always reset working directory to HEAD (clears any previous patches)
-	exitCode, err := s.SSHClient.ExecuteCommand("{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1")
+	commitSHA = strings.TrimSpace(commitSHA)
+	if commitSHA == "" {
+		return fmt.Errorf("COMMIT_SHA environment variable is not set in the sandbox. Add `env: COMMIT_SHA: ${{ init.commit }}` to your sandbox task definition")
+	}
+
+	// Reset working directory to the base commit (clears any previous patches)
+	exitCode, err = s.SSHClient.ExecuteCommand(fmt.Sprintf("{ /usr/bin/git reset --hard %s && /usr/bin/git clean -fd; } > /dev/null 2>&1", commitSHA))
 	if err != nil {
 		return errors.Wrap(err, "failed to reset sandbox working directory")
 	}
@@ -672,7 +675,7 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return fmt.Errorf("git reset failed with exit code %d", exitCode)
 	}
 
-	// Skip applying patch if no staged changes
+	// Skip applying patch if no changes
 	if len(patch) == 0 {
 		return nil
 	}

@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"io"
 	"os"
 
@@ -127,4 +128,31 @@ func (c *Client) ExecuteCommandWithStdin(command string, stdin io.Reader) (int, 
 		return -1, errors.Wrap(err, "SSH command execution failed")
 	}
 	return 0, nil
+}
+
+// ExecuteCommandWithOutput runs a command non-interactively over SSH and captures stdout.
+//
+// Return values:
+//   - (0, output, nil)   = command succeeded with exit code 0
+//   - (N, output, nil)   = command completed with non-zero exit code N
+//   - (-1, "", err)      = SSH/connection error (command may not have run)
+func (c *Client) ExecuteCommandWithOutput(command string) (int, string, error) {
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return -1, "", errors.Wrap(err, "unable to create SSH session")
+	}
+	defer session.Close()
+
+	var stdout bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = os.Stderr
+
+	err = session.Run(command)
+	if err != nil {
+		if exitErr, ok := err.(*ssh.ExitError); ok {
+			return exitErr.ExitStatus(), stdout.String(), nil
+		}
+		return -1, "", errors.Wrap(err, "SSH command execution failed")
+	}
+	return 0, stdout.String(), nil
 }

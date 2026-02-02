@@ -43,6 +43,7 @@ type SSHClient interface {
 	InteractiveSession() error
 	ExecuteCommand(command string) (int, error)
 	ExecuteCommandWithStdin(command string, stdin io.Reader) (int, error)
+	ExecuteCommandWithOutput(command string) (int, string, error)
 }
 
 var _ SSHClient = (*ssh.Client)(nil)
@@ -52,5 +53,5 @@ type GitClient interface {
 	GetCommit() string
 	GetOriginUrl() string
 	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
-	GeneratePatch(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error)
+	GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
 }

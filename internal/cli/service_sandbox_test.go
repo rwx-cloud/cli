@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/rwx-cloud/cli/internal/api"
@@ -164,6 +165,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-sync-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 		patchApplied := false
 		var appliedPatch []byte
 
@@ -180,8 +182,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil, nil, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
@@ -256,6 +262,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-no-changes-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 		patchApplied := false
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
@@ -271,8 +278,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return nil, nil, nil, nil, nil // No changes
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil // No changes
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
@@ -297,50 +308,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.False(t, patchApplied)
 	})
 
-	t.Run("warns about untracked files", func(t *testing.T) {
-		setup := setupTest(t)
-
-		runID := "run-untracked-123"
-		address := "192.168.1.1:22"
-
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
-			return api.SandboxConnectionInfo{
-				Sandboxable:    true,
-				Address:        address,
-				PrivateUserKey: sandboxPrivateTestKey,
-				PublicHostKey:  sandboxPublicTestKey,
-			}, nil
-		}
-
-		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
-			return nil
-		}
-
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("patch"), &git.UntrackedFilesMetadata{Files: []string{"new.txt"}, Count: 1}, nil, nil, nil
-		}
-
-		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
-			return 0, nil
-		}
-
-		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
-			return 0, nil
-		}
-
-		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
-			Command:    []string{"echo", "hello"},
-			RunID:      runID,
-			Json:       false, // Enable warning output
-			Sync:       true,
-		})
-
-		require.NoError(t, err)
-		require.Equal(t, 0, result.ExitCode)
-		require.Contains(t, setup.mockStderr.String(), "untracked file(s) not synced")
-	})
-
 	t.Run("warns and skips sync for LFS files", func(t *testing.T) {
 		setup := setupTest(t)
 
@@ -361,8 +328,8 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return nil, nil, nil, &git.LFSChangedFilesMetadata{Files: []string{"large.bin"}, Count: 1}, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, &git.LFSChangedFilesMetadata{Files: []string{"large.bin"}, Count: 1}, nil
 		}
 
 		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
@@ -393,6 +360,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-apply-fail-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -407,8 +375,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("invalid patch"), nil, nil, nil, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("invalid patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
@@ -436,6 +408,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-reset-fail-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -450,12 +423,16 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("patch"), nil, nil, nil, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
-			if cmd == "{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1" {
+			if strings.Contains(cmd, "git reset") {
 				return 1, nil // git reset failed
 			}
 			return 0, nil
@@ -478,6 +455,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-no-git-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -492,8 +470,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("patch"), nil, nil, nil, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
@@ -521,6 +503,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-reset-order-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 		var commandOrder []string
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
@@ -536,8 +519,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return nil
 		}
 
-		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.UntrackedFilesMetadata, *git.UnstagedFilesMetadata, *git.LFSChangedFilesMetadata, error) {
-			return []byte("patch"), nil, nil, nil, nil
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
@@ -561,9 +548,48 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 0, result.ExitCode)
 		require.Len(t, commandOrder, 3)
-		require.Equal(t, "{ /usr/bin/git reset --hard HEAD && /usr/bin/git clean -fd; } > /dev/null 2>&1", commandOrder[0])
+		require.Equal(t, "{ /usr/bin/git reset --hard "+commitSHA+" && /usr/bin/git clean -fd; } > /dev/null 2>&1", commandOrder[0])
 		require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", commandOrder[1])
 		require.Equal(t, "echo hello", commandOrder[2])
+	})
+
+	t.Run("returns error when COMMIT_SHA is not set", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-commit-sha-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, "", nil // COMMIT_SHA not set
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "COMMIT_SHA environment variable is not set")
 	})
 }
 

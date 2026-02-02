@@ -9,10 +9,11 @@ import (
 )
 
 type SSH struct {
-	MockConnect                 func(addr string, cfg ssh.ClientConfig) error
-	MockInteractiveSession      func() error
-	MockExecuteCommand          func(command string) (int, error)
-	MockExecuteCommandWithStdin func(command string, stdin io.Reader) (int, error)
+	MockConnect                  func(addr string, cfg ssh.ClientConfig) error
+	MockInteractiveSession       func() error
+	MockExecuteCommand           func(command string) (int, error)
+	MockExecuteCommandWithStdin  func(command string, stdin io.Reader) (int, error)
+	MockExecuteCommandWithOutput func(command string) (int, string, error)
 }
 
 func (s *SSH) Close() error {
@@ -49,4 +50,12 @@ func (s *SSH) ExecuteCommandWithStdin(command string, stdin io.Reader) (int, err
 	}
 
 	return -1, errors.New("MockExecuteCommandWithStdin was not configured")
+}
+
+func (s *SSH) ExecuteCommandWithOutput(command string) (int, string, error) {
+	if s.MockExecuteCommandWithOutput != nil {
+		return s.MockExecuteCommandWithOutput(command)
+	}
+
+	return -1, "", errors.New("MockExecuteCommandWithOutput was not configured")
 }
