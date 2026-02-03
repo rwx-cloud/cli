@@ -376,8 +376,8 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		}
 	}
 
-	// Execute command
-	command := strings.Join(cfg.Command, " ")
+	// Execute command with proper shell escaping
+	command := shellJoin(cfg.Command)
 	exitCode, err := s.SSHClient.ExecuteCommand(command)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute command in sandbox")
@@ -693,4 +693,49 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	}
 
 	return nil
+}
+
+// shellJoin joins command arguments with proper shell escaping.
+// Each argument is single-quoted to preserve its literal value,
+// with internal single quotes properly escaped.
+func shellJoin(args []string) string {
+	escaped := make([]string, len(args))
+	for i, arg := range args {
+		escaped[i] = shellEscape(arg)
+	}
+	return strings.Join(escaped, " ")
+}
+
+// shellEscape escapes a single argument for safe shell execution.
+// Returns the argument single-quoted with internal single quotes escaped.
+func shellEscape(arg string) string {
+	// If the argument is simple (no special chars), return as-is for readability
+	if isSimpleArg(arg) {
+		return arg
+	}
+	// Single-quote the argument, escaping any internal single quotes
+	// by ending the quoted section, adding an escaped quote, and restarting
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
+}
+
+// isSimpleArg returns true if the argument contains no shell metacharacters
+// and can be passed without quoting.
+func isSimpleArg(arg string) bool {
+	if arg == "" {
+		return false
+	}
+	for _, c := range arg {
+		if !isSimpleChar(c) {
+			return false
+		}
+	}
+	return true
+}
+
+// isSimpleChar returns true for characters that don't require shell escaping.
+func isSimpleChar(c rune) bool {
+	return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') ||
+		c == '-' || c == '_' || c == '.' || c == '/' || c == ':'
 }

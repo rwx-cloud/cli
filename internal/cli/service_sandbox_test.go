@@ -94,6 +94,84 @@ func TestService_ExecSandbox(t *testing.T) {
 		require.Equal(t, "echo hello", executedCommand)
 	})
 
+	t.Run("properly escapes command arguments with spaces", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-escape-123"
+		address := "192.168.1.1:22"
+		var executedCommand string
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			executedCommand = cmd
+			return 0, nil
+		}
+
+		// Command with argument containing space - should be quoted
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"bash", "-c", "echo hello world"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		// The argument "echo hello world" should be single-quoted
+		require.Equal(t, "bash -c 'echo hello world'", executedCommand)
+	})
+
+	t.Run("escapes single quotes in arguments", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-quote-123"
+		address := "192.168.1.1:22"
+		var executedCommand string
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			executedCommand = cmd
+			return 0, nil
+		}
+
+		// Command with single quote - should be escaped
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "it's working"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		// Single quote is escaped as '\''
+		require.Equal(t, "echo 'it'\\''s working'", executedCommand)
+	})
+
 	t.Run("returns non-zero exit code from command", func(t *testing.T) {
 		setup := setupTest(t)
 
