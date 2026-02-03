@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -307,4 +308,13 @@ func (c *Client) GeneratePatch(pathspec []string) ([]byte, *LFSChangedFilesMetad
 	}
 
 	return data.patch, nil, nil
+}
+
+// ApplyPatch returns an exec.Cmd that applies a patch to the working directory.
+// The patch bytes should be provided to the command's stdin before running.
+func (c *Client) ApplyPatch(patch []byte) *exec.Cmd {
+	cmd := exec.Command(c.Binary, "apply", "--allow-empty", "-")
+	cmd.Dir = c.Dir
+	cmd.Stdin = bytes.NewReader(patch)
+	return cmd
 }

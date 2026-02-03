@@ -457,6 +457,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-no-git-123"
 		address := "192.168.1.1:22"
+		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -475,8 +476,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return []byte("patch"), nil, nil
 		}
 
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, commitSHA, nil
+		}
+
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
-			return 0, nil
+			return 0, nil // git reset succeeds
 		}
 
 		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
@@ -494,6 +499,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "git is not installed")
 	})
+
 }
 
 func TestService_StopSandbox(t *testing.T) {
