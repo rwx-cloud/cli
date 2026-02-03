@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -209,10 +210,14 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		finishSpinner = SpinUntilDone("Starting sandbox...", s.StdoutIsTTY, s.Stdout)
 	}
 
+	// Construct a descriptive title for the sandbox run
+	title := SandboxTitle(cwd, branch, cfg.ConfigFile)
+
 	runResult, err := s.InitiateRun(InitiateRunConfig{
 		MintFilePath: cfg.ConfigFile,
 		RwxDirectory: cfg.RwxDirectory,
 		Json:         cfg.Json,
+		Title:        title,
 	})
 
 	if err != nil {
@@ -651,6 +656,24 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 	}
 
 	return nil
+}
+
+// SandboxTitle constructs a descriptive title for sandbox runs using the
+// project directory name, branch, and config file (if non-default).
+func SandboxTitle(cwd, branch, configFile string) string {
+	project := filepath.Base(cwd)
+	if branch == "" {
+		branch = "detached"
+	}
+
+	title := fmt.Sprintf("Sandbox: %s (%s)", project, branch)
+
+	// Include config file if it's not the default
+	if configFile != "" && configFile != ".rwx/sandbox.yml" {
+		title = fmt.Sprintf("%s [%s]", title, configFile)
+	}
+
+	return title
 }
 
 func (s Service) syncChangesToSandbox(jsonMode bool) error {

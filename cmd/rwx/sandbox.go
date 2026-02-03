@@ -151,22 +151,6 @@ CONFIG FILE
 
   The config must include a task with "run: rwx-sandbox" which defines the
   sandbox entry point, and must be dependent on a task that uses git/clone.
-
-EXAMPLES
-  # Run tests in sandbox (auto-creates if needed)
-  rwx sandbox exec -- go test ./...
-
-  # Run with a custom config file
-  rwx sandbox exec .rwx/sandbox-python.yml -- pytest
-
-  # Execute without syncing local changes
-  rwx sandbox exec --no-sync -- make build
-
-  # Get JSON output for scripting
-  rwx sandbox exec --output json -- npm test
-
-  # Use a specific sandbox by run ID
-  rwx sandbox exec --id abc123 -- ./scripts/deploy.sh
 `,
 	Args: cobra.ArbitraryArgs,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
