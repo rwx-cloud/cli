@@ -127,7 +127,33 @@ var sandboxStartCmd = &cobra.Command{
 var sandboxExecCmd = &cobra.Command{
 	Use:   "exec [config-file] -- <command>",
 	Short: "Execute a command in a sandbox",
-	Args:  cobra.ArbitraryArgs,
+	Long: `Execute a command in a persistent cloud sandbox environment.
+
+OVERVIEW
+  Sandboxes are isolated, reproducible environments running in RWX cloud
+  infrastructure. They persist between commands, allowing you to run multiple
+  commands against the same environment without rebuilding each time.
+
+FILE SYNCING
+  Before each command, local uncommitted changes are automatically synced to
+  the sandbox via git patch. This includes staged and unstaged changes, but
+  untracked files are not synced. You need to "git add" untracked files before
+  running the command.
+  Use --no-sync to skip this step if you want to run against the sandbox's
+  original state.
+
+  Note: Git LFS files cannot be synced and will generate a warning.
+
+CONFIG FILE
+  The sandbox configuration (default: .rwx/sandbox.yml) defines:
+    - Base image and dependencies
+    - Git repository to clone
+    - Any setup tasks that run before the sandbox becomes available
+
+  The config must include a task with "run: rwx-sandbox" which defines the
+  sandbox entry point, and must be dependent on a task that uses git/clone.
+`,
+	Args: cobra.ArbitraryArgs,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requireAccessToken()
 	},

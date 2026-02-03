@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -228,10 +229,14 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		finishSpinner = SpinUntilDone("Starting sandbox...", s.StdoutIsTTY, s.Stdout)
 	}
 
+	// Construct a descriptive title for the sandbox run
+	title := SandboxTitle(cwd, branch, cfg.ConfigFile)
+
 	runResult, err := s.InitiateRun(InitiateRunConfig{
 		MintFilePath: cfg.ConfigFile,
 		RwxDirectory: cfg.RwxDirectory,
 		Json:         cfg.Json,
+		Title:        title,
 	})
 
 	if err != nil {
@@ -599,6 +604,21 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 // Helper methods
 
 func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxConnectionInfo, error) {
+	// Check once before showing spinner - sandbox may already be ready
+	connInfo, err := s.APIClient.GetSandboxConnectionInfo(runID)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get sandbox connection info")
+	}
+
+	if connInfo.Sandboxable {
+		return &connInfo, nil
+	}
+
+	if connInfo.Polling.Completed {
+		return nil, fmt.Errorf("Sandbox run '%s' completed before becoming ready", runID)
+	}
+
+	// Sandbox not ready yet - start spinner and poll
 	var stopSpinner func()
 	if !jsonMode {
 		stopSpinner = Spin("Waiting for sandbox to be ready...", s.StdoutIsTTY, s.Stdout)
@@ -606,7 +626,14 @@ func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxC
 	}
 
 	for {
-		connInfo, err := s.APIClient.GetSandboxConnectionInfo(runID)
+		// Use backoff from server, or default to 2 seconds
+		backoffMs := 2000
+		if connInfo.Polling.BackoffMs != nil {
+			backoffMs = *connInfo.Polling.BackoffMs
+		}
+		time.Sleep(time.Duration(backoffMs) * time.Millisecond)
+
+		connInfo, err = s.APIClient.GetSandboxConnectionInfo(runID)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to get sandbox connection info")
 		}
@@ -618,13 +645,6 @@ func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxC
 		if connInfo.Polling.Completed {
 			return nil, fmt.Errorf("Sandbox run '%s' completed before becoming ready", runID)
 		}
-
-		// Use backoff from server, or default to 2 seconds
-		backoffMs := 2000
-		if connInfo.Polling.BackoffMs != nil {
-			backoffMs = *connInfo.Polling.BackoffMs
-		}
-		time.Sleep(time.Duration(backoffMs) * time.Millisecond)
 	}
 }
 
@@ -655,6 +675,24 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 	}
 
 	return nil
+}
+
+// SandboxTitle constructs a descriptive title for sandbox runs using the
+// project directory name, branch, and config file (if non-default).
+func SandboxTitle(cwd, branch, configFile string) string {
+	project := filepath.Base(cwd)
+	if branch == "" {
+		branch = "detached"
+	}
+
+	title := fmt.Sprintf("Sandbox: %s (%s)", project, branch)
+
+	// Include config file if it's not the default
+	if configFile != "" && configFile != ".rwx/sandbox.yml" {
+		title = fmt.Sprintf("%s [%s]", title, configFile)
+	}
+
+	return title
 }
 
 func (s Service) syncChangesToSandbox(jsonMode bool) error {

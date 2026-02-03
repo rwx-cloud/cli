@@ -348,3 +348,30 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		require.Contains(t, err.Error(), "unable to parse")
 	})
 }
+
+func TestSandboxTitle(t *testing.T) {
+	t.Run("creates title from project name and branch", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "main", ".rwx/sandbox.yml")
+		require.Equal(t, "Sandbox: my-project (main)", title)
+	})
+
+	t.Run("uses 'detached' when branch is empty", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "", ".rwx/sandbox.yml")
+		require.Equal(t, "Sandbox: my-project (detached)", title)
+	})
+
+	t.Run("includes non-default config file", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "feature/test", ".rwx/custom.yml")
+		require.Equal(t, "Sandbox: my-project (feature/test) [.rwx/custom.yml]", title)
+	})
+
+	t.Run("excludes default config file", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "develop", ".rwx/sandbox.yml")
+		require.Equal(t, "Sandbox: my-project (develop)", title)
+	})
+
+	t.Run("handles empty config file", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "main", "")
+		require.Equal(t, "Sandbox: my-project (main)", title)
+	})
+}
