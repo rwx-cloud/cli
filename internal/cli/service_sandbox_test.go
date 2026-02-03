@@ -446,10 +446,12 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, 0, result.ExitCode)
-		// Should only have git apply and the command - no git reset
-		require.Len(t, commandOrder, 2)
-		require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", commandOrder[0])
-		require.Equal(t, "echo hello", commandOrder[1])
+		// Should have sync markers, git apply, and the command - no git reset
+		require.Len(t, commandOrder, 4)
+		require.Equal(t, "__rwx_sandbox_sync_start__", commandOrder[0])
+		require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", commandOrder[1])
+		require.Equal(t, "__rwx_sandbox_sync_end__", commandOrder[2])
+		require.Equal(t, "echo hello", commandOrder[3])
 	})
 
 	t.Run("returns helpful error when git is not installed", func(t *testing.T) {

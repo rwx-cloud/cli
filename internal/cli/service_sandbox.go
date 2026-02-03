@@ -676,6 +676,9 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 	}
 	defer s.SSHClient.Close()
 
+	// Mark start of sync operations (Mint filters these from logs)
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
 	// Include untracked files in the diff by adding them with intent-to-add
 	// Get untracked files, add with -N, get diff, then reset
 	_, untrackedOutput, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
@@ -719,6 +722,9 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 		resetCmd := fmt.Sprintf("/usr/bin/git reset HEAD -- %s > /dev/null 2>&1", strings.Join(quotedFiles, " "))
 		_, _ = s.SSHClient.ExecuteCommand(resetCmd)
 	}
+
+	// Mark end of sync operations
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get diff from sandbox")
 	}
@@ -896,6 +902,9 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	// Extract the list of files that will be modified by the patch
 	filesToReset := parsePatchFiles(string(patch))
 
+	// Mark start of sync operations (Mint filters these from logs)
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
 	// Reset files that will be patched (preserves generated files like build artifacts)
 	// For tracked files: git checkout resets to HEAD
 	// For new/untracked files: delete any existing version from previous sync
@@ -914,6 +923,10 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
 	exitCode, err := s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+
+	// Mark end of sync operations
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+
 	if err != nil {
 		return errors.Wrap(err, "failed to apply patch on sandbox")
 	}
