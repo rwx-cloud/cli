@@ -580,6 +580,21 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 // Helper methods
 
 func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxConnectionInfo, error) {
+	// Check once before showing spinner - sandbox may already be ready
+	connInfo, err := s.APIClient.GetSandboxConnectionInfo(runID)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get sandbox connection info")
+	}
+
+	if connInfo.Sandboxable {
+		return &connInfo, nil
+	}
+
+	if connInfo.Polling.Completed {
+		return nil, fmt.Errorf("Sandbox run '%s' completed before becoming ready", runID)
+	}
+
+	// Sandbox not ready yet - start spinner and poll
 	var stopSpinner func()
 	if !jsonMode {
 		stopSpinner = Spin("Waiting for sandbox to be ready...", s.StdoutIsTTY, s.Stdout)
@@ -587,7 +602,14 @@ func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxC
 	}
 
 	for {
-		connInfo, err := s.APIClient.GetSandboxConnectionInfo(runID)
+		// Use backoff from server, or default to 2 seconds
+		backoffMs := 2000
+		if connInfo.Polling.BackoffMs != nil {
+			backoffMs = *connInfo.Polling.BackoffMs
+		}
+		time.Sleep(time.Duration(backoffMs) * time.Millisecond)
+
+		connInfo, err = s.APIClient.GetSandboxConnectionInfo(runID)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to get sandbox connection info")
 		}
@@ -599,13 +621,6 @@ func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxC
 		if connInfo.Polling.Completed {
 			return nil, fmt.Errorf("Sandbox run '%s' completed before becoming ready", runID)
 		}
-
-		// Use backoff from server, or default to 2 seconds
-		backoffMs := 2000
-		if connInfo.Polling.BackoffMs != nil {
-			backoffMs = *connInfo.Polling.BackoffMs
-		}
-		time.Sleep(time.Duration(backoffMs) * time.Millisecond)
 	}
 }
 
