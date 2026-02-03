@@ -14,11 +14,34 @@ import (
 
 type Client struct {
 	*ssh.Client
+	address       string
+	user          string
+	privateKeyPEM string
 }
 
 func (c *Client) Connect(address string, config ssh.ClientConfig) (err error) {
 	c.Client, err = ssh.Dial("tcp", address, &config)
+	if err == nil {
+		c.address = address
+		c.user = config.User
+	}
 	return
+}
+
+// ConnectWithKey connects to the SSH server and stores the private key for external tools.
+func (c *Client) ConnectWithKey(address string, config ssh.ClientConfig, privateKeyPEM string) (err error) {
+	c.Client, err = ssh.Dial("tcp", address, &config)
+	if err == nil {
+		c.address = address
+		c.user = config.User
+		c.privateKeyPEM = privateKeyPEM
+	}
+	return
+}
+
+// GetConnectionDetails returns the address, user, and private key PEM for use with external tools.
+func (c *Client) GetConnectionDetails() (address string, user string, privateKeyPEM string) {
+	return c.address, c.user, c.privateKeyPEM
 }
 
 func (c *Client) Close() error {
@@ -155,4 +178,31 @@ func (c *Client) ExecuteCommandWithOutput(command string) (int, string, error) {
 		return -1, "", errors.Wrap(err, "SSH command execution failed")
 	}
 	return 0, stdout.String(), nil
+}
+
+// ExecuteCommandWithStdinAndStdout runs a command, piping stdin and capturing stdout.
+//
+// Return values:
+//   - (0, nil)   = command succeeded with exit code 0
+//   - (N, nil)   = command completed with non-zero exit code N
+//   - (-1, err)  = SSH/connection error (command may not have run)
+func (c *Client) ExecuteCommandWithStdinAndStdout(command string, stdin io.Reader, stdout io.Writer) (int, error) {
+	session, err := c.Client.NewSession()
+	if err != nil {
+		return -1, errors.Wrap(err, "unable to create SSH session")
+	}
+	defer session.Close()
+
+	session.Stdin = stdin
+	session.Stdout = stdout
+	session.Stderr = os.Stderr
+
+	err = session.Run(command)
+	if err != nil {
+		if exitErr, ok := err.(*ssh.ExitError); ok {
+			return exitErr.ExitStatus(), nil
+		}
+		return -1, errors.Wrap(err, "SSH command execution failed")
+	}
+	return 0, nil
 }
