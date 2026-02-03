@@ -652,18 +652,21 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Get COMMIT_SHA from sandbox environment to reset to the correct base commit
-	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $COMMIT_SHA")
+	// Get RWX_GIT_COMMIT_SHA from sandbox environment to reset to the correct base commit
+	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $RWX_GIT_COMMIT_SHA")
 	if err != nil {
-		return errors.Wrap(err, "failed to get COMMIT_SHA from sandbox")
+		return errors.Wrap(err, "failed to get RWX_GIT_COMMIT_SHA from sandbox")
 	}
 	if exitCode != 0 {
-		return fmt.Errorf("failed to get COMMIT_SHA from sandbox (exit code %d)", exitCode)
+		return fmt.Errorf("failed to get RWX_GIT_COMMIT_SHA from sandbox (exit code %d)", exitCode)
+	}
+	commitSHA = strings.TrimSpace(commitSHA)
+	if idx := strings.Index(commitSHA, "+"); idx != -1 {
+		commitSHA = commitSHA[:idx]
 	}
 
-	commitSHA = strings.TrimSpace(commitSHA)
 	if commitSHA == "" {
-		return fmt.Errorf("COMMIT_SHA environment variable is not set in the sandbox. Add `env: COMMIT_SHA: ${{ init.commit }}` to your sandbox task definition")
+		return fmt.Errorf("RWX_GIT_COMMIT_SHA environment variable is not set in the sandbox. The sandbox task should be dependent on a task that uses git/clone")
 	}
 
 	// Reset working directory to the base commit (clears any previous patches)
