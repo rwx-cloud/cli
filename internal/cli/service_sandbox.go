@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -95,6 +95,18 @@ type GetSandboxInitTemplateConfig struct {
 
 type GetSandboxInitTemplateResult struct {
 	Template string
+}
+
+type PullSandboxConfig struct {
+	ConfigFile   string
+	RunID        string
+	RwxDirectory string
+	Paths        []string // specific paths to pull, empty = all changed files
+	Json         bool
+}
+
+type PullSandboxResult struct {
+	PulledFiles []string
 }
 
 // Service methods
@@ -650,7 +662,8 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 		HostKeyCallback: ssh.FixedHostKey(publicHostKey),
 	}
 
-	if err = s.SSHClient.Connect(connInfo.Address, sshConfig); err != nil {
+	// Use ConnectWithKey to store the private key for use with external tools like rsync
+	if err = s.SSHClient.ConnectWithKey(connInfo.Address, sshConfig, connInfo.PrivateUserKey); err != nil {
 		return errors.Wrap(err, "unable to establish SSH connection to remote host")
 	}
 
@@ -658,58 +671,312 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 }
 
 func (s Service) syncChangesToSandbox(jsonMode bool) error {
-	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate patch")
-	}
+	// Check for LFS files and warn (ignore errors since we only want the LFS info)
+	_, lfsFiles, _ := s.GitClient.GeneratePatch(nil)
 
-	// Warn about LFS files
 	if lfsFiles != nil && lfsFiles.Count > 0 {
 		if !jsonMode {
 			fmt.Fprintf(s.Stderr, "Warning: %d LFS file(s) changed locally and cannot be synced.\n", lfsFiles.Count)
 		}
+	}
+
+	// Get list of tracked files
+	trackedFiles, err := s.getGitFiles(false)
+	if err != nil {
+		return errors.Wrap(err, "failed to get tracked files")
+	}
+
+	// Get list of untracked files (respecting .gitignore)
+	untrackedFiles, err := s.getGitFiles(true)
+	if err != nil {
+		return errors.Wrap(err, "failed to get untracked files")
+	}
+
+	// Combine all files
+	allFiles := append(trackedFiles, untrackedFiles...)
+
+	// Skip sync if no files
+	if len(allFiles) == 0 {
 		return nil
 	}
 
-	// Get COMMIT_SHA from sandbox environment to reset to the correct base commit
-	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $COMMIT_SHA")
+	// Sync files via rsync
+	return s.syncFilesViaRsync(allFiles)
+}
+
+// getGitFiles returns files from git ls-files
+// If untracked is true, returns untracked files (--others --exclude-standard)
+// If untracked is false, returns tracked files
+func (s Service) getGitFiles(untracked bool) ([]string, error) {
+	var args []string
+	if untracked {
+		args = []string{"ls-files", "--others", "--exclude-standard"}
+	} else {
+		args = []string{"ls-files"}
+	}
+
+	cmd := exec.Command("git", args...)
+	output, err := cmd.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to get COMMIT_SHA from sandbox")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("failed to get COMMIT_SHA from sandbox (exit code %d)", exitCode)
+		return nil, errors.Wrap(err, "git ls-files failed")
 	}
 
-	commitSHA = strings.TrimSpace(commitSHA)
-	if commitSHA == "" {
-		return fmt.Errorf("COMMIT_SHA environment variable is not set in the sandbox. Add `env: COMMIT_SHA: ${{ init.commit }}` to your sandbox task definition")
+	var files []string
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			files = append(files, line)
+		}
 	}
 
-	// Reset working directory to the base commit (clears any previous patches)
-	exitCode, err = s.SSHClient.ExecuteCommand(fmt.Sprintf("{ /usr/bin/git reset --hard %s && /usr/bin/git clean -fd; } > /dev/null 2>&1", commitSHA))
-	if err != nil {
-		return errors.Wrap(err, "failed to reset sandbox working directory")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("git reset failed with exit code %d", exitCode)
-	}
+	return files, nil
+}
 
-	// Skip applying patch if no changes
-	if len(patch) == 0 {
+// syncFilesViaRsync uses rsync to sync the specified files to the sandbox
+func (s Service) syncFilesViaRsync(files []string) error {
+	if len(files) == 0 {
 		return nil
 	}
 
-	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
-	exitCode, err = s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+	// Get SSH connection details for rsync
+	address, user, privateKeyPEM := s.SSHClient.GetConnectionDetails()
+	if address == "" || privateKeyPEM == "" {
+		return fmt.Errorf("SSH connection details not available for rsync")
+	}
+
+	// Write SSH private key to temp file
+	keyFile, err := os.CreateTemp("", "rwx-ssh-key-*")
 	if err != nil {
-		return errors.Wrap(err, "failed to apply patch on sandbox")
+		return errors.Wrap(err, "failed to create temp file for SSH key")
 	}
-	if exitCode == 127 {
-		return fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
+	defer os.Remove(keyFile.Name())
+
+	if _, err := keyFile.WriteString(privateKeyPEM); err != nil {
+		keyFile.Close()
+		return errors.Wrap(err, "failed to write SSH key to temp file")
 	}
-	if exitCode != 0 {
-		return fmt.Errorf("git apply failed with exit code %d", exitCode)
+	keyFile.Close()
+
+	// Set permissions on key file (required by SSH)
+	if err := os.Chmod(keyFile.Name(), 0600); err != nil {
+		return errors.Wrap(err, "failed to set permissions on SSH key file")
+	}
+
+	// Write file list to temp file
+	fileListFile, err := os.CreateTemp("", "rwx-files-*")
+	if err != nil {
+		return errors.Wrap(err, "failed to create temp file for file list")
+	}
+	defer os.Remove(fileListFile.Name())
+
+	if _, err := fileListFile.WriteString(strings.Join(files, "\n")); err != nil {
+		fileListFile.Close()
+		return errors.Wrap(err, "failed to write file list to temp file")
+	}
+	fileListFile.Close()
+
+	// Get current working directory for rsync source
+	cwd, err := os.Getwd()
+	if err != nil {
+		return errors.Wrap(err, "failed to get current working directory")
+	}
+
+	// Build rsync command
+	// -a: archive mode (preserves permissions, timestamps, etc.)
+	// -v: verbose
+	// -z: compress during transfer
+	// --files-from: read list of files from file
+	// -e: specify SSH command with key and options
+	sshCmd := fmt.Sprintf("ssh -i %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null", keyFile.Name())
+	destination := fmt.Sprintf("%s@%s:/work/", user, extractHost(address))
+
+	rsyncArgs := []string{
+		"-avz",
+		"--files-from", fileListFile.Name(),
+		"-e", sshCmd,
+		cwd + "/",
+		destination,
+	}
+
+	rsyncCmd := exec.Command("rsync", rsyncArgs...)
+	rsyncCmd.Dir = cwd
+
+	output, err := rsyncCmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+			if exitCode == 127 {
+				return fmt.Errorf("rsync is not installed locally. Please install rsync to use sandbox sync")
+			}
+			return fmt.Errorf("rsync failed with exit code %d: %s", exitCode, string(output))
+		}
+		return errors.Wrap(err, "rsync command failed")
 	}
 
 	return nil
+}
+
+// extractHost extracts the hostname from an address like "host:port"
+func extractHost(address string) string {
+	if idx := strings.LastIndex(address, ":"); idx != -1 {
+		return address[:idx]
+	}
+	return address
+}
+
+func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) {
+	defer s.outputLatestVersionMessage()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get current directory")
+	}
+	branch := GetCurrentGitBranch(cwd)
+
+	var runID string
+	var configFile string
+
+	// Sandbox selection priority (same as ExecSandbox):
+	// 1. --id flag
+	// 2. Find by CWD + git branch in storage
+
+	if cfg.RunID != "" {
+		runID = cfg.RunID
+		configFile = cfg.ConfigFile
+	} else {
+		storage, err := LoadSandboxStorage()
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to load sandbox sessions")
+		}
+
+		if cfg.ConfigFile != "" {
+			session, found := storage.GetSession(cwd, branch, cfg.ConfigFile)
+			if !found {
+				return nil, fmt.Errorf("No sandbox found for config file '%s'.\nUse 'rwx sandbox list' to see available sandboxes.", cfg.ConfigFile)
+			}
+			runID = session.RunID
+			configFile = session.ConfigFile
+		} else {
+			sessions := storage.GetSessionsForCwdBranch(cwd, branch)
+			var activeSessions []SandboxSession
+			for _, sess := range sessions {
+				connInfo, err := s.APIClient.GetSandboxConnectionInfo(sess.RunID)
+				if err == nil && !connInfo.Polling.Completed {
+					activeSessions = append(activeSessions, sess)
+				}
+			}
+
+			if len(activeSessions) == 0 {
+				return nil, fmt.Errorf("No active sandbox found for %s:%s.\nUse 'rwx sandbox list' to see available sandboxes.", cwd, branch)
+			}
+			if len(activeSessions) > 1 {
+				return nil, fmt.Errorf("Multiple active sandboxes found for %s:%s.\nSpecify a config file to select one, or use --id to specify a run ID.", cwd, branch)
+			}
+			runID = activeSessions[0].RunID
+			configFile = activeSessions[0].ConfigFile
+		}
+	}
+
+	// Get connection info
+	connInfo, err := s.waitForSandboxReady(runID, cfg.Json)
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect via SSH
+	err = s.connectSSH(connInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to sandbox '%s': %v\nThe sandbox may have timed out. Run 'rwx sandbox reset %s' to restart.", runID, err, configFile)
+	}
+	defer s.SSHClient.Close()
+
+	// Determine which files to pull
+	var filesToPull []string
+	if len(cfg.Paths) > 0 {
+		filesToPull = cfg.Paths
+	} else {
+		// Get list of modified/new files on sandbox compared to git HEAD
+		exitCode, output, err := s.SSHClient.ExecuteCommandWithOutput("cd /work && { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } | sort -u")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get changed files from sandbox")
+		}
+		if exitCode != 0 {
+			return nil, fmt.Errorf("failed to get changed files from sandbox (exit code %d)", exitCode)
+		}
+
+		for _, line := range strings.Split(output, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				filesToPull = append(filesToPull, line)
+			}
+		}
+	}
+
+	if len(filesToPull) == 0 {
+		if !cfg.Json {
+			fmt.Fprintln(s.Stdout, "No files to pull from sandbox.")
+		}
+		return &PullSandboxResult{PulledFiles: []string{}}, nil
+	}
+
+	// Pull files via tar
+	pulledFiles, err := s.pullFilesViaTar(filesToPull)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to pull files from sandbox")
+	}
+
+	if !cfg.Json {
+		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(pulledFiles))
+		for _, f := range pulledFiles {
+			fmt.Fprintf(s.Stdout, "  %s\n", f)
+		}
+	}
+
+	return &PullSandboxResult{PulledFiles: pulledFiles}, nil
+}
+
+// pullFilesViaTar creates a tar archive on the sandbox and extracts it locally
+func (s Service) pullFilesViaTar(files []string) ([]string, error) {
+	if len(files) == 0 {
+		return []string{}, nil
+	}
+
+	// Create tar on sandbox and stream to local extraction
+	// Use -T - to read file list from stdin
+	fileList := strings.Join(files, "\n")
+	tarCommand := fmt.Sprintf("cd /work && echo '%s' | tar -cf - -T - 2>/dev/null", fileList)
+
+	// Create local tar extraction command
+	tarExtract := exec.Command("tar", "-xf", "-")
+
+	stdinPipe, err := tarExtract.StdinPipe()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create tar stdin pipe")
+	}
+
+	if err := tarExtract.Start(); err != nil {
+		return nil, errors.Wrap(err, "failed to start local tar extraction")
+	}
+
+	// Execute remote tar and pipe output to local stdin
+	exitCode, err := s.SSHClient.ExecuteCommandWithStdinAndStdout(tarCommand, nil, stdinPipe)
+	stdinPipe.Close()
+
+	if err != nil {
+		_ = tarExtract.Wait()
+		return nil, errors.Wrap(err, "failed to create tar on sandbox")
+	}
+
+	if err := tarExtract.Wait(); err != nil {
+		return nil, errors.Wrap(err, "local tar extraction failed")
+	}
+
+	if exitCode == 127 {
+		return nil, fmt.Errorf("tar is not installed in the sandbox")
+	}
+	if exitCode != 0 {
+		return nil, fmt.Errorf("tar creation on sandbox failed with exit code %d", exitCode)
+	}
+
+	return files, nil
 }

@@ -41,10 +41,13 @@ var _ APIClient = api.Client{}
 type SSHClient interface {
 	Close() error
 	Connect(addr string, cfg gossh.ClientConfig) error
+	ConnectWithKey(addr string, cfg gossh.ClientConfig, privateKeyPEM string) error
 	InteractiveSession() error
 	ExecuteCommand(command string) (int, error)
 	ExecuteCommandWithStdin(command string, stdin io.Reader) (int, error)
 	ExecuteCommandWithOutput(command string) (int, string, error)
+	ExecuteCommandWithStdinAndStdout(command string, stdin io.Reader, stdout io.Writer) (int, error)
+	GetConnectionDetails() (address string, user string, privateKeyPEM string)
 }
 
 var _ SSHClient = (*ssh.Client)(nil)

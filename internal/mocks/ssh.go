@@ -9,11 +9,14 @@ import (
 )
 
 type SSH struct {
-	MockConnect                  func(addr string, cfg ssh.ClientConfig) error
-	MockInteractiveSession       func() error
-	MockExecuteCommand           func(command string) (int, error)
-	MockExecuteCommandWithStdin  func(command string, stdin io.Reader) (int, error)
-	MockExecuteCommandWithOutput func(command string) (int, string, error)
+	MockConnect                          func(addr string, cfg ssh.ClientConfig) error
+	MockConnectWithKey                   func(addr string, cfg ssh.ClientConfig, privateKeyPEM string) error
+	MockInteractiveSession               func() error
+	MockExecuteCommand                   func(command string) (int, error)
+	MockExecuteCommandWithStdin          func(command string, stdin io.Reader) (int, error)
+	MockExecuteCommandWithOutput         func(command string) (int, string, error)
+	MockExecuteCommandWithStdinAndStdout func(command string, stdin io.Reader, stdout io.Writer) (int, error)
+	MockGetConnectionDetails             func() (address string, user string, privateKeyPEM string)
 }
 
 func (s *SSH) Close() error {
@@ -26,6 +29,14 @@ func (s *SSH) Connect(addr string, cfg ssh.ClientConfig) error {
 	}
 
 	return errors.New("MockConnect was not configured")
+}
+
+func (s *SSH) ConnectWithKey(addr string, cfg ssh.ClientConfig, privateKeyPEM string) error {
+	if s.MockConnectWithKey != nil {
+		return s.MockConnectWithKey(addr, cfg, privateKeyPEM)
+	}
+
+	return errors.New("MockConnectWithKey was not configured")
 }
 
 func (s *SSH) InteractiveSession() error {
@@ -58,4 +69,20 @@ func (s *SSH) ExecuteCommandWithOutput(command string) (int, string, error) {
 	}
 
 	return -1, "", errors.New("MockExecuteCommandWithOutput was not configured")
+}
+
+func (s *SSH) ExecuteCommandWithStdinAndStdout(command string, stdin io.Reader, stdout io.Writer) (int, error) {
+	if s.MockExecuteCommandWithStdinAndStdout != nil {
+		return s.MockExecuteCommandWithStdinAndStdout(command, stdin, stdout)
+	}
+
+	return -1, errors.New("MockExecuteCommandWithStdinAndStdout was not configured")
+}
+
+func (s *SSH) GetConnectionDetails() (address string, user string, privateKeyPEM string) {
+	if s.MockGetConnectionDetails != nil {
+		return s.MockGetConnectionDetails()
+	}
+
+	return "", "", ""
 }
