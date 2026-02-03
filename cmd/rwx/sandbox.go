@@ -136,9 +136,8 @@ OVERVIEW
 
 FILE SYNCING
   Before each command, local uncommitted changes are automatically synced to
-  the sandbox via git patch. This includes staged and unstaged changes, but
-  untracked files are not synced. You need to "git add" untracked files before
-  running the command.
+  the sandbox via git patch. This includes staged changes, unstaged changes,
+  and untracked files.
   Use --no-sync to skip this step if you want to run against the sandbox's
   original state.
 

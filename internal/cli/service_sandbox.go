@@ -709,39 +709,32 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Get RWX_GIT_COMMIT_SHA from sandbox environment to reset to the correct base commit
-	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $RWX_GIT_COMMIT_SHA")
-	if err != nil {
-		return errors.Wrap(err, "failed to get RWX_GIT_COMMIT_SHA from sandbox")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("failed to get RWX_GIT_COMMIT_SHA from sandbox (exit code %d)", exitCode)
-	}
-	commitSHA = strings.TrimSpace(commitSHA)
-	if idx := strings.Index(commitSHA, "+"); idx != -1 {
-		commitSHA = commitSHA[:idx]
-	}
-
-	if commitSHA == "" {
-		return fmt.Errorf("RWX_GIT_COMMIT_SHA environment variable is not set in the sandbox. The sandbox task should be dependent on a task that uses git/clone")
-	}
-
-	// Reset working directory to the base commit (clears any previous patches)
-	exitCode, err = s.SSHClient.ExecuteCommand(fmt.Sprintf("{ /usr/bin/git reset --hard %s && /usr/bin/git clean -fd; } > /dev/null 2>&1", commitSHA))
-	if err != nil {
-		return errors.Wrap(err, "failed to reset sandbox working directory")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("git reset failed with exit code %d", exitCode)
-	}
-
 	// Skip applying patch if no changes
 	if len(patch) == 0 {
 		return nil
 	}
 
+	// Extract the list of files that will be modified by the patch
+	filesToReset := parsePatchFiles(string(patch))
+
+	// Reset files that will be patched (preserves generated files like build artifacts)
+	// For tracked files: git checkout resets to HEAD
+	// For new/untracked files: delete any existing version from previous sync
+	// Use full paths since sandbox session may have minimal PATH
+	for _, f := range filesToReset {
+		quotedPath := fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
+		// Try to reset tracked file to HEAD
+		resetCmd := fmt.Sprintf("/usr/bin/git checkout HEAD -- %s > /dev/null 2>&1", quotedPath)
+		exitCode, _ := s.SSHClient.ExecuteCommand(resetCmd)
+		if exitCode != 0 {
+			// File is not tracked - remove any existing version from previous sync
+			rmCmd := fmt.Sprintf("/bin/rm -f %s > /dev/null 2>&1", quotedPath)
+			_, _ = s.SSHClient.ExecuteCommand(rmCmd)
+		}
+	}
+
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
-	exitCode, err = s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+	exitCode, err := s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
 	if err != nil {
 		return errors.Wrap(err, "failed to apply patch on sandbox")
 	}
@@ -753,4 +746,20 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	}
 
 	return nil
+}
+
+// parsePatchFiles extracts file paths from a git patch
+func parsePatchFiles(patch string) []string {
+	var files []string
+	for _, line := range strings.Split(patch, "\n") {
+		if strings.HasPrefix(line, "diff --git") {
+			// Format: diff --git a/path b/path
+			parts := strings.Split(line, " ")
+			if len(parts) >= 4 {
+				file := strings.TrimPrefix(parts[3], "b/")
+				files = append(files, file)
+			}
+		}
+	}
+	return files
 }
