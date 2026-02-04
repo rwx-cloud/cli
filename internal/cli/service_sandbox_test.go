@@ -529,6 +529,53 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Contains(t, err.Error(), "git is not installed")
 	})
 
+	t.Run("returns helpful error when .git directory is missing", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-git-dir-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			if cmd == "test -d .git" {
+				return 1, "", nil // .git directory does not exist
+			}
+			return 0, "", nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no .git directory")
+		require.Contains(t, err.Error(), "preserve-git-dir: true")
+	})
+
 }
 
 func TestService_StopSandbox(t *testing.T) {

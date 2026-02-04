@@ -940,6 +940,13 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_start__")
 
+	// Check that .git directory exists on the sandbox
+	exitCode, _, _ := s.SSHClient.ExecuteCommandWithCombinedOutput("test -d .git")
+	if exitCode != 0 {
+		_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_end__")
+		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
+	}
+
 	// Get list of files that are dirty on the sandbox (from previous syncs)
 	// This includes both tracked files with modifications and untracked files
 	// We reset these to ensure files reverted locally are also reverted on sandbox
