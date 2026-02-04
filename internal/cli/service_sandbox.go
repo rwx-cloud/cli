@@ -937,17 +937,35 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Extract the list of files that will be modified by the patch
-	filesToReset := parsePatchFiles(string(patch))
-
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_start__")
 
-	// Reset files that will be patched (preserves generated files like build artifacts)
-	// For tracked files: git checkout resets to HEAD
-	// For new/untracked files: delete any existing version from previous sync
-	// Use full paths since sandbox session may have minimal PATH
-	for _, f := range filesToReset {
+	// Get list of files that are dirty on the sandbox (from previous syncs)
+	// This includes both tracked files with modifications and untracked files
+	// We reset these to ensure files reverted locally are also reverted on sandbox
+	// Note: We use ExecuteCommandWithOutput which captures stdout only - this avoids
+	// the output capture issues that occur with ExecuteCommandWithCombinedOutput after sync markers
+	_, dirtyTracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff --name-only HEAD")
+	_, dirtyUntracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
+
+	// Combine dirty files with files in current patch for complete reset list
+	filesToReset := make(map[string]bool)
+	for _, f := range strings.Split(strings.TrimSpace(dirtyTracked), "\n") {
+		if f != "" {
+			filesToReset[f] = true
+		}
+	}
+	for _, f := range strings.Split(strings.TrimSpace(dirtyUntracked), "\n") {
+		if f != "" {
+			filesToReset[f] = true
+		}
+	}
+	for _, f := range parsePatchFiles(string(patch)) {
+		filesToReset[f] = true
+	}
+
+	// Reset only the dirty files (preserves build artifacts and other generated files)
+	for f := range filesToReset {
 		quotedPath := fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
 		// Try git checkout first (works for tracked files), fall back to rm for untracked
 		resetCmd := fmt.Sprintf("/usr/bin/git checkout HEAD -- %s 2>/dev/null || /bin/rm -f %s", quotedPath, quotedPath)

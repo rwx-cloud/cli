@@ -185,7 +185,11 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(command string) (int, string, error) {
-			// git checkout for file reset
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			// Return empty for git diff --name-only and ls-files (no dirty files on sandbox)
 			return 0, "", nil
 		}
 
@@ -381,6 +385,14 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, nil
 		}
 
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
 		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
 			return 1, "error: patch failed", nil // git apply failed
 		}
@@ -434,6 +446,11 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, "", nil
 		}
 
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			// Return empty for git diff --name-only and ls-files (no dirty files on sandbox)
+			return 0, "", nil
+		}
+
 		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
 			stdinCommandOrder = append(stdinCommandOrder, command)
 			return 0, "", nil
@@ -453,7 +470,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Len(t, commandOrder, 2)
 		require.Contains(t, commandOrder[0], "git checkout HEAD -- 'file.txt'")
 		require.Equal(t, "echo hello", commandOrder[1])
-		// Sync markers use ExecuteCommandWithCombinedOutput
+		// Sync markers and git diff/ls-files use ExecuteCommandWithCombinedOutput
 		require.Equal(t, "__rwx_sandbox_sync_start__", combinedOutputOrder[0])
 		require.Equal(t, "__rwx_sandbox_sync_end__", combinedOutputOrder[len(combinedOutputOrder)-1])
 		// git apply uses stdin method
@@ -486,6 +503,14 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
 			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
 		}
 
 		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
