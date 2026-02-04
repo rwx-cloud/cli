@@ -46,6 +46,8 @@ type SSHClient interface {
 	ExecuteCommand(command string) (int, error)
 	ExecuteCommandWithStdin(command string, stdin io.Reader) (int, error)
 	ExecuteCommandWithOutput(command string) (int, string, error)
+	ExecuteCommandWithCombinedOutput(command string) (int, string, error)
+	ExecuteCommandWithStdinAndCombinedOutput(command string, stdin io.Reader) (int, string, error)
 }
 
 var _ SSHClient = (*ssh.Client)(nil)

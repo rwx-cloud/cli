@@ -164,7 +164,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-sync-123"
 		address := "192.168.1.1:22"
-		commitSHA := "abc123def456"
 		patchApplied := false
 		var appliedPatch []byte
 
@@ -185,15 +184,20 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
-			return 0, commitSHA, nil
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(command string) (int, string, error) {
+			return 0, "", nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
-			require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", command)
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			// Return empty for git diff --name-only and ls-files (no dirty files on sandbox)
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			require.Equal(t, "/usr/bin/git apply --allow-empty -", command)
 			appliedPatch, _ = io.ReadAll(stdin)
 			patchApplied = true
-			return 0, nil
+			return 0, "", nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
@@ -359,7 +363,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-apply-fail-123"
 		address := "192.168.1.1:22"
-		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -378,16 +381,20 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return []byte("invalid patch"), nil, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
-			return 0, commitSHA, nil
-		}
-
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
-			return 0, nil // git reset succeeds
+			return 0, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
-			return 1, nil // git apply failed
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 1, "error: patch failed", nil // git apply failed
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
@@ -402,12 +409,14 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Contains(t, err.Error(), "git apply failed")
 	})
 
-	t.Run("syncs changes without destructive reset", func(t *testing.T) {
+	t.Run("syncs changes by resetting dirty files and applying patch", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-sync-123"
 		address := "192.168.1.1:22"
 		var commandOrder []string
+		var combinedOutputOrder []string
+		var stdinCommandOrder []string
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -423,7 +432,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
-			return []byte("patch"), nil, nil
+			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
@@ -431,9 +440,20 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
-			commandOrder = append(commandOrder, command)
-			return 0, nil
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			combinedOutputOrder = append(combinedOutputOrder, cmd)
+			// Return empty for git diff and ls-files (no dirty files on sandbox)
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			// Return empty for git diff --name-only and ls-files (no dirty files on sandbox)
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			stdinCommandOrder = append(stdinCommandOrder, command)
+			return 0, "", nil
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
@@ -446,12 +466,16 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, 0, result.ExitCode)
-		// Should have sync markers, git apply, and the command - no git reset
-		require.Len(t, commandOrder, 4)
-		require.Equal(t, "__rwx_sandbox_sync_start__", commandOrder[0])
-		require.Equal(t, "/usr/bin/git apply --allow-empty - > /dev/null 2>&1", commandOrder[1])
-		require.Equal(t, "__rwx_sandbox_sync_end__", commandOrder[2])
-		require.Equal(t, "echo hello", commandOrder[3])
+		// Should have: reset for file.txt (from patch), and the user command
+		require.Len(t, commandOrder, 2)
+		require.Contains(t, commandOrder[0], "git checkout HEAD -- 'file.txt'")
+		require.Equal(t, "echo hello", commandOrder[1])
+		// Sync markers and git diff/ls-files use ExecuteCommandWithCombinedOutput
+		require.Equal(t, "__rwx_sandbox_sync_start__", combinedOutputOrder[0])
+		require.Equal(t, "__rwx_sandbox_sync_end__", combinedOutputOrder[len(combinedOutputOrder)-1])
+		// git apply uses stdin method
+		require.Len(t, stdinCommandOrder, 1)
+		require.Equal(t, "/usr/bin/git apply --allow-empty -", stdinCommandOrder[0])
 	})
 
 	t.Run("returns helpful error when git is not installed", func(t *testing.T) {
@@ -459,7 +483,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		runID := "run-no-git-123"
 		address := "192.168.1.1:22"
-		commitSHA := "abc123def456"
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -478,16 +501,20 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return []byte("patch"), nil, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
-			return 0, commitSHA, nil
-		}
-
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
-			return 0, nil // git reset succeeds
+			return 0, nil
 		}
 
-		setup.mockSSH.MockExecuteCommandWithStdin = func(command string, stdin io.Reader) (int, error) {
-			return 127, nil // command not found
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 127, "", nil // command not found
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
@@ -500,6 +527,53 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "git is not installed")
+	})
+
+	t.Run("returns helpful error when .git directory is missing", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-git-dir-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("patch"), nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			if cmd == "test -d .git" {
+				return 1, "", nil // .git directory does not exist
+			}
+			return 0, "", nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no .git directory")
+		require.Contains(t, err.Error(), "preserve-git-dir: true")
 	})
 
 }
