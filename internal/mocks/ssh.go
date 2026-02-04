@@ -9,12 +9,12 @@ import (
 )
 
 type SSH struct {
-	MockConnect                                func(addr string, cfg ssh.ClientConfig) error
-	MockInteractiveSession                     func() error
-	MockExecuteCommand                         func(command string) (int, error)
-	MockExecuteCommandWithStdin                func(command string, stdin io.Reader) (int, error)
-	MockExecuteCommandWithOutput               func(command string) (int, string, error)
-	MockExecuteCommandWithCombinedOutput       func(command string) (int, string, error)
+	MockConnect                                  func(addr string, cfg ssh.ClientConfig) error
+	MockInteractiveSession                       func() error
+	MockExecuteCommand                           func(command string) (int, error)
+	MockExecuteCommandWithStdin                  func(command string, stdin io.Reader) (int, error)
+	MockExecuteCommandWithOutput                 func(command string) (int, string, error)
+	MockExecuteCommandWithCombinedOutput         func(command string) (int, string, error)
 	MockExecuteCommandWithStdinAndCombinedOutput func(command string, stdin io.Reader) (int, string, error)
 }
 

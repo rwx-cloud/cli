@@ -923,7 +923,6 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return errors.Wrap(err, "failed to generate patch")
 	}
 
-
 	// Warn about LFS files
 	if lfsFiles != nil && lfsFiles.Count > 0 {
 		if !jsonMode {
