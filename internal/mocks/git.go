@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/rwx-cloud/cli/internal/git"
@@ -56,4 +57,9 @@ func (c *Git) GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMeta
 		return c.MockGeneratePatch(pathspec)
 	}
 	return nil, nil, nil
+}
+
+func (c *Git) ApplyPatch(patch []byte) *exec.Cmd {
+	// Return a no-op command for testing
+	return exec.Command("true")
 }

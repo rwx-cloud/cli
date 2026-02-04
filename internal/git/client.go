@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -239,9 +240,60 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 	}
 }
 
+// AddUntrackedFilesForPatch temporarily adds untracked files with intent-to-add
+// so they appear in git diff. Returns a cleanup function to undo the add.
+func (c *Client) AddUntrackedFilesForPatch() (cleanup func(), err error) {
+	// Get untracked files
+	cmd := exec.Command(c.Binary, "ls-files", "--others", "--exclude-standard")
+	cmd.Dir = c.Dir
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Split on newlines (not Fields) to handle filenames with spaces
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var files []string
+	for _, line := range lines {
+		if line != "" {
+			files = append(files, line)
+		}
+	}
+
+	if len(files) == 0 {
+		return func() {}, nil // No untracked files, no-op cleanup
+	}
+
+	// Add with intent-to-add
+	args := append([]string{"add", "-N", "--"}, files...)
+	cmd = exec.Command(c.Binary, args...)
+	cmd.Dir = c.Dir
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	// Return cleanup function
+	cleanup = func() {
+		args := append([]string{"reset", "HEAD", "--"}, files...)
+		cmd := exec.Command(c.Binary, args...)
+		cmd.Dir = c.Dir
+		_ = cmd.Run() // Best effort cleanup
+	}
+
+	return cleanup, nil
+}
+
 // GeneratePatch returns patch bytes for working tree changes relative to the base commit on origin.
 // Returns (nil, nil, nil) if no changes or unable to generate patch.
 func (c *Client) GeneratePatch(pathspec []string) ([]byte, *LFSChangedFilesMetadata, error) {
+	// Add untracked files temporarily so they appear in the diff
+	cleanup, err := c.AddUntrackedFilesForPatch()
+	if err != nil {
+		// Non-fatal: proceed without untracked files
+		cleanup = func() {}
+	}
+	defer cleanup()
+
 	data := c.generatePatchData(pathspec)
 	if !data.ok {
 		return nil, nil, nil
@@ -256,4 +308,13 @@ func (c *Client) GeneratePatch(pathspec []string) ([]byte, *LFSChangedFilesMetad
 	}
 
 	return data.patch, nil, nil
+}
+
+// ApplyPatch returns an exec.Cmd that applies a patch to the working directory.
+// The patch bytes should be provided to the command's stdin before running.
+func (c *Client) ApplyPatch(patch []byte) *exec.Cmd {
+	cmd := exec.Command(c.Binary, "apply", "--allow-empty", "-")
+	cmd.Dir = c.Dir
+	cmd.Stdin = bytes.NewReader(patch)
+	return cmd
 }

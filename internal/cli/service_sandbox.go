@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -96,6 +97,18 @@ type GetSandboxInitTemplateConfig struct {
 
 type GetSandboxInitTemplateResult struct {
 	Template string
+}
+
+type PullSandboxConfig struct {
+	ConfigFile   string
+	RunID        string
+	RwxDirectory string
+	Paths        []string // Optional: specific paths to pull
+	Json         bool
+}
+
+type PullSandboxResult struct {
+	PulledFiles []string
 }
 
 // Service methods
@@ -601,6 +614,178 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 	}, nil
 }
 
+func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) {
+	defer s.outputLatestVersionMessage()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get current directory")
+	}
+	branch := GetCurrentGitBranch(cwd)
+
+	var runID string
+
+	// Sandbox selection priority:
+	// 1. --id flag
+	// 2. Find by CWD + git branch in storage
+
+	if cfg.RunID != "" {
+		runID = cfg.RunID
+	} else {
+		storage, err := LoadSandboxStorage()
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to load sandbox sessions")
+		}
+
+		configFile := cfg.ConfigFile
+		if configFile == "" {
+			configFile = ".rwx/sandbox.yml"
+		}
+
+		session, found := storage.GetSession(cwd, branch, configFile)
+		if !found {
+			return nil, fmt.Errorf("No sandbox found for %s:%s. Start a sandbox first with 'rwx sandbox start'", cwd, branch)
+		}
+
+		// Check if session is still valid
+		connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID)
+		if err != nil {
+			storage.DeleteSession(cwd, branch, configFile)
+			_ = storage.Save()
+			return nil, fmt.Errorf("Sandbox session expired. Start a new sandbox with 'rwx sandbox start'")
+		}
+		if connInfo.Polling.Completed {
+			storage.DeleteSession(cwd, branch, configFile)
+			_ = storage.Save()
+			return nil, fmt.Errorf("Sandbox has completed. Start a new sandbox with 'rwx sandbox start'")
+		}
+
+		runID = session.RunID
+	}
+
+	// Get connection info
+	connInfo, err := s.waitForSandboxReady(runID, cfg.Json)
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect via SSH
+	err = s.connectSSH(connInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to connect to sandbox '%s': %v", runID, err)
+	}
+	defer s.SSHClient.Close()
+
+	// Mark start of sync operations (Mint filters these from logs)
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
+	// Include untracked files in the diff by adding them with intent-to-add
+	// Get untracked files, add with -N, get diff, then reset
+	_, untrackedOutput, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
+	untrackedFiles := []string{}
+	for _, f := range strings.Split(strings.TrimSpace(untrackedOutput), "\n") {
+		if f != "" {
+			untrackedFiles = append(untrackedFiles, f)
+		}
+	}
+
+	// Add untracked files with intent-to-add
+	if len(untrackedFiles) > 0 {
+		quotedFiles := make([]string, len(untrackedFiles))
+		for i, f := range untrackedFiles {
+			quotedFiles[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
+		}
+		addCmd := fmt.Sprintf("/usr/bin/git add -N -- %s > /dev/null 2>&1", strings.Join(quotedFiles, " "))
+		_, _ = s.SSHClient.ExecuteCommand(addCmd)
+	}
+
+	// Build git diff command
+	diffCmd := "/usr/bin/git diff HEAD"
+	if len(cfg.Paths) > 0 {
+		// Quote paths to handle spaces
+		quotedPaths := make([]string, len(cfg.Paths))
+		for i, p := range cfg.Paths {
+			quotedPaths[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(p, "'", "'\\''"))
+		}
+		diffCmd = fmt.Sprintf("/usr/bin/git diff HEAD -- %s", strings.Join(quotedPaths, " "))
+	}
+
+	// Get patch from sandbox
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput(diffCmd)
+
+	// Reset the intent-to-add for untracked files
+	if len(untrackedFiles) > 0 {
+		quotedFiles := make([]string, len(untrackedFiles))
+		for i, f := range untrackedFiles {
+			quotedFiles[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
+		}
+		resetCmd := fmt.Sprintf("/usr/bin/git reset HEAD -- %s > /dev/null 2>&1", strings.Join(quotedFiles, " "))
+		_, _ = s.SSHClient.ExecuteCommand(resetCmd)
+	}
+
+	// Mark end of sync operations
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get diff from sandbox")
+	}
+	if exitCode != 0 {
+		return nil, fmt.Errorf("git diff failed with exit code %d", exitCode)
+	}
+
+	if len(strings.TrimSpace(patch)) == 0 {
+		if !cfg.Json {
+			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
+		}
+		return &PullSandboxResult{PulledFiles: []string{}}, nil
+	}
+
+	// Reset local files that will be patched (same logic as push)
+	filesToReset := parsePatchFiles(patch)
+	for _, f := range filesToReset {
+		// Try to reset tracked file to HEAD
+		checkoutCmd := exec.Command("git", "checkout", "HEAD", "--", f)
+		checkoutCmd.Dir = cwd
+		if err := checkoutCmd.Run(); err != nil {
+			// File is not tracked - remove any existing version
+			os.Remove(filepath.Join(cwd, f))
+		}
+	}
+
+	// Apply patch locally using the git client
+	cmd := s.GitClient.ApplyPatch([]byte(patch))
+	if err := cmd.Run(); err != nil {
+		return nil, errors.Wrap(err, "failed to apply patch locally")
+	}
+
+	// Parse affected files from patch
+	files := parsePatchFiles(patch)
+
+	if !cfg.Json {
+		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))
+		for _, f := range files {
+			fmt.Fprintf(s.Stdout, "  %s\n", f)
+		}
+	}
+
+	return &PullSandboxResult{PulledFiles: files}, nil
+}
+
+// parsePatchFiles extracts file paths from a git patch
+func parsePatchFiles(patch string) []string {
+	var files []string
+	for _, line := range strings.Split(patch, "\n") {
+		if strings.HasPrefix(line, "diff --git") {
+			// Format: diff --git a/path b/path
+			parts := strings.Split(line, " ")
+			if len(parts) >= 4 {
+				file := strings.TrimPrefix(parts[3], "b/")
+				files = append(files, file)
+			}
+		}
+	}
+	return files
+}
+
 // Helper methods
 
 func (s Service) waitForSandboxReady(runID string, jsonMode bool) (*api.SandboxConnectionInfo, error) {
@@ -709,39 +894,39 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Get RWX_GIT_COMMIT_SHA from sandbox environment to reset to the correct base commit
-	exitCode, commitSHA, err := s.SSHClient.ExecuteCommandWithOutput("echo $RWX_GIT_COMMIT_SHA")
-	if err != nil {
-		return errors.Wrap(err, "failed to get RWX_GIT_COMMIT_SHA from sandbox")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("failed to get RWX_GIT_COMMIT_SHA from sandbox (exit code %d)", exitCode)
-	}
-	commitSHA = strings.TrimSpace(commitSHA)
-	if idx := strings.Index(commitSHA, "+"); idx != -1 {
-		commitSHA = commitSHA[:idx]
-	}
-
-	if commitSHA == "" {
-		return fmt.Errorf("RWX_GIT_COMMIT_SHA environment variable is not set in the sandbox. The sandbox task should be dependent on a task that uses git/clone")
-	}
-
-	// Reset working directory to the base commit (clears any previous patches)
-	exitCode, err = s.SSHClient.ExecuteCommand(fmt.Sprintf("{ /usr/bin/git reset --hard %s && /usr/bin/git clean -fd; } > /dev/null 2>&1", commitSHA))
-	if err != nil {
-		return errors.Wrap(err, "failed to reset sandbox working directory")
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("git reset failed with exit code %d", exitCode)
-	}
-
 	// Skip applying patch if no changes
 	if len(patch) == 0 {
 		return nil
 	}
 
+	// Extract the list of files that will be modified by the patch
+	filesToReset := parsePatchFiles(string(patch))
+
+	// Mark start of sync operations (Mint filters these from logs)
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
+	// Reset files that will be patched (preserves generated files like build artifacts)
+	// For tracked files: git checkout resets to HEAD
+	// For new/untracked files: delete any existing version from previous sync
+	// Use full paths since sandbox session may have minimal PATH
+	for _, f := range filesToReset {
+		quotedPath := fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
+		// Try to reset tracked file to HEAD
+		resetCmd := fmt.Sprintf("/usr/bin/git checkout HEAD -- %s > /dev/null 2>&1", quotedPath)
+		exitCode, _ := s.SSHClient.ExecuteCommand(resetCmd)
+		if exitCode != 0 {
+			// File is not tracked - remove any existing version from previous sync
+			rmCmd := fmt.Sprintf("/bin/rm -f %s > /dev/null 2>&1", quotedPath)
+			_, _ = s.SSHClient.ExecuteCommand(rmCmd)
+		}
+	}
+
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
-	exitCode, err = s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+	exitCode, err := s.SSHClient.ExecuteCommandWithStdin("/usr/bin/git apply --allow-empty - > /dev/null 2>&1", bytes.NewReader(patch))
+
+	// Mark end of sync operations
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+
 	if err != nil {
 		return errors.Wrap(err, "failed to apply patch on sandbox")
 	}

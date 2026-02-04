@@ -136,9 +136,8 @@ OVERVIEW
 
 FILE SYNCING
   Before each command, local uncommitted changes are automatically synced to
-  the sandbox via git patch. This includes staged and unstaged changes, but
-  untracked files are not synced. You need to "git add" untracked files before
-  running the command.
+  the sandbox via git patch. This includes staged changes, unstaged changes,
+  and untracked files.
   Use --no-sync to skip this step if you want to run against the sandbox's
   original state.
 
@@ -354,13 +353,51 @@ var sandboxResetCmd = &cobra.Command{
 	},
 }
 
+var sandboxPullCmd = &cobra.Command{
+	Use:   "pull [config-file]",
+	Short: "Pull changed files from sandbox to local",
+	Args:  cobra.MaximumNArgs(1),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return requireAccessToken()
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var configFile string
+		if len(args) > 0 {
+			configFile = args[0]
+		}
+
+		useJson := useJsonOutput()
+		result, err := service.PullSandbox(cli.PullSandboxConfig{
+			ConfigFile:   configFile,
+			RunID:        sandboxRunID,
+			RwxDirectory: sandboxRwxDir,
+			Paths:        sandboxPullPaths,
+			Json:         useJson,
+		})
+		if err != nil {
+			return err
+		}
+
+		if useJson {
+			jsonOutput, err := json.Marshal(result)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(jsonOutput))
+		}
+
+		return nil
+	},
+}
+
 var (
-	sandboxRunID   string
-	sandboxStopAll bool
-	sandboxRwxDir  string
-	sandboxOpen    bool
-	sandboxWait    bool
-	sandboxNoSync  bool
+	sandboxRunID     string
+	sandboxStopAll   bool
+	sandboxRwxDir    string
+	sandboxOpen      bool
+	sandboxWait      bool
+	sandboxNoSync    bool
+	sandboxPullPaths []string
 )
 
 func init() {
@@ -370,6 +407,7 @@ func init() {
 	sandboxCmd.AddCommand(sandboxListCmd)
 	sandboxCmd.AddCommand(sandboxStopCmd)
 	sandboxCmd.AddCommand(sandboxResetCmd)
+	sandboxCmd.AddCommand(sandboxPullCmd)
 
 	// start flags
 	sandboxStartCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
@@ -391,4 +429,9 @@ func init() {
 	sandboxResetCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
 	sandboxResetCmd.Flags().BoolVar(&sandboxOpen, "open", false, "Open the run in a browser")
 	sandboxResetCmd.Flags().BoolVar(&sandboxWait, "wait", false, "Wait for sandbox to be ready")
+
+	// pull flags
+	sandboxPullCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
+	sandboxPullCmd.Flags().StringVar(&sandboxRunID, "id", "", "Use specific run ID")
+	sandboxPullCmd.Flags().StringArrayVar(&sandboxPullPaths, "path", nil, "Specific path(s) to pull")
 }

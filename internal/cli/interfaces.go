@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"os/exec"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/git"
@@ -55,4 +56,5 @@ type GitClient interface {
 	GetOriginUrl() string
 	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 	GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
+	ApplyPatch(patch []byte) *exec.Cmd
 }
