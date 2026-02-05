@@ -139,6 +139,27 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		}
 	}
 
+	if patchFile.Written {
+		fmt.Fprintf(s.Stderr, "Included a git patch for uncommitted changes\n")
+		if patchFile.UntrackedFiles.Count == 1 {
+			fmt.Fprintf(s.Stderr, "The patch did not include the following untracked file. Add it with git add to use it in the run:\n")
+			fmt.Fprintf(s.Stderr, "  %s\n", patchFile.UntrackedFiles.Files[0])
+		} else if patchFile.UntrackedFiles.Count > 1 {
+			fmt.Fprintf(s.Stderr, "The patch did not include the following untracked files. Add them with git add to use them in the run:\n")
+			limit := patchFile.UntrackedFiles.Count
+			if limit > 5 {
+				limit = 5
+			}
+			for _, file := range patchFile.UntrackedFiles.Files[:limit] {
+				fmt.Fprintf(s.Stderr, "  %s\n", file)
+			}
+			if patchFile.UntrackedFiles.Count > 5 {
+				fmt.Fprintf(s.Stderr, "  and %d more\n", patchFile.UntrackedFiles.Count-5)
+			}
+		}
+		fmt.Fprintln(s.Stderr, "")
+	}
+
 	addBaseIfNeeded, err := s.insertDefaultBaseIfMissing(runDefinition)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to resolve base")
