@@ -107,6 +107,9 @@ var (
 				fmt.Println(string(runResultJson))
 			} else if !useJson {
 				fmt.Print(runResult.Message)
+				if !Wait {
+					fmt.Printf("\nUse `rwx results --wait %s` to wait for this run to complete.\n", runResult.RunId)
+				}
 			}
 
 			if Open {
