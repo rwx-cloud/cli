@@ -13,7 +13,8 @@ import (
 
 type APIClient interface {
 	GetDebugConnectionInfo(debugKey string) (api.DebugConnectionInfo, error)
-	GetSandboxConnectionInfo(runID string) (api.SandboxConnectionInfo, error)
+	GetSandboxConnectionInfo(runID, scopedToken string) (api.SandboxConnectionInfo, error)
+	CreateSandboxToken(api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error)
 	GetDispatch(api.GetDispatchConfig) (*api.GetDispatchResult, error)
 	InitiateRun(api.InitiateRunConfig) (*api.InitiateRunResult, error)
 	InitiateDispatch(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)

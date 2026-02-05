@@ -317,3 +317,14 @@ type RunStatusResult struct {
 type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
 }
+
+type CreateSandboxTokenConfig struct {
+	RunID            string `json:"run_id"`
+	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
+}
+
+type CreateSandboxTokenResult struct {
+	Token     string `json:"token"`
+	ExpiresAt string `json:"expires_at"`
+	RunID     string `json:"run_id"`
+}

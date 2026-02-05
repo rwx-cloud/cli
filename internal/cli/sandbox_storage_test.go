@@ -95,6 +95,26 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 		require.Equal(t, ".rwx/sandbox.yml", retrieved.ConfigFile)
 	})
 
+	t.Run("SetSession and GetSession with ScopedToken", func(t *testing.T) {
+		storage := &cli.SandboxStorage{
+			Sandboxes: make(map[string]cli.SandboxSession),
+		}
+
+		session := cli.SandboxSession{
+			RunID:       "run-123",
+			ConfigFile:  ".rwx/sandbox.yml",
+			ScopedToken: "scoped-token-abc",
+		}
+
+		storage.SetSession("/home/user/project", "main", ".rwx/sandbox.yml", session)
+
+		retrieved, found := storage.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-123", retrieved.RunID)
+		require.Equal(t, ".rwx/sandbox.yml", retrieved.ConfigFile)
+		require.Equal(t, "scoped-token-abc", retrieved.ScopedToken)
+	})
+
 	t.Run("GetSession returns false when not found", func(t *testing.T) {
 		storage := &cli.SandboxStorage{
 			Sandboxes: make(map[string]cli.SandboxSession),

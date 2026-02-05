@@ -57,7 +57,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		}
 
 		// Mock sandbox connection info
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			require.Equal(t, runID, id)
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
@@ -106,7 +106,7 @@ func TestService_ExecSandbox(t *testing.T) {
 			}, nil
 		}
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -139,7 +139,7 @@ func TestService_ExecSandbox(t *testing.T) {
 
 		runID := "run-expired"
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable: false,
 				Polling:     api.PollingResult{Completed: true}, // Run has ended
@@ -167,7 +167,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		patchApplied := false
 		var appliedPatch []byte
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -225,7 +225,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		address := "192.168.1.1:22"
 		patchApplied := false
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -268,7 +268,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		commitSHA := "abc123def456"
 		patchApplied := false
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -318,7 +318,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		address := "192.168.1.1:22"
 		patchApplied := false
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -364,7 +364,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		runID := "run-apply-fail-123"
 		address := "192.168.1.1:22"
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -418,7 +418,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		var combinedOutputOrder []string
 		var stdinCommandOrder []string
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -484,7 +484,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		runID := "run-no-git-123"
 		address := "192.168.1.1:22"
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
@@ -535,7 +535,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		runID := "run-no-git-dir-123"
 		address := "192.168.1.1:22"
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id string) (api.SandboxConnectionInfo, error) {
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
 				Address:        address,
