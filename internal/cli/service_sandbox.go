@@ -819,16 +819,34 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 		return nil, fmt.Errorf("failed to get changes from sandbox: git diff failed with exit code %d", exitCode)
 	}
 
-	if len(strings.TrimSpace(patch)) == 0 {
+	sandboxPatchFiles := parsePatchFiles(patch)
+
+	// Get locally-changed files to detect the "rubocop case":
+	// files changed locally but reverted to HEAD on sandbox
+	localPatch, _, localPatchErr := s.GitClient.GeneratePatch(cfg.Paths)
+	localChangedFiles := []string{}
+	if localPatchErr == nil && len(localPatch) > 0 {
+		localChangedFiles = parsePatchFiles(string(localPatch))
+	}
+
+	// Build union of files to reset: sandbox patch files + locally-changed files
+	filesToReset := make(map[string]bool)
+	for _, f := range sandboxPatchFiles {
+		filesToReset[f] = true
+	}
+	for _, f := range localChangedFiles {
+		filesToReset[f] = true
+	}
+
+	if len(filesToReset) == 0 {
 		if !cfg.Json {
 			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
 		}
 		return &PullSandboxResult{PulledFiles: []string{}}, nil
 	}
 
-	// Reset local files that will be patched (same logic as push)
-	filesToReset := parsePatchFiles(patch)
-	for _, f := range filesToReset {
+	// Reset local files from both lists to HEAD before applying sandbox patch
+	for f := range filesToReset {
 		// Try to reset tracked file to HEAD
 		checkoutCmd := exec.Command("git", "checkout", "HEAD", "--", f)
 		checkoutCmd.Dir = cwd
@@ -838,14 +856,19 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 		}
 	}
 
-	// Apply patch locally using the git client
-	cmd := s.GitClient.ApplyPatch([]byte(patch))
-	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrap(err, "failed to apply patch locally")
+	// Apply sandbox patch locally (if non-empty)
+	if len(strings.TrimSpace(patch)) > 0 {
+		cmd := s.GitClient.ApplyPatch([]byte(patch))
+		if err := cmd.Run(); err != nil {
+			return nil, errors.Wrap(err, "failed to apply patch locally")
+		}
 	}
 
-	// Parse affected files from patch
-	files := parsePatchFiles(patch)
+	// Report all affected files (union of sandbox patch + locally-changed)
+	var files []string
+	for f := range filesToReset {
+		files = append(files, f)
+	}
 
 	if !cfg.Json {
 		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))

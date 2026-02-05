@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/rwx-cloud/cli/internal/api"
@@ -576,6 +577,151 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Contains(t, err.Error(), "preserve-git-dir: true")
 	})
 
+}
+
+func TestService_PullSandbox(t *testing.T) {
+	t.Run("pulls sandbox changes via git patch", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-pull-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		// Sandbox has a change to file.txt
+		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff HEAD") {
+				return 0, sandboxPatch, nil
+			}
+			if strings.Contains(cmd, "git ls-files") {
+				return 0, "", nil // No untracked files
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		// No local changes
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.PullSandbox(cli.PullSandboxConfig{
+			RunID: runID,
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.Contains(t, result.PulledFiles, "file.txt")
+	})
+
+	t.Run("resets locally-changed file reverted to HEAD on sandbox", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-rubocop-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		// Sandbox patch is EMPTY - rubocop reverted the file to HEAD
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff HEAD") {
+				return 0, "", nil // Empty patch - file matches HEAD on sandbox
+			}
+			if strings.Contains(cmd, "git ls-files") {
+				return 0, "", nil
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		// Local has changes to file.txt (differs from HEAD)
+		localPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-correct\n+incorrect\n"
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte(localPatch), nil, nil
+		}
+
+		result, err := setup.service.PullSandbox(cli.PullSandboxConfig{
+			RunID: runID,
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		// file.txt should be reported as pulled (it was reset to HEAD)
+		require.Contains(t, result.PulledFiles, "file.txt")
+	})
+
+	t.Run("reports no changes when both sandbox and local are clean", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-noop-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		// Sandbox patch is empty
+		setup.mockSSH.MockExecuteCommandWithCombinedOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		// No local changes either
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.PullSandbox(cli.PullSandboxConfig{
+			RunID: runID,
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.Empty(t, result.PulledFiles)
+		require.Contains(t, setup.mockStdout.String(), "")
+	})
 }
 
 func TestService_StopSandbox(t *testing.T) {
