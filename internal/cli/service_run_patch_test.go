@@ -15,7 +15,12 @@ import (
 
 var _ cli.APIClient = (*mocks.API)(nil)
 
-func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata api.PatchMetadata) []api.RwxDirectoryEntry {
+type initiateRunResult struct {
+	rwxDir []api.RwxDirectoryEntry
+	stderr string
+}
+
+func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata api.PatchMetadata) initiateRunResult {
 	s := setupTest(t)
 	s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
 	s.mockGit.MockGeneratePatchFile = patchFile
@@ -58,17 +63,75 @@ func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata ap
 	}
 	_, err = s.service.InitiateRun(runConfig)
 	require.NoError(t, err)
-	return receivedRwxDir
+	return initiateRunResult{rwxDir: receivedRwxDir, stderr: s.mockStderr.String()}
 }
 
 func TestService_InitiatingRunPatch(t *testing.T) {
 	t.Run("when the run is not patchable", func(t *testing.T) {
 		// it launches a run but does not patch
-		rwxDir := initiateRun(t, git.PatchFile{}, api.PatchMetadata{})
+		result := initiateRun(t, git.PatchFile{}, api.PatchMetadata{})
 
-		for _, entry := range rwxDir {
+		for _, entry := range result.rwxDir {
 			require.False(t, strings.HasPrefix(entry.Path, ".patches/"))
 		}
+	})
+
+	t.Run("patch logging", func(t *testing.T) {
+		t.Run("when no patch is written", func(t *testing.T) {
+			result := initiateRun(t, git.PatchFile{}, api.PatchMetadata{})
+			require.NotContains(t, result.stderr, "Included a git patch")
+		})
+
+		t.Run("when a patch is written with no untracked files", func(t *testing.T) {
+			patchFile := git.PatchFile{Written: true}
+			expectedPatch := api.PatchMetadata{Sent: true}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "Included a git patch for uncommitted changes")
+			require.NotContains(t, result.stderr, "untracked file")
+		})
+
+		t.Run("when a patch is written with 1 untracked file", func(t *testing.T) {
+			patchFile := git.PatchFile{
+				Written:        true,
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{"foo.txt"}, Count: 1},
+			}
+			expectedPatch := api.PatchMetadata{Sent: true, UntrackedFiles: []string{"foo.txt"}, UntrackedCount: 1}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "The patch did not include the following untracked file. Add it with git add to use it in the run:")
+			require.Contains(t, result.stderr, "  foo.txt")
+		})
+
+		t.Run("when a patch is written with 5 untracked files", func(t *testing.T) {
+			files := []string{"a.txt", "b.txt", "c.txt", "d.txt", "e.txt"}
+			patchFile := git.PatchFile{
+				Written:        true,
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: files, Count: 5},
+			}
+			expectedPatch := api.PatchMetadata{Sent: true, UntrackedFiles: files, UntrackedCount: 5}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "The patch did not include the following untracked files. Add them with git add to use them in the run:")
+			for _, file := range files {
+				require.Contains(t, result.stderr, "  "+file)
+			}
+			require.NotContains(t, result.stderr, "and ")
+		})
+
+		t.Run("when a patch is written with more than 5 untracked files", func(t *testing.T) {
+			files := []string{"a.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt", "g.txt"}
+			patchFile := git.PatchFile{
+				Written:        true,
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: files, Count: 7},
+			}
+			expectedPatch := api.PatchMetadata{Sent: true, UntrackedFiles: files, UntrackedCount: 7}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "The patch did not include the following untracked files. Add them with git add to use them in the run:")
+			for _, file := range files[:5] {
+				require.Contains(t, result.stderr, "  "+file)
+			}
+			require.NotContains(t, result.stderr, "  f.txt")
+			require.NotContains(t, result.stderr, "  g.txt")
+			require.Contains(t, result.stderr, "and 2 more")
+		})
 	})
 
 	t.Run("when the run is patchable", func(t *testing.T) {
@@ -91,9 +154,9 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			t.Setenv("RWX_DISABLE_GIT_PATCH", "1")
 
 			// it launches a run but does not patch
-			rwxDir := initiateRun(t, patchFile, api.PatchMetadata{})
+			result := initiateRun(t, patchFile, api.PatchMetadata{})
 
-			for _, entry := range rwxDir {
+			for _, entry := range result.rwxDir {
 				require.False(t, strings.Contains(entry.Path, ".patches/"))
 			}
 		})
@@ -107,10 +170,10 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 				LFSCount:       lfsChangedFiles.Count,
 			}
 
-			rwxDir := initiateRun(t, patchFile, expectedPatchMetadata)
+			result := initiateRun(t, patchFile, expectedPatchMetadata)
 
 			patched := false
-			for _, entry := range rwxDir {
+			for _, entry := range result.rwxDir {
 				if strings.Contains(entry.Path, ".patches/") {
 					patched = true
 				}
