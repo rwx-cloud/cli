@@ -12,8 +12,9 @@ import (
 )
 
 type SandboxSession struct {
-	RunID      string `json:"runId"`
-	ConfigFile string `json:"configFile"`
+	RunID       string `json:"runId"`
+	ConfigFile  string `json:"configFile"`
+	ScopedToken string `json:"scopedToken,omitempty"`
 }
 
 type SandboxStorage struct {

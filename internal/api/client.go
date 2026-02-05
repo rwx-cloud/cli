@@ -110,7 +110,7 @@ func (c Client) GetDebugConnectionInfo(debugKey string) (DebugConnectionInfo, er
 	return connectionInfo, nil
 }
 
-func (c Client) GetSandboxConnectionInfo(runID string) (SandboxConnectionInfo, error) {
+func (c Client) GetSandboxConnectionInfo(runID, scopedToken string) (SandboxConnectionInfo, error) {
 	connectionInfo := SandboxConnectionInfo{}
 
 	if runID == "" {
@@ -121,6 +121,12 @@ func (c Client) GetSandboxConnectionInfo(runID string) (SandboxConnectionInfo, e
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return connectionInfo, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	// If a scoped token is provided, set it directly on the request
+	// This overrides the default token from the RoundTripper
+	if scopedToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", scopedToken))
 	}
 
 	resp, err := c.RoundTrip(req)
@@ -159,6 +165,43 @@ func (c Client) GetSandboxConnectionInfo(runID string) (SandboxConnectionInfo, e
 	}
 
 	return connectionInfo, nil
+}
+
+func (c Client) CreateSandboxToken(cfg CreateSandboxTokenConfig) (*CreateSandboxTokenResult, error) {
+	endpoint := "/mint/api/sandbox_tokens"
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 && resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		return nil, errors.New(msg)
+	}
+
+	result := CreateSandboxTokenResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &result, nil
 }
 
 // InitiateRun sends a request to Mint for starting a new run
