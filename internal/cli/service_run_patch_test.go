@@ -206,6 +206,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 				},
 			}
 
+			var receivedRwxDir []api.RwxDirectoryEntry
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
 					LatestMajor: make(map[string]string),
@@ -214,6 +215,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			}
 			s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 				require.False(t, cfg.Patch.Sent) // so we skip the patch
+				receivedRwxDir = cfg.RwxDirectory
 				return &api.InitiateRunResult{
 					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
@@ -224,6 +226,11 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 
 			_, err = s.service.InitiateRun(runConfig)
 			require.NoError(t, err)
+
+			// Verify patch generation was skipped entirely — no .patches entries in the rwx directory
+			for _, entry := range receivedRwxDir {
+				require.False(t, strings.Contains(entry.Path, ".patches"), "expected no .patches entries when init params match git params, found: %s", entry.Path)
+			}
 		})
 	})
 }

@@ -78,6 +78,22 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	// Convert to relative path for display purposes (e.g., run title)
 	relativeRunDefinitionPath := relativePathFromWd(runDefinitionPath)
 
+	resolveResult, err := ResolveCliParamsForFile(relativeRunDefinitionPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to resolve CLI init params")
+	}
+
+	if resolveResult.Rewritten {
+		fmt.Fprintf(s.Stderr, "Configured CLI trigger with git init params in %q\n\n", relativeRunDefinitionPath)
+	}
+
+	for _, gitParam := range resolveResult.GitParams {
+		if _, exists := cfg.InitParameters[gitParam]; exists {
+			patchable = false
+			break
+		}
+	}
+
 	if patchable {
 		patchFile = s.GitClient.GeneratePatchFile(patchDir, []string{".", ":!" + relativeRunDefinitionPath})
 	}
@@ -117,26 +133,6 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 
 		rwxDirectory = rwxDirectoryEntries
 		return nil
-	}
-
-	result, err := ResolveCliParamsForFile(runDefinition[0].OriginalPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to resolve CLI init params")
-	}
-
-	if result.Rewritten {
-		fmt.Fprintf(s.Stderr, "Configured CLI trigger with git init params in %q\n\n", runDefinition[0].OriginalPath)
-
-		if err = reloadRunDefinitions(); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, gitParam := range result.GitParams {
-		if _, exists := cfg.InitParameters[gitParam]; exists {
-			patchFile = git.PatchFile{}
-			break
-		}
 	}
 
 	if patchFile.Written {
