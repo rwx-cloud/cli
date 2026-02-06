@@ -8,6 +8,8 @@ import (
 	"github.com/briandowns/spinner"
 )
 
+var nonTTYTickInterval = 30 * time.Second
+
 func Spin(message string, tty bool, out io.Writer) func() {
 	if tty {
 		indicator := spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(out))
@@ -15,7 +17,7 @@ func Spin(message string, tty bool, out io.Writer) func() {
 		indicator.Start()
 		return indicator.Stop
 	} else {
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(nonTTYTickInterval)
 		fmt.Fprintln(out, message)
 		go func() {
 			for range ticker.C {
@@ -42,7 +44,7 @@ func SpinUntilDone(message string, tty bool, out io.Writer) func(finalMsg string
 			indicator.Stop()
 		}
 	} else {
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(nonTTYTickInterval)
 		fmt.Fprintln(out, message)
 		go func() {
 			for range ticker.C {
