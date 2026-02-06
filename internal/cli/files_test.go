@@ -9,6 +9,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestReadRwxDirectoryEntries_SizeLimit(t *testing.T) {
+	t.Run("returns patch-specific error when patch pushes total over 5MiB", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		rwxDir := ".rwx"
+		err := os.MkdirAll(rwxDir, 0755)
+		require.NoError(t, err)
+
+		// Write a small config file (under 5MiB alone)
+		smallContent := make([]byte, 1*1024*1024) // 1 MiB
+		err = os.WriteFile(filepath.Join(rwxDir, "config.yml"), smallContent, 0644)
+		require.NoError(t, err)
+
+		// Write a large patch file that pushes total over 5MiB
+		patchDir := filepath.Join(rwxDir, ".patches")
+		err = os.MkdirAll(patchDir, 0755)
+		require.NoError(t, err)
+
+		largePatch := make([]byte, 5*1024*1024) // 5 MiB
+		err = os.WriteFile(filepath.Join(patchDir, "abc123"), largePatch, 0644)
+		require.NoError(t, err)
+
+		_, err = cli.RwxDirectoryEntries(rwxDir)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "uploads the contents of the .rwx directory as well as a diff of your local git changes")
+		require.Contains(t, err.Error(), "greater than the 5 MiB combined limit")
+		require.Contains(t, err.Error(), "stash your changes or commit and push")
+	})
+
+	t.Run("returns generic error when non-patch content exceeds 5MiB", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		rwxDir := ".rwx"
+		err := os.MkdirAll(rwxDir, 0755)
+		require.NoError(t, err)
+
+		// Write large non-patch content that exceeds 5MiB on its own
+		largeContent := make([]byte, 6*1024*1024) // 6 MiB
+		err = os.WriteFile(filepath.Join(rwxDir, "big-config.yml"), largeContent, 0644)
+		require.NoError(t, err)
+
+		_, err = cli.RwxDirectoryEntries(rwxDir)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "the size of the these files exceed")
+		require.NotContains(t, err.Error(), "git patch")
+	})
+}
+
 func TestFindRunDefinitionFile(t *testing.T) {
 	t.Run("when file exists in pwd", func(t *testing.T) {
 		t.Chdir(t.TempDir())

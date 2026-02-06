@@ -179,6 +179,7 @@ func rwxDirectoryEntries(dir string) ([]RwxDirectoryEntry, error) {
 func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryEntry, error) {
 	entries := make([]RwxDirectoryEntry, 0)
 	var totalSize int
+	var patchSize int
 
 	for _, path := range paths {
 		err := filepath.WalkDir(path, func(subpath string, de os.DirEntry, err error) error {
@@ -195,6 +196,9 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 			}
 
 			totalSize += entrySize
+			if strings.Contains(entry.Path, ".patches") {
+				patchSize += entrySize
+			}
 			entries = append(entries, entry)
 			return nil
 		})
@@ -203,8 +207,18 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 		}
 	}
 
-	if totalSize > 5*1024*1024 {
-		return nil, fmt.Errorf("the size of the these files exceed 5MiB: %s", strings.Join(paths, ", "))
+	maxSizeInMib := 5
+	bytesPerMib := 1024 * 1024
+	maxSizeInBytes := maxSizeInMib * bytesPerMib
+
+	if totalSize > maxSizeInBytes {
+		nonPatchSize := totalSize - patchSize
+		if patchSize > 0 && nonPatchSize <= maxSizeInBytes {
+			dirSizeMib := float64(nonPatchSize) / float64(bytesPerMib)
+			patchSizeMib := float64(patchSize) / float64(bytesPerMib)
+			return nil, fmt.Errorf("When RWX starts a run, it uploads the contents of the .rwx directory as well as a diff of your local git changes. The .rwx directory was %.1f MiB and the git changes are %.1f MiB, which is greater than the %d MiB combined limit. You will need to stash your changes or commit and push to start an RWX run from the CLI", dirSizeMib, patchSizeMib, maxSizeInMib)
+		}
+		return nil, fmt.Errorf("the size of the these files exceed %dMiB: %s", maxSizeInMib, strings.Join(paths, ", "))
 	}
 
 	return entries, nil
