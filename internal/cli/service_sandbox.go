@@ -60,8 +60,9 @@ type StartSandboxResult struct {
 }
 
 type ExecSandboxResult struct {
-	ExitCode int
-	RunURL   string
+	ExitCode    int
+	RunURL      string
+	PulledFiles []string
 }
 
 type ListSandboxesResult struct {
@@ -97,18 +98,6 @@ type GetSandboxInitTemplateConfig struct {
 
 type GetSandboxInitTemplateResult struct {
 	Template string
-}
-
-type PullSandboxConfig struct {
-	ConfigFile   string
-	RunID        string
-	RwxDirectory string
-	Paths        []string // Optional: specific paths to pull
-	Json         bool
-}
-
-type PullSandboxResult struct {
-	PulledFiles []string
 }
 
 // Service methods
@@ -468,8 +457,17 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		return nil, errors.Wrap(err, "failed to execute command in sandbox")
 	}
 
+	// Pull changes from sandbox back to local
+	var pulledFiles []string
+	pulled, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
+	if pullErr != nil {
+		fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
+	} else {
+		pulledFiles = pulled
+	}
+
 	runURL := fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", runID)
-	return &ExecSandboxResult{ExitCode: exitCode, RunURL: runURL}, nil
+	return &ExecSandboxResult{ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
 }
 
 func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, error) {
@@ -662,70 +660,9 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 	}, nil
 }
 
-func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) {
-	defer s.outputLatestVersionMessage()
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to get current directory")
-	}
-	branch := GetCurrentGitBranch(cwd)
-
-	var runID string
-
-	// Sandbox selection priority:
-	// 1. --id flag
-	// 2. Find by CWD + git branch in storage
-
-	var scopedToken string
-	if cfg.RunID != "" {
-		runID = cfg.RunID
-	} else {
-		storage, err := LoadSandboxStorage()
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to load sandbox sessions")
-		}
-
-		configFile := cfg.ConfigFile
-		if configFile == "" {
-			configFile = ".rwx/sandbox.yml"
-		}
-
-		session, found := storage.GetSession(cwd, branch, configFile)
-		if !found {
-			return nil, fmt.Errorf("No sandbox found for %s:%s. Start a sandbox first with 'rwx sandbox start'", cwd, branch)
-		}
-
-		// Check if session is still valid (use scoped token if available)
-		connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
-		if err != nil {
-			storage.DeleteSession(cwd, branch, configFile)
-			_ = storage.Save()
-			return nil, fmt.Errorf("Sandbox session expired. Start a new sandbox with 'rwx sandbox start'")
-		}
-		if connInfo.Polling.Completed {
-			storage.DeleteSession(cwd, branch, configFile)
-			_ = storage.Save()
-			return nil, fmt.Errorf("Sandbox has completed. Start a new sandbox with 'rwx sandbox start'")
-		}
-
-		runID = session.RunID
-		scopedToken = session.ScopedToken
-	}
-
-	// Get connection info (use scoped token if available)
-	connInfo, err := s.waitForSandboxReadyWithToken(runID, scopedToken, cfg.Json)
-	if err != nil {
-		return nil, err
-	}
-
-	// Connect via SSH
-	err = s.connectSSH(connInfo)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to sandbox '%s': %v", runID, err)
-	}
-	defer s.SSHClient.Close()
-
+// pullChangesFromSandbox pulls changes from the sandbox back to the local working directory.
+// It assumes the SSH connection is already established.
+func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, error) {
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 
@@ -774,19 +711,8 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 		}
 	}
 
-	// Build git diff command
-	diffCmd := "/usr/bin/git diff HEAD"
-	if len(cfg.Paths) > 0 {
-		// Quote paths to handle spaces
-		quotedPaths := make([]string, len(cfg.Paths))
-		for i, p := range cfg.Paths {
-			quotedPaths[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(p, "'", "'\\''"))
-		}
-		diffCmd = fmt.Sprintf("/usr/bin/git diff HEAD -- %s", strings.Join(quotedPaths, " "))
-	}
-
 	// Get patch from sandbox
-	exitCode, patch, err := s.SSHClient.ExecuteCommandWithCombinedOutput(diffCmd)
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithCombinedOutput("/usr/bin/git diff HEAD")
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
@@ -823,7 +749,7 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 
 	// Get locally-changed files to detect the "rubocop case":
 	// files changed locally but reverted to HEAD on sandbox
-	localPatch, _, localPatchErr := s.GitClient.GeneratePatch(cfg.Paths)
+	localPatch, _, localPatchErr := s.GitClient.GeneratePatch(nil)
 	localChangedFiles := []string{}
 	if localPatchErr == nil && len(localPatch) > 0 {
 		localChangedFiles = parsePatchFiles(string(localPatch))
@@ -839,10 +765,10 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 	}
 
 	if len(filesToReset) == 0 {
-		if !cfg.Json {
+		if !jsonMode {
 			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
 		}
-		return &PullSandboxResult{PulledFiles: []string{}}, nil
+		return []string{}, nil
 	}
 
 	// Reset local files from both lists to HEAD before applying sandbox patch
@@ -870,14 +796,14 @@ func (s Service) PullSandbox(cfg PullSandboxConfig) (*PullSandboxResult, error) 
 		files = append(files, f)
 	}
 
-	if !cfg.Json {
+	if !jsonMode {
 		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))
 		for _, f := range files {
 			fmt.Fprintf(s.Stdout, "  %s\n", f)
 		}
 	}
 
-	return &PullSandboxResult{PulledFiles: files}, nil
+	return files, nil
 }
 
 // parsePatchFiles extracts file paths from a git patch
