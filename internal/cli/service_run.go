@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -136,6 +137,22 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		if _, exists := cfg.InitParameters[gitParam]; exists {
 			patchFile = git.PatchFile{}
 			break
+		}
+	}
+
+	// Filter out files in the .rwx directory from untracked files
+	if rwxDirectoryPath != "" {
+		relRwxDir := relativePathFromWd(rwxDirectoryPath)
+		if relRwxDir != "" {
+			prefix := relRwxDir + string(os.PathSeparator)
+			var filtered []string
+			for _, f := range patchFile.UntrackedFiles.Files {
+				if !strings.HasPrefix(f, prefix) {
+					filtered = append(filtered, f)
+				}
+			}
+			patchFile.UntrackedFiles.Files = filtered
+			patchFile.UntrackedFiles.Count = len(filtered)
 		}
 	}
 

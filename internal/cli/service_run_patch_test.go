@@ -116,6 +116,29 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			require.NotContains(t, result.stderr, "and ")
 		})
 
+		t.Run("when untracked files are all in the .rwx directory", func(t *testing.T) {
+			patchFile := git.PatchFile{
+				Written:        true,
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{".rwx/sandbox.yml", ".rwx/config.yml"}, Count: 2},
+			}
+			expectedPatch := api.PatchMetadata{Sent: true}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "Included a git patch for uncommitted changes")
+			require.NotContains(t, result.stderr, "untracked file")
+		})
+
+		t.Run("when untracked files include some in the .rwx directory", func(t *testing.T) {
+			patchFile := git.PatchFile{
+				Written:        true,
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{".rwx/sandbox.yml", "foo.txt"}, Count: 2},
+			}
+			expectedPatch := api.PatchMetadata{Sent: true, UntrackedFiles: []string{"foo.txt"}, UntrackedCount: 1}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.Contains(t, result.stderr, "The patch did not include the following untracked file. Add it with git add to use it in the run:")
+			require.Contains(t, result.stderr, "  foo.txt")
+			require.NotContains(t, result.stderr, ".rwx/sandbox.yml")
+		})
+
 		t.Run("when a patch is written with more than 5 untracked files", func(t *testing.T) {
 			files := []string{"a.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt", "g.txt"}
 			patchFile := git.PatchFile{
