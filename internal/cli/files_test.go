@@ -99,3 +99,95 @@ func TestFindRunDefinitionFile(t *testing.T) {
 		require.Equal(t, `run definition file "`+filePath+`" not found`, err.Error())
 	})
 }
+
+func TestFindDefaultDownloadsDir(t *testing.T) {
+	// getWd returns the working directory as os.Getwd reports it, matching
+	// what findRwxDirectoryPath uses internally.
+	getWd := func(t *testing.T) string {
+		t.Helper()
+		wd, err := os.Getwd()
+		require.NoError(t, err)
+		return wd
+	}
+
+	t.Run("returns .rwx/downloads when .rwx directory exists", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		wd := getWd(t)
+
+		err := os.Mkdir(filepath.Join(wd, ".rwx"), 0755)
+		require.NoError(t, err)
+
+		result, err := cli.FindDefaultDownloadsDir()
+		require.NoError(t, err)
+
+		expectedDownloadsDir := filepath.Join(wd, ".rwx", "downloads")
+		require.Equal(t, expectedDownloadsDir, result)
+
+		// Verify directory was created
+		info, err := os.Stat(expectedDownloadsDir)
+		require.NoError(t, err)
+		require.True(t, info.IsDir())
+	})
+
+	t.Run("returns .mint/downloads when .mint directory exists", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		wd := getWd(t)
+
+		err := os.Mkdir(filepath.Join(wd, ".mint"), 0755)
+		require.NoError(t, err)
+
+		result, err := cli.FindDefaultDownloadsDir()
+		require.NoError(t, err)
+
+		expectedDownloadsDir := filepath.Join(wd, ".mint", "downloads")
+		require.Equal(t, expectedDownloadsDir, result)
+	})
+
+	t.Run("falls back to ~/Downloads when no .rwx directory exists", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		result, err := cli.FindDefaultDownloadsDir()
+		require.NoError(t, err)
+
+		homeDir, err := os.UserHomeDir()
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(homeDir, "Downloads"), result)
+	})
+
+	t.Run("creates .gitignore with wildcard inside downloads directory", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		wd := getWd(t)
+
+		err := os.Mkdir(filepath.Join(wd, ".rwx"), 0755)
+		require.NoError(t, err)
+
+		result, err := cli.FindDefaultDownloadsDir()
+		require.NoError(t, err)
+
+		gitignorePath := filepath.Join(result, ".gitignore")
+		content, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		require.Equal(t, "*\n", string(content))
+	})
+
+	t.Run("does not overwrite existing .gitignore in downloads directory", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		wd := getWd(t)
+
+		downloadsDir := filepath.Join(wd, ".rwx", "downloads")
+		err := os.MkdirAll(downloadsDir, 0755)
+		require.NoError(t, err)
+
+		// Write a custom .gitignore before calling FindDefaultDownloadsDir
+		gitignorePath := filepath.Join(downloadsDir, ".gitignore")
+		err = os.WriteFile(gitignorePath, []byte("custom\n"), 0644)
+		require.NoError(t, err)
+
+		_, err = cli.FindDefaultDownloadsDir()
+		require.NoError(t, err)
+
+		content, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		require.Equal(t, "custom\n", string(content))
+	})
+}

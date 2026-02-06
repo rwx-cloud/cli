@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/rwx-cloud/cli/internal/api"
@@ -18,6 +20,38 @@ type TaskDefinition = api.TaskDefinition
 type MintYAMLFile struct {
 	Entry RwxDirectoryEntry
 	Doc   *YAMLDoc
+}
+
+func FindDefaultDownloadsDir() (string, error) {
+	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath("")
+
+	if err == nil && rwxDirectoryPath != "" {
+		downloadsDir := filepath.Join(rwxDirectoryPath, "downloads")
+
+		if err := os.MkdirAll(downloadsDir, 0755); err != nil {
+			return "", errors.Wrapf(err, "unable to create downloads directory %s", downloadsDir)
+		}
+
+		gitignorePath := filepath.Join(downloadsDir, ".gitignore")
+		if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+			_ = os.WriteFile(gitignorePath, []byte("*\n"), 0644)
+		}
+
+		return downloadsDir, nil
+	}
+
+	if runtime.GOOS == "linux" {
+		if xdgDownload := os.Getenv("XDG_DOWNLOAD_DIR"); xdgDownload != "" {
+			return xdgDownload, nil
+		}
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", errors.Wrap(err, "unable to determine user home directory")
+	}
+
+	return filepath.Join(homeDir, "Downloads"), nil
 }
 
 func FindRunDefinitionFile(filePath string, rwxDirectoryPath string) (string, error) {
@@ -153,8 +187,11 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 				return suberr
 			}
 
-			if entry.Path == ".rwx/test-suites" && entry.IsDir() {
-				return filepath.SkipDir // Skip the test-suites directory
+			skipDirs := []string{".rwx/test-suites", ".mint/test-suites", ".rwx/downloads", ".mint/downloads"}
+			if entry.IsDir() {
+				if slices.Contains(skipDirs, entry.Path) {
+					return filepath.SkipDir
+				}
 			}
 
 			totalSize += entrySize

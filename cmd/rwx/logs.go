@@ -1,9 +1,7 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -47,7 +45,7 @@ var (
 			} else {
 				outputDir := LogsOutputDir
 				if !outputDirSet {
-					outputDir, err = getDefaultLogsDir()
+					outputDir, err = cli.FindDefaultDownloadsDir()
 					if err != nil {
 						return errors.Wrap(err, "unable to determine default logs directory")
 					}
@@ -75,24 +73,9 @@ var (
 )
 
 func init() {
-	logsCmd.Flags().StringVar(&LogsOutputDir, "output-dir", "", "output directory for the downloaded log file (defaults to Downloads folder)")
+	logsCmd.Flags().StringVar(&LogsOutputDir, "output-dir", "", "output directory for the downloaded log file (defaults to .rwx/downloads folder)")
 	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
 	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
-}
-
-func getDefaultLogsDir() (string, error) {
-	if runtime.GOOS == "linux" {
-		if xdgDownload := os.Getenv("XDG_DOWNLOAD_DIR"); xdgDownload != "" {
-			return xdgDownload, nil
-		}
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", errors.Wrap(err, "unable to determine user home directory")
-	}
-
-	return filepath.Join(homeDir, "Downloads"), nil
 }

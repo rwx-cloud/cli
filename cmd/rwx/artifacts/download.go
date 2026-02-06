@@ -1,9 +1,7 @@
 package artifacts
 
 import (
-	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -48,7 +46,7 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 			} else {
 				outputDir := downloadOutputDir
 				if !outputDirSet {
-					outputDir, err = getDefaultDownloadsDir()
+					outputDir, err = cli.FindDefaultDownloadsDir()
 					if err != nil {
 						return errors.Wrap(err, "unable to determine default downloads directory")
 					}
@@ -76,24 +74,9 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 		Use:   "download <task-id> <artifact-key> [flags]",
 	}
 
-	DownloadCmd.Flags().StringVar(&downloadOutputDir, "output-dir", "", "output directory for the downloaded artifact (defaults to Downloads folder)")
+	DownloadCmd.Flags().StringVar(&downloadOutputDir, "output-dir", "", "output directory for the downloaded artifact (defaults to .rwx/downloads folder)")
 	DownloadCmd.Flags().StringVar(&downloadOutputFile, "output-file", "", "output file path for the downloaded artifact")
 	DownloadCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	DownloadCmd.Flags().BoolVar(&downloadAutoExtract, "auto-extract", false, "automatically extract directory tar archives")
 	DownloadCmd.Flags().BoolVar(&downloadOpen, "open", false, "automatically open the downloaded file(s)")
-}
-
-func getDefaultDownloadsDir() (string, error) {
-	if runtime.GOOS == "linux" {
-		if xdgDownload := os.Getenv("XDG_DOWNLOAD_DIR"); xdgDownload != "" {
-			return xdgDownload, nil
-		}
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", errors.Wrap(err, "unable to determine user home directory")
-	}
-
-	return filepath.Join(homeDir, "Downloads"), nil
 }
