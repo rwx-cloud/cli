@@ -104,7 +104,7 @@ func TestGetCommit(t *testing.T) {
 		require.Equal(t, "", commit)
 	})
 
-	t.Run("returns empty if there is no common ancestor", func(t *testing.T) {
+	t.Run("returns empty if there is no common ancestor (orphan branch)", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
@@ -113,32 +113,74 @@ func TestGetCommit(t *testing.T) {
 	})
 
 	t.Run("returns HEAD when in detached HEAD state", func(t *testing.T) {
-		repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
+		t.Run("at origin", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
 
-		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-		commit := client.GetCommit()
-		require.Equal(t, expected, commit)
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
+
+		t.Run("diverged from origin", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
 	})
 
 	t.Run("when we have a branch checked out", func(t *testing.T) {
-		t.Run("returns the common ancestor if we have the same HEAD", func(t *testing.T) {
-			repo, expected := repoFixture(t, "testdata/GetCommit-branch")
+		t.Run("main at origin", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-main-at-origin")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 
-		t.Run("returns the common ancestor if we have diverged", func(t *testing.T) {
-			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged")
+		t.Run("main behind origin", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-main-behind-origin")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()
 			require.Equal(t, expected, commit)
 		})
 
-		t.Run("returns the common ancestor if we have diverged a lot", func(t *testing.T) {
-			repo, expected := repoFixture(t, "testdata/GetCommit-branch-diverged-a-lot")
+		t.Run("main ahead of origin", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-main-ahead-of-origin")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
+
+		t.Run("feature from local", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-local")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
+
+		t.Run("feature from feature", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-feature")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
+
+		t.Run("feature from main origin moved", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-main-origin-moved")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
+			commit := client.GetCommit()
+			require.Equal(t, expected, commit)
+		})
+
+		t.Run("feature from feature origin moved", func(t *testing.T) {
+			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-feature-origin-moved")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 			commit := client.GetCommit()

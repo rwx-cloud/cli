@@ -1,12 +1,18 @@
 #!/bin/bash
 set -eou pipefail
 
+# Scenario: Detached HEAD at exactly origin/main (no divergence)
+#
+#   A (origin/main, HEAD detached)
+#
+# Clone and detach at the same commit as origin/main.
+# Expected: A (HEAD)
+
 mkdir origin
 pushd origin > /dev/null
 git init > /dev/null
-git commit --allow-empty -m "Initial commit" > /dev/null
+git commit --allow-empty -m "A" > /dev/null
 
-# Expected common ancestor: 
 git rev-parse HEAD
 
 popd > /dev/null

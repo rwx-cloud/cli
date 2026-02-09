@@ -1,0 +1,33 @@
+#!/bin/bash
+set -eou pipefail
+
+# Scenario: HEAD is behind origin/main (haven't pulled)
+#
+#   A -- B (HEAD, main)
+#         \
+#          C (origin/main)
+#
+# Clone, then origin gets a new commit, then fetch.
+# Local main is now behind origin/main.
+# Expected: B (HEAD)
+
+mkdir origin
+pushd origin > /dev/null
+git init > /dev/null
+git commit --allow-empty -m "A" > /dev/null
+git commit --allow-empty -m "B" > /dev/null
+popd > /dev/null
+
+git clone origin repo > /dev/null 2>&1
+
+# Add commit to origin after clone
+pushd origin > /dev/null
+git commit --allow-empty -m "C" > /dev/null
+popd > /dev/null
+
+pushd repo > /dev/null
+
+# Fetch to update origin/main, but don't merge
+git fetch origin > /dev/null 2>&1
+
+git rev-parse HEAD

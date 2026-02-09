@@ -39,45 +39,38 @@ func (c *Client) GetCommit() string {
 		return strings.TrimSpace(string(out))
 	}
 
-	// Map known commits to their remote ref
-	cmd := exec.Command(c.Binary, "for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes/origin")
+	// Find commits on HEAD that aren't on any origin ref, with boundary markers
+	cmd := exec.Command(c.Binary, "rev-list", "HEAD", "--not", "--remotes=origin", "--boundary")
 	cmd.Dir = c.Dir
 
-	remoteRefs, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
 
-	commitToRef := make(map[string][]string)
-	for _, line := range strings.Split(string(remoteRefs), "\n") {
-		line = strings.TrimSpace(line)
+	output := strings.TrimSpace(string(out))
 
-		if line == "" {
-			continue
+	// Empty output means HEAD is on an origin ref (no divergence) - return HEAD
+	if output == "" {
+		cmd = exec.Command(c.Binary, "rev-parse", "HEAD")
+		cmd.Dir = c.Dir
+
+		out, err := cmd.Output()
+		if err != nil {
+			return ""
 		}
 
-		parts := strings.SplitN(line, " ", 2)
-		commit := parts[0]
-		ref := parts[1]
-
-		commitToRef[commit] = append(commitToRef[commit], ref)
+		return strings.TrimSpace(string(out))
 	}
 
-	// Walk our log until we find a commit that matches
-	cmd = exec.Command(c.Binary, "rev-list", "HEAD")
-	cmd.Dir = c.Dir
-	commits, err := cmd.Output()
-
-	if err != nil {
-		return ""
-	}
-
-	for _, commit := range strings.Split(strings.TrimSpace(string(commits)), "\n") {
-		if _, ok := commitToRef[commit]; ok {
-			return commit
+	// First line starting with "-" is the boundary (closest merge-base)
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, "-") {
+			return line[1:]
 		}
 	}
 
+	// Output but no boundary means no common ancestor
 	return ""
 }
 

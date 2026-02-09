@@ -1,5 +1,25 @@
 #!/bin/bash
 set -eou pipefail
 
+# Scenario: Orphan branch with no common ancestor to origin
+#
+#   A -- B (origin/main)
+#
+#   X -- Y (HEAD, orphan-branch)
+#
+# Local branch has completely different history than origin.
+# Expected: "" (no common ancestor)
+
+mkdir origin
+pushd origin > /dev/null
 git init > /dev/null
-git remote add origin http://fake-remote > /dev/null
+git commit --allow-empty -m "A" > /dev/null
+git commit --allow-empty -m "B" > /dev/null
+popd > /dev/null
+
+git clone origin repo > /dev/null 2>&1
+pushd repo > /dev/null
+
+git checkout --orphan orphan-branch > /dev/null 2>&1
+git commit --allow-empty -m "X" > /dev/null
+git commit --allow-empty -m "Y" > /dev/null
