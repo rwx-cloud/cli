@@ -31,6 +31,24 @@ We use [mise](https://mise.jdx.dev) to manage local dependencies.
 mise install
 ```
 
+### Building with the LSP server
+
+The CLI embeds an LSP (Language Server Protocol) server for `.rwx/` and `.mint/` config files. In CI, the language server is built from the [language-server](https://github.com/rwx-cloud/language-server) repo and embedded automatically. For local development, use the Makefile:
+
+```
+make build
+```
+
+This clones the language-server repo, compiles it, copies the artifacts into `internal/lsp/bundle/`, and runs `go build`. Subsequent runs skip steps that are already up to date.
+
+To clean up the cloned repo and bundle artifacts:
+
+```
+make clean
+```
+
+You can also run `go build ./cmd/rwx` directly — the binary will compile without language server artifacts, but `rwx lsp serve` won't function.
+
 ### Debugging
 
 Besides the `--debug` flag, some useful options during development are:

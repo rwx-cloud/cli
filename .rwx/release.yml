@@ -79,7 +79,7 @@ tasks:
       printf "$aliasedVersion" > "$RWX_VALUES/aliased-version"
 
   - key: code
-    call: git/clone 2.0.0
+    call: git/clone 2.0.1
     after: verify-inputs
     with:
       preserve-git-dir: true
@@ -135,6 +135,29 @@ tasks:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
+  - key: node
+    call: nodejs/install 1.1.11
+    with:
+      node-version: ${{ tasks.tool-versions.values.nodejs }}
+
+  - key: lsp-server-code
+    call: git/clone 2.0.1
+    with:
+      path: ./language-server
+      repository: https://github.com/rwx-cloud/language-server.git
+      ref: main
+      github-token: ${{ github['rwx-cloud'].token }}
+
+  - key: lsp-server
+    use: [node, lsp-server-code, code]
+    run: |
+      cd language-server
+      npm ci
+      npm run compile
+      cp -r out ../internal/lsp/bundle/out
+      cp -r support ../internal/lsp/bundle/support
+      cp -r node_modules ../internal/lsp/bundle/node_modules
+
   - key: codesigning
     run: |
       curl -fsSLO https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F0.22.0/apple-codesign-0.22.0-x86_64-unknown-linux-musl.tar.gz
@@ -153,7 +176,7 @@ tasks:
       sudo apt-get clean
 
   - key: build-and-upload-binaries
-    use: [gh-cli, codesigning, zip, musl, code, go-deps]
+    use: [gh-cli, codesigning, zip, musl, code, go-deps, lsp-server]
     after: [draft-full-version-release, extract-version-details]
     parallel:
       key: build-and-upload-${{ parallel.os }}-${{ parallel.arch }}-${{ parallel.link }}-binaries
@@ -208,6 +231,7 @@ tasks:
 
       GOOS=${{ parallel.os }} \
       GOARCH=${{ parallel.arch }} \
+      test -f internal/lsp/bundle/out/server.js || { echo "LSP bundle is missing. The lsp-server task must populate internal/lsp/bundle/ before building." > "$RWX_ERRORS/lsp-bundle-missing"; exit 1; }
       go build -ldflags "${ldflags}" -a ./cmd/rwx
 
       if [[ ${{ parallel.os }} == "darwin" ]]; then

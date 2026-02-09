@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Build and Development
-- `go build ./cmd/rwx` - Build the RWX CLI binary (outputs to `./rwx`)
+- `make build` - Build CLI with embedded LSP server (clones + compiles language-server repo on first run)
+- `go build ./cmd/rwx` - Build the RWX CLI binary without LSP server artifacts (outputs to `./rwx`)
 - `go test ./...` - Run full test suite (unit + integration tests)
 - `go test ./internal/... ./cmd/...` - Run unit tests only (`./internal/...` and `./cmd/...`)
 - `go test ./test/...` - Run integration tests only (`./test/...`)
