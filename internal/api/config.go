@@ -55,7 +55,7 @@ type PatchMetadata struct {
 }
 
 type InitiateRunResult struct {
-	RunId            string
+	RunID            string
 	RunURL           string
 	TargetedTaskKeys []string
 	DefinitionPath   string
@@ -94,7 +94,7 @@ type GetDispatchConfig struct {
 }
 
 type GetDispatchRun = struct {
-	RunId  string `json:"run_id"`
+	RunID  string `json:"run_id"`
 	RunUrl string `json:"run_url"`
 }
 

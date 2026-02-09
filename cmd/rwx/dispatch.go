@@ -94,7 +94,7 @@ var (
 
 				for range ticker.C {
 					stopDebugSpinner()
-					err := service.DebugTask(cli.DebugTaskConfig{DebugKey: runs[0].RunId})
+					err := service.DebugTask(cli.DebugTaskConfig{DebugKey: runs[0].RunID})
 					if errors.Is(err, errors.ErrRetry) {
 						stopDebugSpinner = cli.Spin("Waiting for run to hit a breakpoint...", service.StdoutIsTTY, service.Stdout)
 						continue

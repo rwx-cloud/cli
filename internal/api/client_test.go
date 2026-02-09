@@ -53,7 +53,7 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 
 		result, err := c.InitiateRun(initRunConfig)
 		require.NoError(t, err)
-		require.Equal(t, "123", result.RunId)
+		require.Equal(t, "123", result.RunID)
 
 		require.Equal(t, "1000000.0.0", versions.GetCliLatestVersion().String())
 		require.True(t, versions.NewVersionAvailable())
@@ -95,7 +95,7 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 
 		result, err := c.InitiateRun(initRunConfig)
 		require.NoError(t, err)
-		require.Equal(t, "123", result.RunId)
+		require.Equal(t, "123", result.RunID)
 	})
 }
 
@@ -258,7 +258,7 @@ func TestAPIClient_GetDispatch(t *testing.T) {
 		}{
 			Status: "ready",
 			Error:  "",
-			Runs:   []api.GetDispatchRun{{RunId: "run-123", RunUrl: "https://example.com/run-123"}},
+			Runs:   []api.GetDispatchRun{{RunID: "run-123", RunUrl: "https://example.com/run-123"}},
 		}
 		bodyBytes, _ := json.Marshal(body)
 
@@ -282,7 +282,7 @@ func TestAPIClient_GetDispatch(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "ready", result.Status)
 		require.Len(t, result.Runs, 1)
-		require.Equal(t, "run-123", result.Runs[0].RunId)
+		require.Equal(t, "run-123", result.Runs[0].RunID)
 		require.Equal(t, "https://example.com/run-123", result.Runs[0].RunUrl)
 	})
 }

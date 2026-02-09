@@ -107,7 +107,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -180,7 +180,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -242,7 +242,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -339,7 +339,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -409,7 +409,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -471,7 +471,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -575,7 +575,7 @@ func TestService_InitiatingRun(t *testing.T) {
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
 					return &api.InitiateRunResult{
-						RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+						RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 						TargetedTaskKeys: []string{},
 						DefinitionPath:   ".mint/mint.yml",
@@ -645,7 +645,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
 				return &api.InitiateRunResult{
-					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					TargetedTaskKeys: []string{},
 					DefinitionPath:   ".mint/foo.yml",
@@ -711,7 +711,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				receivedRwxDirectoryFileContent = cfg.RwxDirectory[1].FileContents
 
 				return &api.InitiateRunResult{
-					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					TargetedTaskKeys: []string{},
 					DefinitionPath:   ".mint/foo.yml",
@@ -803,7 +803,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				receivedRwxDir = cfg.RwxDirectory
 				return &api.InitiateRunResult{
-					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					TargetedTaskKeys: []string{},
 					DefinitionPath:   ".mint/mint.yml",
@@ -869,7 +869,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.True(t, cfg.UseCache)
 				receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 				return &api.InitiateRunResult{
-					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					TargetedTaskKeys: []string{},
 					DefinitionPath:   ".mint/mint.yml",
@@ -1052,7 +1052,7 @@ tasks:
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			receivedFileContent = cfg.TaskDefinitions[0].FileContents
 			return &api.InitiateRunResult{
-				RunId:            "test-run-id",
+				RunID:            "test-run-id",
 				RunURL:           "https://cloud.rwx.com/mint/rwx/runs/test-run-id",
 				TargetedTaskKeys: []string{},
 				DefinitionPath:   testFile,

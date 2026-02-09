@@ -84,14 +84,14 @@ var (
 			}
 
 			jsonOutput := struct {
-				RunId            string
+				RunID            string
 				RunURL           string
 				TargetedTaskKeys []string
 				DefinitionPath   string
 				Message          string
 				ResultStatus     string `json:",omitempty"`
 			}{
-				RunId:            runResult.RunId,
+				RunID:            runResult.RunID,
 				RunURL:           runResult.RunURL,
 				TargetedTaskKeys: runResult.TargetedTaskKeys,
 				DefinitionPath:   runResult.DefinitionPath,
@@ -108,7 +108,7 @@ var (
 			} else if !useJson {
 				fmt.Print(runResult.Message)
 				if !Wait {
-					fmt.Printf("\nUse `rwx results --wait %s` to wait for this run to complete.\n", runResult.RunId)
+					fmt.Printf("\nUse `rwx results --wait %s` to wait for this run to complete.\n", runResult.RunID)
 				}
 			}
 
@@ -120,7 +120,7 @@ var (
 
 			if Wait && !Debug {
 				waitResult, err := service.GetRunStatus(cli.GetRunStatusConfig{
-					RunID: runResult.RunId,
+					RunID: runResult.RunID,
 					Wait:  true,
 					Json:  useJson,
 				})
@@ -138,7 +138,7 @@ var (
 				} else {
 					fmt.Printf("Run result status: %s\n", waitResult.ResultStatus)
 
-					promptResult, err := service.GetRunPrompt(runResult.RunId)
+					promptResult, err := service.GetRunPrompt(runResult.RunID)
 					if err == nil {
 						fmt.Printf("\n%s", promptResult.Prompt)
 					}
@@ -154,7 +154,7 @@ var (
 
 				for range ticker.C {
 					stopSpinner()
-					err := service.DebugTask(cli.DebugTaskConfig{DebugKey: runResult.RunId})
+					err := service.DebugTask(cli.DebugTaskConfig{DebugKey: runResult.RunID})
 					if errors.Is(err, errors.ErrRetry) {
 						stopSpinner = cli.Spin("Waiting for run to hit a breakpoint...", service.StdoutIsTTY, service.Stdout)
 						continue

@@ -46,7 +46,7 @@ func TestService_ImageBuild(t *testing.T) {
 			require.Equal(t, []string{"build-task"}, cfg.TargetedTaskKeys)
 
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -119,7 +119,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -201,7 +201,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -231,7 +231,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -265,7 +265,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -299,7 +299,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -341,7 +341,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -389,7 +389,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -439,7 +439,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -473,7 +473,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -507,7 +507,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -543,7 +543,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -604,7 +604,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
@@ -682,7 +682,7 @@ func TestService_ImageBuild(t *testing.T) {
 
 		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 			return &api.InitiateRunResult{
-				RunId:  "run-123",
+				RunID:  "run-123",
 				RunURL: "https://cloud.rwx.com/runs/run-123",
 			}, nil
 		}
