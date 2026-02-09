@@ -130,6 +130,7 @@ func init() {
 	rootCmd.AddCommand(lintCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logsCmd)
+	rootCmd.AddCommand(lspCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(packagesCmd)
 	rootCmd.AddCommand(pushCmd)
