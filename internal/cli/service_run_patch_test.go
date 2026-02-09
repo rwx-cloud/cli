@@ -71,6 +71,108 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 		}
 	})
 
+	t.Run("untracked files message", func(t *testing.T) {
+		t.Run("when there are untracked files", func(t *testing.T) {
+			s := setupTest(t)
+			s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
+			s.mockGit.MockGeneratePatchFile = git.PatchFile{
+				Written: true,
+				UntrackedFiles: git.UntrackedFilesMetadata{
+					Files: []string{"foo.txt", "bar/baz.txt"},
+					Count: 2,
+				},
+			}
+
+			rwxDir := filepath.Join(s.tmp, ".rwx")
+			err := os.MkdirAll(rwxDir, 0o755)
+			require.NoError(t, err)
+
+			definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+
+			definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+
+			err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+			require.NoError(t, err)
+
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
+					LatestMajor: make(map[string]string),
+					LatestMinor: make(map[string]map[string]string),
+				}, nil
+			}
+			s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+				return &api.InitiateRunResult{
+					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					TargetedTaskKeys: []string{},
+					DefinitionPath:   ".mint/mint.yml",
+				}, nil
+			}
+
+			runConfig := cli.InitiateRunConfig{
+				RwxDirectory: rwxDir,
+				MintFilePath: definitionsFile,
+			}
+
+			_, err = s.service.InitiateRun(runConfig)
+			require.NoError(t, err)
+
+			stderrOutput := s.mockStderr.String()
+			require.Contains(t, stderrOutput, "Changes to untracked files were not included in run:")
+			require.Contains(t, stderrOutput, "\tfoo.txt")
+			require.Contains(t, stderrOutput, "\tbar/baz.txt")
+		})
+
+		t.Run("when there are no untracked files", func(t *testing.T) {
+			s := setupTest(t)
+			s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
+			s.mockGit.MockGeneratePatchFile = git.PatchFile{
+				Written: true,
+				UntrackedFiles: git.UntrackedFilesMetadata{
+					Files: []string{},
+					Count: 0,
+				},
+			}
+
+			rwxDir := filepath.Join(s.tmp, ".rwx")
+			err := os.MkdirAll(rwxDir, 0o755)
+			require.NoError(t, err)
+
+			definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+
+			definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+
+			err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+			require.NoError(t, err)
+
+			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+				return &api.PackageVersionsResult{
+					LatestMajor: make(map[string]string),
+					LatestMinor: make(map[string]map[string]string),
+				}, nil
+			}
+			s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+				return &api.InitiateRunResult{
+					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					TargetedTaskKeys: []string{},
+					DefinitionPath:   ".mint/mint.yml",
+				}, nil
+			}
+
+			runConfig := cli.InitiateRunConfig{
+				RwxDirectory: rwxDir,
+				MintFilePath: definitionsFile,
+			}
+
+			_, err = s.service.InitiateRun(runConfig)
+			require.NoError(t, err)
+
+			stderrOutput := s.mockStderr.String()
+			require.NotContains(t, stderrOutput, "Changes to untracked files were not included in run:")
+		})
+	})
+
 	t.Run("when the run is patchable", func(t *testing.T) {
 		untrackedFiles := git.UntrackedFilesMetadata{
 			Files: []string{"foo.txt"},

@@ -1,6 +1,8 @@
 package git
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,13 @@ import (
 type Client struct {
 	Binary string
 	Dir    string
+	Stderr io.Writer
+}
+
+func (c *Client) logError(format string, args ...interface{}) {
+	if c.Stderr != nil {
+		fmt.Fprintf(c.Stderr, format+"\n", args...)
+	}
 }
 
 func (c *Client) GetBranch() string {
@@ -18,6 +27,7 @@ func (c *Client) GetBranch() string {
 
 	out, err := cmd.Output()
 	if err != nil {
+		c.logError("Warning: Unable to determine git branch: %v", err)
 		return ""
 	}
 
@@ -32,6 +42,7 @@ func (c *Client) GetCommit() string {
 
 		out, err := cmd.Output()
 		if err != nil {
+			c.logError("Warning: Unable to determine git commit (rev-parse HEAD failed): %v", err)
 			return ""
 		}
 
@@ -44,6 +55,7 @@ func (c *Client) GetCommit() string {
 
 	remoteRefs, err := cmd.Output()
 	if err != nil {
+		c.logError("Warning: Unable to determine git commit (failed to list remote refs): %v", err)
 		return ""
 	}
 
@@ -62,12 +74,18 @@ func (c *Client) GetCommit() string {
 		commitToRef[commit] = append(commitToRef[commit], ref)
 	}
 
+	if len(commitToRef) == 0 {
+		c.logError("Warning: Unable to determine git commit (no remote refs found for origin)")
+		return ""
+	}
+
 	// Walk our log until we find a commit that matches
 	cmd = exec.Command(c.Binary, "rev-list", "HEAD")
 	cmd.Dir = c.Dir
 	commits, err := cmd.Output()
 
 	if err != nil {
+		c.logError("Warning: Unable to determine git commit (rev-list HEAD failed): %v", err)
 		return ""
 	}
 
@@ -77,6 +95,7 @@ func (c *Client) GetCommit() string {
 		}
 	}
 
+	c.logError("Warning: Unable to determine git commit (no common ancestor found with origin)")
 	return ""
 }
 
@@ -86,6 +105,7 @@ func (c *Client) GetOriginUrl() string {
 
 	url, err := cmd.Output()
 	if err != nil {
+		c.logError("Warning: Unable to determine git origin URL: %v", err)
 		return ""
 	}
 

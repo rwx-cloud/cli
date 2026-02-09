@@ -69,6 +69,7 @@ var (
 				GitClient: &git.Client{
 					Binary: "git",
 					Dir:    dir,
+					Stderr: os.Stderr,
 				},
 				DockerCLI:   dockerCli,
 				Stdout:      os.Stdout,

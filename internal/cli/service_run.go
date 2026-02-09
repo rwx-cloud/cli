@@ -82,6 +82,15 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		patchFile = s.GitClient.GeneratePatchFile(patchDir, []string{".", ":!" + relativeRunDefinitionPath})
 	}
 
+	// Output untracked files warning similar to git status
+	if len(patchFile.UntrackedFiles.Files) > 0 {
+		fmt.Fprintf(s.Stderr, "Changes to untracked files were not included in run:\n")
+		for _, file := range patchFile.UntrackedFiles.Files {
+			fmt.Fprintf(s.Stderr, "\t%s\n", file)
+		}
+		fmt.Fprintln(s.Stderr, "")
+	}
+
 	// Load directory entries
 	entries, err := rwxDirectoryEntries(rwxDirectoryPath)
 	if err != nil {
