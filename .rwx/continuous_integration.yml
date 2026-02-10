@@ -162,7 +162,7 @@ tasks:
   - key: run-rwx-testing-tests
     use: [rwx-testing-code, jq, rwx-cli]
     run: |
-      run_result=$(./rwx run --wait --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }})
+      run_result=$(./rwx run --wait --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init lsp=main --init cli=${{ init.commit-sha }}) 
       echo "${run_result}"
       result_status=$(echo "${run_result}" | jq -r ".ResultStatus")
 
