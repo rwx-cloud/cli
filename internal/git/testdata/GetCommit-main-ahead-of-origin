@@ -1,12 +1,20 @@
 #!/bin/bash
 set -eou pipefail
 
+# Scenario: Local commits on main, diverged from origin/main
+#
+#   A (origin/main)
+#    \
+#     B (HEAD, main)
+#
+# Clone, then make a local commit on main.
+# Expected: A
+
 mkdir origin
 pushd origin > /dev/null
 git init > /dev/null
 git commit --allow-empty -m "Initial commit" > /dev/null
 
-# Expected common ancestor: 
 git rev-parse HEAD
 
 popd > /dev/null

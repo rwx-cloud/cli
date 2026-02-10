@@ -1,0 +1,33 @@
+#!/bin/bash
+set -eou pipefail
+
+# Scenario: Branch off a remote branch (feature-2 branched from origin/feature-1)
+#
+#   A -- B (origin/main)
+#         \
+#          C -- D (origin/feature-1)
+#               \
+#                E -- F (HEAD, feature-2)
+#
+# Expected: D
+
+mkdir origin
+pushd origin > /dev/null
+git init > /dev/null
+git commit --allow-empty -m "A" > /dev/null
+git commit --allow-empty -m "B" > /dev/null
+git checkout -b feature-1 > /dev/null 2>&1
+git commit --allow-empty -m "C" > /dev/null
+git commit --allow-empty -m "D" > /dev/null
+
+git rev-parse HEAD
+
+popd > /dev/null
+
+git clone origin repo > /dev/null 2>&1
+pushd repo > /dev/null
+
+git checkout feature-1 > /dev/null 2>&1
+git checkout -b feature-2 > /dev/null 2>&1
+git commit --allow-empty -m "E" > /dev/null
+git commit --allow-empty -m "F" > /dev/null

@@ -1,6 +1,13 @@
 #!/bin/bash
 set -eou pipefail
 
+# Scenario: On main, tracking origin/main with no local commits
+#
+#   A (origin/main, HEAD)
+#
+# Clone and stay on main. No divergence.
+# Expected: A
+
 mkdir origin
 pushd origin > /dev/null
 git init > /dev/null

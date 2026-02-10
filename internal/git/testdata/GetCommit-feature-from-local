@@ -1,0 +1,36 @@
+#!/bin/bash
+set -eou pipefail
+
+# Scenario: Multiple local branches stacked on each other (no remote tracking)
+#
+#   A (origin/main)
+#    \
+#     B (branch 1)
+#      \
+#       C (branch 2)
+#        \
+#         ... (branches 3, 4)
+#          \
+#           F (HEAD, branch 5)
+#
+# Clone, then create local branches 1-5, each branching off the previous.
+# None of these local branches exist on origin.
+# Expected: A
+
+mkdir origin
+pushd origin > /dev/null
+git init > /dev/null
+git commit --allow-empty -m "Initial commit" > /dev/null
+
+git rev-parse HEAD
+
+popd > /dev/null
+
+git clone origin repo > /dev/null 2>&1
+pushd repo > /dev/null
+
+
+for i in {1..5}; do
+  git checkout -b $i > /dev/null 2>&1
+  git commit --allow-empty -m "Commit #$i" > /dev/null
+done
