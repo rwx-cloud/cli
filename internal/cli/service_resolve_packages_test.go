@@ -45,14 +45,14 @@ func TestService_ResolvingPackages(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
 			err = os.WriteFile(filepath.Join(mintDir, "baz.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node
+    call: nodejs/install
 `), 0o644)
 			require.NoError(t, err)
 
@@ -63,13 +63,13 @@ tasks:
 			err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node
+    call: nodejs/install
 `), 0o644)
 			require.NoError(t, err)
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
-					LatestMajor: map[string]string{"mint/setup-node": "1.3.0"},
+					LatestMajor: map[string]string{"nodejs/install": "1.3.0"},
 				}, nil
 			}
 
@@ -83,15 +83,15 @@ tasks:
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "bar.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.2.3")
+			require.Contains(t, string(contents), "nodejs/install 1.2.3")
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "baz.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.3.0")
+			require.Contains(t, string(contents), "nodejs/install 1.3.0")
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "some", "nested", "dir", "tasks.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.3.0")
+			require.Contains(t, string(contents), "nodejs/install 1.3.0")
 		})
 	})
 
@@ -120,14 +120,14 @@ tasks:
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
-					LatestMajor: map[string]string{"mint/setup-node": "1.3.0"},
+					LatestMajor: map[string]string{"nodejs/install": "1.3.0"},
 				}, nil
 			}
 
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
@@ -142,7 +142,7 @@ tasks:
 			require.Equal(t, `
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `, string(contents))
 
 			require.Contains(t, s.mockStdout.String(), "No packages to resolve.")
@@ -154,9 +154,9 @@ tasks:
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
 					LatestMajor: map[string]string{
-						"mint/setup-node": "1.2.3",
-						"mint/setup-ruby": "1.0.1",
-						"mint/setup-go":   "1.3.5",
+						"nodejs/install": "1.2.3",
+						"ruby/install":   "1.0.1",
+						"golang/install": "1.3.5",
 					},
 				}, nil
 			}
@@ -164,11 +164,11 @@ tasks:
 			originalFooContents := `
 tasks:
   - key: foo
-    call: mint/setup-node
+    call: nodejs/install
   - key: bar
-    call: mint/setup-ruby 0.0.1
+    call: ruby/install 0.0.1
   - key: baz
-    call: mint/setup-go
+    call: golang/install
 `
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 			require.NoError(t, err)
@@ -176,7 +176,7 @@ tasks:
 			originalBarContents := `
 tasks:
   - key: foo
-    call: mint/setup-ruby
+    call: ruby/install
 `
 			err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 			require.NoError(t, err)
@@ -194,18 +194,18 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
   - key: bar
-    call: mint/setup-ruby 0.0.1
+    call: ruby/install 0.0.1
   - key: baz
-    call: mint/setup-go 1.3.5
+    call: golang/install 1.3.5
 `, string(contents))
 
 				contents, err = os.ReadFile(filepath.Join(s.tmp, "bar.yaml"))
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
 `, string(contents))
 			})
 
@@ -222,9 +222,9 @@ tasks:
 
 				require.NoError(t, err)
 				require.Contains(t, s.mockStdout.String(), "Resolved the following packages:")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-node → 1.2.3")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "golang/install → 1.3.5")
+				require.Contains(t, s.mockStdout.String(), "nodejs/install → 1.2.3")
+				require.Contains(t, s.mockStdout.String(), "ruby/install → 1.0.1")
 			})
 
 			t.Run("when a single file is targeted", func(t *testing.T) {
@@ -248,7 +248,7 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
 `, string(contents))
 			})
 		})

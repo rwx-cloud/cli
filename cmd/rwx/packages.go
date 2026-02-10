@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/spf13/cobra"
 )
@@ -14,11 +15,9 @@ var packagesCmd = &cobra.Command{
 
 var (
 	PackagesAllowMajorVersionChange bool
+	PackagesShowReadme              bool
 
 	packagesListCmd = &cobra.Command{
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return requireAccessToken()
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := service.ListPackages(cli.ListPackagesConfig{
 				Json: useJsonOutput(),
@@ -28,6 +27,23 @@ var (
 		Short: "List all available packages and their latest versions",
 		Use:   "list",
 		Args:  cobra.NoArgs,
+	}
+
+	packagesShowCmd = &cobra.Command{
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if PackagesShowReadme && useJsonOutput() {
+				return errors.New("--readme and --output json cannot be used together")
+			}
+			_, err := service.ShowPackage(cli.ShowPackageConfig{
+				PackageName: args[0],
+				Json:        useJsonOutput(),
+				Readme:      PackagesShowReadme,
+			})
+			return err
+		},
+		Short: "Show details for a package",
+		Use:   "show [flags] <package-name>",
 	}
 
 	packagesUpdateCmd = &cobra.Command{
@@ -54,8 +70,10 @@ var (
 )
 
 func init() {
+	packagesShowCmd.Flags().BoolVar(&PackagesShowReadme, "readme", false, "show the full readme documentation (cannot be combined with --output json)")
 	packagesUpdateCmd.Flags().BoolVar(&PackagesAllowMajorVersionChange, "allow-major-version-change", false, "update packages to the latest major version")
 	addRwxDirFlag(packagesUpdateCmd)
 	packagesCmd.AddCommand(packagesListCmd)
+	packagesCmd.AddCommand(packagesShowCmd)
 	packagesCmd.AddCommand(packagesUpdateCmd)
 }

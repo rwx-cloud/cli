@@ -46,14 +46,14 @@ func TestService_UpdatingPackages(t *testing.T) {
 			err = os.WriteFile(filepath.Join(mintDir, "bar.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
 			err = os.WriteFile(filepath.Join(mintDir, "baz.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
@@ -64,13 +64,13 @@ tasks:
 			err = os.WriteFile(filepath.Join(nestedDir, "tasks.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
-					LatestMajor: map[string]string{"mint/setup-node": "1.3.0"},
+					LatestMajor: map[string]string{"nodejs/install": "1.3.0"},
 				}, nil
 			}
 
@@ -85,15 +85,15 @@ tasks:
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "bar.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.3.0")
+			require.Contains(t, string(contents), "nodejs/install 1.3.0")
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "baz.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.3.0")
+			require.Contains(t, string(contents), "nodejs/install 1.3.0")
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "some", "nested", "dir", "tasks.yaml"))
 			require.NoError(t, err)
-			require.Contains(t, string(contents), "mint/setup-node 1.3.0")
+			require.Contains(t, string(contents), "nodejs/install 1.3.0")
 		})
 	})
 
@@ -122,14 +122,14 @@ tasks:
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
-					LatestMajor: map[string]string{"mint/setup-node": "1.2.3"},
+					LatestMajor: map[string]string{"nodejs/install": "1.2.3"},
 				}, nil
 			}
 
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `), 0o644)
 			require.NoError(t, err)
 
@@ -144,7 +144,7 @@ tasks:
 			require.Equal(t, `
 tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
 `, string(contents))
 
 			require.Contains(t, s.mockStdout.String(), "All packages are up-to-date.")
@@ -154,23 +154,23 @@ tasks:
 			s := setupTest(t)
 
 			majorPackageVersions := map[string]string{
-				"mint/setup-node": "1.2.3",
-				"mint/setup-ruby": "1.0.1",
-				"mint/setup-go":   "1.3.5",
-				"mint/renamed":    "1.0.0",
-				"renamed/install": "1.0.1",
+				"nodejs/install": "1.2.3",
+				"ruby/install":   "1.0.1",
+				"golang/install": "1.3.5",
+				"mint/git-clone": "1.0.0",
+				"git/clone":      "1.0.1",
 			}
 
 			minorPackageVersions := map[string]map[string]string{
-				"mint/setup-node": {"1": "1.2.3"},
-				"mint/setup-ruby": {"0": "0.0.2", "1": "1.0.1"},
-				"mint/setup-go":   {"1": "1.3.5"},
-				"mint/renamed":    {"1": "1.0.0"},
-				"renamed/install": {"1": "1.0.1"},
+				"nodejs/install": {"1": "1.2.3"},
+				"ruby/install":   {"0": "0.0.2", "1": "1.0.1"},
+				"golang/install": {"1": "1.3.5"},
+				"mint/git-clone": {"1": "1.0.0"},
+				"git/clone":      {"1": "1.0.1"},
 			}
 
 			renames := map[string]string{
-				"mint/renamed": "renamed/install",
+				"mint/git-clone": "git/clone",
 			}
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
@@ -184,13 +184,13 @@ tasks:
 			originalFooContents := `
 tasks:
   - key: foo
-    call: mint/setup-node 1.0.1
+    call: nodejs/install 1.0.1
   - key: bar
-    call: mint/setup-ruby 0.0.1
+    call: ruby/install 0.0.1
   - key: baz
-    call: mint/setup-go
+    call: golang/install
   - key: renamed
-    call: mint/renamed 1.0.0
+    call: mint/git-clone 1.0.0
 `
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(originalFooContents), 0o644)
 			require.NoError(t, err)
@@ -198,7 +198,7 @@ tasks:
 			originalBarContents := `
 tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.0
+    call: ruby/install 1.0.0
 `
 			err = os.WriteFile(filepath.Join(s.tmp, "bar.yaml"), []byte(originalBarContents), 0o644)
 			require.NoError(t, err)
@@ -216,28 +216,28 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
   - key: bar
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
   - key: baz
-    call: mint/setup-go 1.3.5
+    call: golang/install 1.3.5
   - key: renamed
-    call: renamed/install 1.0.1
+    call: git/clone 1.0.1
 `, string(contents))
 
 				contents, err = os.ReadFile(filepath.Join(s.tmp, "bar.yaml"))
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
 `, string(contents))
 
 				require.Contains(t, s.mockStdout.String(), "Updated the following packages:")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 0.0.1 → 1.0.1")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 1.0.0 → 1.0.1")
-				require.Contains(t, s.mockStdout.String(), "mint/renamed 1.0.0 → renamed/install 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "golang/install → 1.3.5")
+				require.Contains(t, s.mockStdout.String(), "nodejs/install 1.0.1 → 1.2.3")
+				require.Contains(t, s.mockStdout.String(), "ruby/install 0.0.1 → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "ruby/install 1.0.0 → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "mint/git-clone 1.0.0 → git/clone 1.0.1")
 			})
 
 			t.Run("with minor version updates only", func(t *testing.T) {
@@ -258,28 +258,28 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-node 1.2.3
+    call: nodejs/install 1.2.3
   - key: bar
-    call: mint/setup-ruby 0.0.2
+    call: ruby/install 0.0.2
   - key: baz
-    call: mint/setup-go 1.3.5
+    call: golang/install 1.3.5
   - key: renamed
-    call: renamed/install 1.0.1
+    call: git/clone 1.0.1
 `, string(contents))
 
 				contents, err = os.ReadFile(filepath.Join(s.tmp, "bar.yaml"))
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
 `, string(contents))
 
 				require.Contains(t, s.mockStdout.String(), "Updated the following packages:")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-go → 1.3.5")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.1 → 1.2.3")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 0.0.1 → 0.0.2")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-ruby 1.0.0 → 1.0.1")
-				require.Contains(t, s.mockStdout.String(), "mint/renamed 1.0.0 → renamed/install 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "golang/install → 1.3.5")
+				require.Contains(t, s.mockStdout.String(), "nodejs/install 1.0.1 → 1.2.3")
+				require.Contains(t, s.mockStdout.String(), "ruby/install 0.0.1 → 0.0.2")
+				require.Contains(t, s.mockStdout.String(), "ruby/install 1.0.0 → 1.0.1")
+				require.Contains(t, s.mockStdout.String(), "mint/git-clone 1.0.0 → git/clone 1.0.1")
 			})
 
 			t.Run("when a single file is targeted", func(t *testing.T) {
@@ -304,7 +304,7 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-ruby 1.0.1
+    call: ruby/install 1.0.1
 `, string(contents))
 			})
 
@@ -312,7 +312,7 @@ tasks:
 				originalContents := `
 tasks:
   - key: hello
-    call: mint/setup-go
+    call: golang/install
   - key: goodbye
     use:
       [hello]
@@ -331,7 +331,7 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: hello
-    call: mint/setup-go 1.3.5
+    call: golang/install 1.3.5
   - key: goodbye
     use:
       [hello]
@@ -346,8 +346,8 @@ tasks:
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
 					LatestMajor: map[string]string{
-						"mint/setup-node": "1.2.3",
-						"mint/setup-go":   "1.3.5",
+						"nodejs/install": "1.2.3",
+						"golang/install": "1.3.5",
 					},
 				}, nil
 			}
@@ -359,9 +359,9 @@ tasks:
 			originalBazContents := `
 # leading commment
 - key: foo
-  call: mint/setup-node 1.0.1
+  call: nodejs/install 1.0.1
 - key: bar
-  call: mint/setup-go
+  call: golang/install
 `
 
 			err = os.WriteFile(filepath.Join(mintDir, "_baz.yaml"), []byte(originalBazContents), 0o644)
@@ -389,9 +389,9 @@ tasks:
 			require.NoError(t, err)
 			require.Equal(t, `# leading commment
 - key: foo
-  call: mint/setup-node 1.2.3
+  call: nodejs/install 1.2.3
 - key: bar
-  call: mint/setup-go 1.3.5
+  call: golang/install 1.3.5
 `, string(contents))
 
 			contents, err = os.ReadFile(filepath.Join(mintDir, "_qux.yaml"))
@@ -411,7 +411,7 @@ tasks:
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.0.1
+    call: nodejs/install 1.0.1
 `), 0o644)
 			require.NoError(t, err)
 
@@ -426,10 +426,10 @@ tasks:
 			require.Equal(t, `
 tasks:
   - key: foo
-    call: mint/setup-node 1.0.1
+    call: nodejs/install 1.0.1
 `, string(contents))
 
-			require.Contains(t, s.mockStderr.String(), `Unable to find the package "mint/setup-node"; skipping it.`)
+			require.Contains(t, s.mockStderr.String(), `Unable to find the package "nodejs/install"; skipping it.`)
 		})
 
 		t.Run("when a package reference is a later version than the latest major", func(t *testing.T) {
@@ -437,14 +437,14 @@ tasks:
 
 			s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
 				return &api.PackageVersionsResult{
-					LatestMajor: map[string]string{"mint/setup-node": "1.0.3"},
+					LatestMajor: map[string]string{"nodejs/install": "1.0.3"},
 				}, nil
 			}
 
 			err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.1.1
+    call: nodejs/install 1.1.1
 `), 0o644)
 			require.NoError(t, err)
 
@@ -458,16 +458,16 @@ tasks:
 			require.NoError(t, err)
 			require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-node 1.0.3
+    call: nodejs/install 1.0.3
 `, string(contents))
 		})
 
 		t.Run("when a package reference is a major version behind the latest", func(t *testing.T) {
 			s := setupTest(t)
 
-			majorPackageVersions := map[string]string{"mint/setup-node": "2.0.3"}
+			majorPackageVersions := map[string]string{"nodejs/install": "2.0.3"}
 			minorPackageVersions := map[string]map[string]string{
-				"mint/setup-node": {
+				"nodejs/install": {
 					"2": "2.0.3",
 					"1": "1.1.1",
 				},
@@ -484,7 +484,7 @@ tasks:
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.1.1
+    call: nodejs/install 1.1.1
 `), 0o644)
 				require.NoError(t, err)
 
@@ -499,7 +499,7 @@ tasks:
 				require.Equal(t, `
 tasks:
   - key: foo
-    call: mint/setup-node 1.1.1
+    call: nodejs/install 1.1.1
 `, string(contents))
 
 				require.Contains(t, s.mockStdout.String(), "All packages are up-to-date.")
@@ -509,7 +509,7 @@ tasks:
 				err := os.WriteFile(filepath.Join(s.tmp, "foo.yaml"), []byte(`
 tasks:
   - key: foo
-    call: mint/setup-node 1.0.9
+    call: nodejs/install 1.0.9
 `), 0o644)
 				require.NoError(t, err)
 
@@ -523,11 +523,11 @@ tasks:
 				require.NoError(t, err)
 				require.Equal(t, `tasks:
   - key: foo
-    call: mint/setup-node 1.1.1
+    call: nodejs/install 1.1.1
 `, string(contents))
 
 				require.Contains(t, s.mockStdout.String(), "Updated the following packages:")
-				require.Contains(t, s.mockStdout.String(), "mint/setup-node 1.0.9 → 1.1.1")
+				require.Contains(t, s.mockStdout.String(), "nodejs/install 1.0.9 → 1.1.1")
 			})
 		})
 	})

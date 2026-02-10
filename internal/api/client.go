@@ -569,6 +569,40 @@ func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	return &respBody, nil
 }
 
+func (c Client) GetPackageDocumentation(packageName string) (*PackageDocumentationResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/leaves/%s/documentation", packageName)
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		return nil, errors.New(msg)
+	}
+
+	respBody := PackageDocumentationResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &respBody, nil
+}
+
 func (c Client) GetDefaultBase() (DefaultBaseResult, error) {
 	endpoint := "/mint/api/base/default"
 	result := DefaultBaseResult{}
