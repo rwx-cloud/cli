@@ -668,7 +668,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 
 	// Include untracked files in the diff by adding them with intent-to-add
 	// Get untracked files, add with -N, get diff, then reset
-	lsExitCode, untrackedOutput, lsErr := s.SSHClient.ExecuteCommandWithCombinedOutput("/usr/bin/git ls-files --others --exclude-standard")
+	lsExitCode, untrackedOutput, lsErr := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
 	if lsErr != nil {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return nil, errors.Wrap(lsErr, "failed to list untracked files in sandbox")
@@ -711,8 +711,8 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		}
 	}
 
-	// Get patch from sandbox
-	exitCode, patch, err := s.SSHClient.ExecuteCommandWithCombinedOutput("/usr/bin/git diff HEAD")
+	// Get patch from sandbox (stdout only to avoid output capture issues after sync markers)
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff HEAD")
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
