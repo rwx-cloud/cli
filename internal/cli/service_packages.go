@@ -9,6 +9,7 @@ import (
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/text"
 
 	"github.com/goccy/go-yaml/ast"
 )
@@ -368,7 +369,7 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 			wrapIndent := strings.Repeat(" ", prefixWidth)
 			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST", "DESCRIPTION")
 			for _, pkg := range packages {
-				lines := wrapText(pkg.Description, descWidth)
+				lines := text.WrapText(pkg.Description, descWidth)
 				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion, lines[0])
 				for _, line := range lines[1:] {
 					fmt.Fprintf(s.Stdout, "%s%s\n", wrapIndent, line)
@@ -378,28 +379,6 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 	}
 
 	return result, nil
-}
-
-func wrapText(s string, width int) []string {
-	if width <= 0 || len(s) <= width {
-		return []string{s}
-	}
-
-	var lines []string
-	for len(s) > width {
-		// Find the last space at or before the width limit
-		breakAt := strings.LastIndex(s[:width+1], " ")
-		if breakAt <= 0 {
-			// No space found; break at width
-			breakAt = width
-		}
-		lines = append(lines, s[:breakAt])
-		s = strings.TrimLeft(s[breakAt:], " ")
-	}
-	if len(s) > 0 {
-		lines = append(lines, s)
-	}
-	return lines
 }
 
 type ShowPackageConfig struct {
@@ -441,7 +420,7 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 	} else {
 		fmt.Fprintf(s.Stdout, "Name:         %s\n", doc.Name)
 		fmt.Fprintf(s.Stdout, "Version:      %s\n", doc.Version)
-		descLines := wrapText(doc.Description, 80-14)
+		descLines := text.WrapText(doc.Description, 80-14)
 		fmt.Fprintf(s.Stdout, "Description:  %s\n", descLines[0])
 		for _, line := range descLines[1:] {
 			fmt.Fprintf(s.Stdout, "              %s\n", line)
@@ -485,7 +464,7 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 				if p.Default != nil {
 					defaultVal = string(*p.Default)
 				}
-				lines := wrapText(p.Description, descWidth)
+				lines := text.WrapText(p.Description, descWidth)
 				fmt.Fprintf(s.Stdout, paramFmt, p.Name, required, defaultVal, lines[0])
 				for _, line := range lines[1:] {
 					fmt.Fprintf(s.Stdout, "%s%s\n", wrapIndent, line)
