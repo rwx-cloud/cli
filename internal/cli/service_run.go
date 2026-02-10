@@ -50,7 +50,10 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, err
 	}
 
-	sha := s.GitClient.GetCommit()
+	sha, err := s.GitClient.GetCommit()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to determine git commit")
+	}
 	branch := s.GitClient.GetBranch()
 	originUrl := s.GitClient.GetOriginUrl()
 	patchFile := git.PatchFile{}

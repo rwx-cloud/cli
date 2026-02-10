@@ -11,6 +11,7 @@ import (
 type Git struct {
 	MockGetBranch         string
 	MockGetCommit         string
+	MockGetCommitError    error
 	MockGetOriginUrl      string
 	MockGeneratePatchFile git.PatchFile
 	MockGeneratePatch     func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
@@ -20,8 +21,8 @@ func (c *Git) GetBranch() string {
 	return c.MockGetBranch
 }
 
-func (c *Git) GetCommit() string {
-	return c.MockGetCommit
+func (c *Git) GetCommit() (string, error) {
+	return c.MockGetCommit, c.MockGetCommitError
 }
 
 func (c *Git) GetOriginUrl() string {
@@ -35,7 +36,8 @@ func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 			return git.PatchFile{}
 		}
 
-		path := filepath.Join(destDir, c.GetCommit())
+		sha, _ := c.GetCommit()
+		path := filepath.Join(destDir, sha)
 		if err := os.WriteFile(path, []byte("patch"), 0644); err != nil {
 			// We can't write a patch
 			return git.PatchFile{}

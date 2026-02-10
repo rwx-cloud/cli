@@ -74,42 +74,47 @@ func TestGetBranch(t *testing.T) {
 }
 
 func TestGetCommit(t *testing.T) {
-	t.Run("returns empty if git is not installed", func(t *testing.T) {
+	t.Run("returns empty with no error if git is not installed", func(t *testing.T) {
 		client := &git.Client{Binary: "fake", Dir: ""}
-		commit := client.GetCommit()
-		require.Equal(t, "", commit)
+		sha, err := client.GetCommit()
+		require.NoError(t, err)
+		require.Equal(t, "", sha)
 	})
 
-	t.Run("returns empty if we're not in a git repo", func(t *testing.T) {
+	t.Run("returns empty with no error if we're not in a git repo", func(t *testing.T) {
 		tempDir := t.TempDir()
 
 		client := &git.Client{Binary: "git", Dir: tempDir}
-		commit := client.GetCommit()
-		require.Equal(t, "", commit)
+		sha, err := client.GetCommit()
+		require.NoError(t, err)
+		require.Equal(t, "", sha)
 	})
 
-	t.Run("returns empty if remote is not set", func(t *testing.T) {
+	t.Run("returns error if remote is not set", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote")
 
 		client := &git.Client{Binary: "git", Dir: repo}
-		commit := client.GetCommit()
-		require.Equal(t, "", commit)
+		sha, err := client.GetCommit()
+		require.Equal(t, "", sha)
+		require.EqualError(t, err, "no git remote named 'origin' is configured")
 	})
 
-	t.Run("returns empty if remote origin is not set", func(t *testing.T) {
+	t.Run("returns error if remote origin is not set", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote-origin")
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-		commit := client.GetCommit()
-		require.Equal(t, "", commit)
+		sha, err := client.GetCommit()
+		require.Equal(t, "", sha)
+		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote")
 	})
 
-	t.Run("returns empty if there is no common ancestor (orphan branch)", func(t *testing.T) {
+	t.Run("returns error if there is no common ancestor (orphan branch)", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-common-ancestor")
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-		commit := client.GetCommit()
-		require.Equal(t, "", commit)
+		sha, err := client.GetCommit()
+		require.Equal(t, "", sha)
+		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote")
 	})
 
 	t.Run("returns HEAD when in detached HEAD state", func(t *testing.T) {
@@ -117,7 +122,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -125,7 +131,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head-diverged")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 	})
@@ -135,7 +142,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-main-at-origin")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -143,7 +151,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-main-behind-origin")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -151,7 +160,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-main-ahead-of-origin")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -159,7 +169,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-local")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -167,7 +178,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-feature")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -175,7 +187,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-main-origin-moved")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 
@@ -183,7 +196,8 @@ func TestGetCommit(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-feature-from-feature-origin-moved")
 
 			client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
-			commit := client.GetCommit()
+			commit, err := client.GetCommit()
+			require.NoError(t, err)
 			require.Equal(t, expected, commit)
 		})
 	})

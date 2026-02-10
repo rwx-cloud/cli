@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,17 +27,18 @@ func (c *Client) GetBranch() string {
 	return branch
 }
 
-func (c *Client) GetCommit() string {
+func (c *Client) GetCommit() (string, error) {
 	if c.GetBranch() == "" {
 		cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
 		cmd.Dir = c.Dir
 
 		out, err := cmd.Output()
 		if err != nil {
-			return ""
+			// Not a git repository - return empty, no error (silent no-op)
+			return "", nil
 		}
 
-		return strings.TrimSpace(string(out))
+		return strings.TrimSpace(string(out)), nil
 	}
 
 	// Find commits on HEAD that aren't on any origin ref, with boundary markers
@@ -45,7 +47,7 @@ func (c *Client) GetCommit() string {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("no git remote named 'origin' is configured")
 	}
 
 	output := strings.TrimSpace(string(out))
@@ -57,21 +59,21 @@ func (c *Client) GetCommit() string {
 
 		out, err := cmd.Output()
 		if err != nil {
-			return ""
+			return "", fmt.Errorf("could not resolve HEAD")
 		}
 
-		return strings.TrimSpace(string(out))
+		return strings.TrimSpace(string(out)), nil
 	}
 
 	// First line starting with "-" is the boundary (closest merge-base)
 	for _, line := range strings.Split(output, "\n") {
 		if strings.HasPrefix(line, "-") {
-			return line[1:]
+			return line[1:], nil
 		}
 	}
 
 	// Output but no boundary means no common ancestor
-	return ""
+	return "", fmt.Errorf("current branch has no commits in common with the 'origin' remote")
 }
 
 func (c *Client) GetOriginUrl() string {
@@ -114,8 +116,8 @@ type patchResult struct {
 
 // generatePatchData generates patch data for working tree changes relative to the base commit on origin.
 func (c *Client) generatePatchData(pathspec []string) patchResult {
-	sha := c.GetCommit()
-	if sha == "" {
+	sha, err := c.GetCommit()
+	if sha == "" || err != nil {
 		return patchResult{}
 	}
 
