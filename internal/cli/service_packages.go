@@ -297,6 +297,7 @@ type ListPackagesConfig struct {
 
 type PackageInfo struct {
 	Name          string
+	Description   string
 	LatestVersion string
 	Versions      map[string]string
 }
@@ -328,6 +329,9 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 			Name:          name,
 			LatestVersion: packageVersions.LatestMajor[name],
 		}
+		if pkgInfo, ok := packageVersions.Packages[name]; ok {
+			info.Description = pkgInfo.Description
+		}
 		if minorVersions, ok := packageVersions.LatestMinor[name]; ok {
 			info.Versions = minorVersions
 		}
@@ -345,17 +349,71 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 			fmt.Fprintln(s.Stdout, "No packages found.")
 		} else {
 			maxNameLen := len("PACKAGE")
+			maxVersionLen := len("LATEST VERSION")
 			for _, pkg := range packages {
 				if len(pkg.Name) > maxNameLen {
 					maxNameLen = len(pkg.Name)
 				}
+				if len(pkg.LatestVersion) > maxVersionLen {
+					maxVersionLen = len(pkg.LatestVersion)
+				}
 			}
-			fmtStr := fmt.Sprintf("%%-%ds  %%s\n", maxNameLen)
-			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST VERSION")
+			fmtStr := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", maxNameLen, maxVersionLen)
+			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST VERSION", "DESCRIPTION")
 			for _, pkg := range packages {
-				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion)
+				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion, truncateDescription(pkg.Description, 40))
 			}
 		}
+	}
+
+	return result, nil
+}
+
+func truncateDescription(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}
+
+type ShowPackageConfig struct {
+	PackageName string
+	Json        bool
+}
+
+type ShowPackageResult struct {
+	Name            string
+	Version         string
+	Description     string
+	SourceCodeUrl   string
+	IssueTrackerUrl string
+	Parameters      []api.PackageDocumentationParameter
+}
+
+func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) {
+	doc, err := s.APIClient.GetPackageDocumentation(cfg.PackageName)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("unable to fetch documentation for package %q", cfg.PackageName))
+	}
+
+	result := &ShowPackageResult{
+		Name:            doc.Name,
+		Version:         doc.Version,
+		Description:     doc.Description,
+		SourceCodeUrl:   doc.SourceCodeUrl,
+		IssueTrackerUrl: doc.IssueTrackerUrl,
+		Parameters:      doc.Parameters,
+	}
+
+	if cfg.Json {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		fmt.Fprint(s.Stdout, doc.Readme)
 	}
 
 	return result, nil
