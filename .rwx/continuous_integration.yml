@@ -21,7 +21,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 2.0.0
+    call: git/clone 2.0.1
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
@@ -71,6 +71,29 @@ tasks:
 
       git lfs install --skip-repo
 
+  - key: node
+    call: nodejs/install 1.1.11
+    with:
+      node-version: ${{ tasks.tool-versions.values.nodejs }}
+
+  - key: lsp-server-code
+    call: git/clone 2.0.1
+    with:
+      path: ./language-server
+      repository: https://github.com/rwx-cloud/language-server.git
+      ref: main
+      github-token: ${{ github['rwx-cloud'].token }}
+
+  - key: lsp-server
+    use: [node, lsp-server-code, code]
+    run: |
+      cd language-server
+      npm ci
+      npm run compile
+      cp -r out ../internal/lsp/bundle/out
+      cp -r support ../internal/lsp/bundle/support
+      cp -r node_modules ../internal/lsp/bundle/node_modules
+
   - key: unit-tests
     use: [go-deps, rwx-cli, gotestsum, git]
     run: |
@@ -85,8 +108,10 @@ tasks:
         - path: tmp/go-test.json
 
   - key: rwx-cli
-    use: go-deps
-    run: go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
+    use: [go-deps, lsp-server]
+    run: |
+      test -f internal/lsp/bundle/out/server.js || { echo "LSP bundle is missing. The lsp-server task must populate internal/lsp/bundle/ before building." > "$RWX_ERRORS/lsp-bundle-missing"; exit 1; }
+      go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
 
   - key: integration-tests
     use: rwx-cli
@@ -95,7 +120,7 @@ tasks:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
 
   - key: lint
-    use: [golangci-lint, go-deps]
+    use: [golangci-lint, go-deps, lsp-server]
     run: golangci-lint run ./...
 
   - key: go-mod-tidy
@@ -121,7 +146,7 @@ tasks:
       fi
 
   - key: rwx-testing-code
-    call: git/clone 2.0.0
+    call: git/clone 2.0.1
     with:
       path: ./rwx-testing
       repository: https://github.com/rwx-cloud/rwx-testing.git
