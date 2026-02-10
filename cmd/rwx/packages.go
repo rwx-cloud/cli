@@ -15,6 +15,21 @@ var packagesCmd = &cobra.Command{
 var (
 	PackagesAllowMajorVersionChange bool
 
+	packagesListCmd = &cobra.Command{
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, err := service.ListPackages(cli.ListPackagesConfig{
+				Json: useJsonOutput(),
+			})
+			return err
+		},
+		Short: "List all available packages and their latest versions",
+		Use:   "list",
+		Args:  cobra.NoArgs,
+	}
+
 	packagesUpdateCmd = &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
 			replacementVersionPicker := cli.PickLatestMinorVersion
@@ -41,5 +56,6 @@ var (
 func init() {
 	packagesUpdateCmd.Flags().BoolVar(&PackagesAllowMajorVersionChange, "allow-major-version-change", false, "update packages to the latest major version")
 	addRwxDirFlag(packagesUpdateCmd)
+	packagesCmd.AddCommand(packagesListCmd)
 	packagesCmd.AddCommand(packagesUpdateCmd)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -288,4 +289,74 @@ func PickLatestMinorVersion(versions api.PackageVersionsResult, rwxPackage strin
 	}
 
 	return latestVersion, nil
+}
+
+type ListPackagesConfig struct {
+	Json bool
+}
+
+type PackageInfo struct {
+	Name          string
+	LatestVersion string
+	Versions      map[string]string
+}
+
+type ListPackagesResult struct {
+	Packages []PackageInfo
+}
+
+func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, error) {
+	defer s.outputLatestVersionMessage()
+
+	packageVersions, err := s.APIClient.GetPackageVersions()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to fetch package versions")
+	}
+
+	names := make([]string, 0, len(packageVersions.LatestMajor))
+	for name := range packageVersions.LatestMajor {
+		if _, isRenamed := packageVersions.Renames[name]; isRenamed {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	packages := make([]PackageInfo, 0, len(names))
+	for _, name := range names {
+		info := PackageInfo{
+			Name:          name,
+			LatestVersion: packageVersions.LatestMajor[name],
+		}
+		if minorVersions, ok := packageVersions.LatestMinor[name]; ok {
+			info.Versions = minorVersions
+		}
+		packages = append(packages, info)
+	}
+
+	result := &ListPackagesResult{Packages: packages}
+
+	if cfg.Json {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(packages) == 0 {
+			fmt.Fprintln(s.Stdout, "No packages found.")
+		} else {
+			maxNameLen := len("PACKAGE")
+			for _, pkg := range packages {
+				if len(pkg.Name) > maxNameLen {
+					maxNameLen = len(pkg.Name)
+				}
+			}
+			fmtStr := fmt.Sprintf("%%-%ds  %%s\n", maxNameLen)
+			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST VERSION")
+			for _, pkg := range packages {
+				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion)
+			}
+		}
+	}
+
+	return result, nil
 }
