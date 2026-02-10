@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -349,7 +350,7 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 			fmt.Fprintln(s.Stdout, "No packages found.")
 		} else {
 			maxNameLen := len("PACKAGE")
-			maxVersionLen := len("LATEST VERSION")
+			maxVersionLen := len("LATEST")
 			for _, pkg := range packages {
 				if len(pkg.Name) > maxNameLen {
 					maxNameLen = len(pkg.Name)
@@ -358,10 +359,20 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 					maxVersionLen = len(pkg.LatestVersion)
 				}
 			}
+			prefixWidth := maxNameLen + 2 + maxVersionLen + 2
+			descWidth := 80 - prefixWidth
+			if descWidth < 20 {
+				descWidth = 0 // too narrow to wrap; print as-is
+			}
 			fmtStr := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", maxNameLen, maxVersionLen)
-			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST VERSION", "DESCRIPTION")
+			wrapIndent := strings.Repeat(" ", prefixWidth)
+			fmt.Fprintf(s.Stdout, fmtStr, "PACKAGE", "LATEST", "DESCRIPTION")
 			for _, pkg := range packages {
-				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion, truncateDescription(pkg.Description, 40))
+				lines := wrapText(pkg.Description, descWidth)
+				fmt.Fprintf(s.Stdout, fmtStr, pkg.Name, pkg.LatestVersion, lines[0])
+				for _, line := range lines[1:] {
+					fmt.Fprintf(s.Stdout, "%s%s\n", wrapIndent, line)
+				}
 			}
 		}
 	}
@@ -369,19 +380,32 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 	return result, nil
 }
 
-func truncateDescription(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
+func wrapText(s string, width int) []string {
+	if width <= 0 || len(s) <= width {
+		return []string{s}
 	}
-	if maxLen <= 3 {
-		return s[:maxLen]
+
+	var lines []string
+	for len(s) > width {
+		// Find the last space at or before the width limit
+		breakAt := strings.LastIndex(s[:width+1], " ")
+		if breakAt <= 0 {
+			// No space found; break at width
+			breakAt = width
+		}
+		lines = append(lines, s[:breakAt])
+		s = strings.TrimLeft(s[breakAt:], " ")
 	}
-	return s[:maxLen-3] + "..."
+	if len(s) > 0 {
+		lines = append(lines, s)
+	}
+	return lines
 }
 
 type ShowPackageConfig struct {
 	PackageName string
 	Json        bool
+	Readme      bool
 }
 
 type ShowPackageResult struct {
@@ -412,8 +436,62 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
 			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
-	} else {
+	} else if cfg.Readme {
 		fmt.Fprint(s.Stdout, doc.Readme)
+	} else {
+		fmt.Fprintf(s.Stdout, "Name:         %s\n", doc.Name)
+		fmt.Fprintf(s.Stdout, "Version:      %s\n", doc.Version)
+		descLines := wrapText(doc.Description, 80-14)
+		fmt.Fprintf(s.Stdout, "Description:  %s\n", descLines[0])
+		for _, line := range descLines[1:] {
+			fmt.Fprintf(s.Stdout, "              %s\n", line)
+		}
+		if doc.SourceCodeUrl != "" {
+			fmt.Fprintf(s.Stdout, "Source Code:  %s\n", doc.SourceCodeUrl)
+		}
+		if doc.IssueTrackerUrl != "" {
+			fmt.Fprintf(s.Stdout, "Issues:       %s\n", doc.IssueTrackerUrl)
+		}
+
+		if len(doc.Parameters) > 0 {
+			fmt.Fprintln(s.Stdout)
+			maxParamNameLen := len("PARAMETER")
+			maxDefaultLen := len("DEFAULT")
+			for _, p := range doc.Parameters {
+				if len(p.Name) > maxParamNameLen {
+					maxParamNameLen = len(p.Name)
+				}
+				if p.Default != nil {
+					if len(string(*p.Default)) > maxDefaultLen {
+						maxDefaultLen = len(string(*p.Default))
+					}
+				}
+			}
+			// PARAMETER + gap + REQUIRED(8) + gap + DEFAULT + gap
+			prefixWidth := maxParamNameLen + 2 + 8 + 2 + maxDefaultLen + 2
+			descWidth := 80 - prefixWidth
+			if descWidth < 20 {
+				descWidth = 0 // too narrow to wrap; print as-is
+			}
+			paramFmt := fmt.Sprintf("%%-%ds  %%-8s  %%-%ds  %%s\n", maxParamNameLen, maxDefaultLen)
+			wrapIndent := strings.Repeat(" ", prefixWidth)
+			fmt.Fprintf(s.Stdout, paramFmt, "PARAMETER", "REQUIRED", "DEFAULT", "DESCRIPTION")
+			for _, p := range doc.Parameters {
+				required := "false"
+				if p.Required {
+					required = "true"
+				}
+				defaultVal := ""
+				if p.Default != nil {
+					defaultVal = string(*p.Default)
+				}
+				lines := wrapText(p.Description, descWidth)
+				fmt.Fprintf(s.Stdout, paramFmt, p.Name, required, defaultVal, lines[0])
+				for _, line := range lines[1:] {
+					fmt.Fprintf(s.Stdout, "%s%s\n", wrapIndent, line)
+				}
+			}
+		}
 	}
 
 	return result, nil
