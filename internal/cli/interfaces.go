@@ -55,7 +55,7 @@ var _ SSHClient = (*ssh.Client)(nil)
 
 type GitClient interface {
 	GetBranch() string
-	GetCommit() git.CommitResult
+	GetCommit() (string, error)
 	GetOriginUrl() string
 	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 	GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)

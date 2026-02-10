@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,22 +27,18 @@ func (c *Client) GetBranch() string {
 	return branch
 }
 
-type CommitResult struct {
-	Sha    string
-	Reason string
-}
-
-func (c *Client) GetCommit() CommitResult {
+func (c *Client) GetCommit() (string, error) {
 	if c.GetBranch() == "" {
 		cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
 		cmd.Dir = c.Dir
 
 		out, err := cmd.Output()
 		if err != nil {
-			return CommitResult{Reason: "not a git repository (or any of the parent directories)"}
+			// Not a git repository - return empty, no error (silent no-op)
+			return "", nil
 		}
 
-		return CommitResult{Sha: strings.TrimSpace(string(out))}
+		return strings.TrimSpace(string(out)), nil
 	}
 
 	// Find commits on HEAD that aren't on any origin ref, with boundary markers
@@ -50,7 +47,7 @@ func (c *Client) GetCommit() CommitResult {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return CommitResult{Reason: "no git remote named 'origin' is configured"}
+		return "", fmt.Errorf("no git remote named 'origin' is configured")
 	}
 
 	output := strings.TrimSpace(string(out))
@@ -62,21 +59,21 @@ func (c *Client) GetCommit() CommitResult {
 
 		out, err := cmd.Output()
 		if err != nil {
-			return CommitResult{Reason: "could not resolve HEAD"}
+			return "", fmt.Errorf("could not resolve HEAD")
 		}
 
-		return CommitResult{Sha: strings.TrimSpace(string(out))}
+		return strings.TrimSpace(string(out)), nil
 	}
 
 	// First line starting with "-" is the boundary (closest merge-base)
 	for _, line := range strings.Split(output, "\n") {
 		if strings.HasPrefix(line, "-") {
-			return CommitResult{Sha: line[1:]}
+			return line[1:], nil
 		}
 	}
 
 	// Output but no boundary means no common ancestor
-	return CommitResult{Reason: "current branch has no commits in common with the 'origin' remote"}
+	return "", fmt.Errorf("current branch has no commits in common with the 'origin' remote")
 }
 
 func (c *Client) GetOriginUrl() string {
@@ -119,8 +116,8 @@ type patchResult struct {
 
 // generatePatchData generates patch data for working tree changes relative to the base commit on origin.
 func (c *Client) generatePatchData(pathspec []string) patchResult {
-	sha := c.GetCommit().Sha
-	if sha == "" {
+	sha, err := c.GetCommit()
+	if sha == "" || err != nil {
 		return patchResult{}
 	}
 
