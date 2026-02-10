@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -219,10 +220,33 @@ type SetSecretsInVaultResult struct {
 	SetSecrets []string `json:"set_secrets"`
 }
 
+type ApiPackageInfo struct {
+	Description string `json:"description"`
+}
+
 type PackageVersionsResult struct {
 	Renames     map[string]string            `json:"renames"`
 	LatestMajor map[string]string            `json:"latest_major"`
 	LatestMinor map[string]map[string]string `json:"latest_minor"`
+	Packages    map[string]ApiPackageInfo    `json:"packages"`
+}
+
+type PackageDocumentationParameter struct {
+	Name        string           `json:"name"`
+	Required    bool             `json:"required"`
+	Default     *json.RawMessage `json:"default"`
+	Description string           `json:"description"`
+}
+
+type PackageDocumentationResult struct {
+	Name            string                          `json:"name"`
+	Version         string                          `json:"version"`
+	Readme          string                          `json:"readme"`
+	Description     string                          `json:"description"`
+	SourceCodeUrl   string                          `json:"source_code_url"`
+	IssueTrackerUrl string                          `json:"issue_tracker_url"`
+	RenamedTo       *string                         `json:"renamed_to"`
+	Parameters      []PackageDocumentationParameter `json:"parameters"`
 }
 
 type DefaultBaseResult struct {
