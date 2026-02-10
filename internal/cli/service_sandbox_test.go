@@ -413,7 +413,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, nil
 		}
 
-
 		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
 			return 0, "", nil
 		}
@@ -519,7 +518,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, nil
 		}
 
-
 		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
 			return 0, "", nil
 		}
@@ -615,7 +613,6 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			return 0, "", nil
 		}
 
-
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
 			return 0, nil
 		}
@@ -664,7 +661,6 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			}
 			return 0, "", nil
 		}
-
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
 			if cmd == "make test" {
@@ -863,7 +859,6 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			}
 			return 0, "", nil
 		}
-
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
 			return 0, nil
