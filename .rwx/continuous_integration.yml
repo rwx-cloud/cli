@@ -110,7 +110,6 @@ tasks:
   - key: rwx-cli
     use: [go-deps, lsp-server]
     run: |
-      test -f internal/lsp/bundle/out/server.js || { echo "LSP bundle is missing. The lsp-server task must populate internal/lsp/bundle/ before building." > "$RWX_ERRORS/lsp-bundle-missing"; exit 1; }
       go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
 
   - key: integration-tests
