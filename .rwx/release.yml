@@ -229,9 +229,9 @@ tasks:
         ldflags="${ldflags} -linkmode external -extldflags=-static"
       fi
 
+      test -f internal/lsp/bundle/out/server.js || { echo "LSP bundle is missing. The lsp-server task must populate internal/lsp/bundle/ before building." > "$RWX_ERRORS/lsp-bundle-missing"; exit 1; }
       GOOS=${{ parallel.os }} \
       GOARCH=${{ parallel.arch }} \
-      test -f internal/lsp/bundle/out/server.js || { echo "LSP bundle is missing. The lsp-server task must populate internal/lsp/bundle/ before building." > "$RWX_ERRORS/lsp-bundle-missing"; exit 1; }
       go build -ldflags "${ldflags}" -a ./cmd/rwx
 
       if [[ ${{ parallel.os }} == "darwin" ]]; then
