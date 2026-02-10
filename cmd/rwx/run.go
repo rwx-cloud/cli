@@ -95,7 +95,7 @@ var (
 				RunURL:           runResult.RunURL,
 				TargetedTaskKeys: runResult.TargetedTaskKeys,
 				DefinitionPath:   runResult.DefinitionPath,
-				Message:          runResult.Message,
+				Message:          strings.ReplaceAll(strings.ReplaceAll(runResult.Message, "\n\n", " "), "\n", " "),
 			}
 
 			if useJson && !Wait {

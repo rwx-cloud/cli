@@ -50,7 +50,12 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, err
 	}
 
-	sha := s.GitClient.GetCommit()
+	var commitWarning string
+	commitResult := s.GitClient.GetCommit()
+	sha := commitResult.Sha
+	if commitResult.Reason != "" {
+		commitWarning = fmt.Sprintf("Could not determine a git commit: %s.\nLocal changes will not be included in the run.\n\n", commitResult.Reason)
+	}
 	branch := s.GitClient.GetBranch()
 	originUrl := s.GitClient.GetOriginUrl()
 	patchFile := git.PatchFile{}
@@ -226,6 +231,10 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initiate run")
+	}
+
+	if commitWarning != "" {
+		runResult.Message = commitWarning + " " + runResult.Message
 	}
 
 	return runResult, nil

@@ -20,8 +20,8 @@ func (c *Git) GetBranch() string {
 	return c.MockGetBranch
 }
 
-func (c *Git) GetCommit() string {
-	return c.MockGetCommit
+func (c *Git) GetCommit() git.CommitResult {
+	return git.CommitResult{Sha: c.MockGetCommit}
 }
 
 func (c *Git) GetOriginUrl() string {
@@ -35,7 +35,7 @@ func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 			return git.PatchFile{}
 		}
 
-		path := filepath.Join(destDir, c.GetCommit())
+		path := filepath.Join(destDir, c.GetCommit().Sha)
 		if err := os.WriteFile(path, []byte("patch"), 0644); err != nil {
 			// We can't write a patch
 			return git.PatchFile{}
