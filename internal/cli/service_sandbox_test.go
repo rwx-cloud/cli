@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -884,6 +886,145 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.Contains(t, setup.mockStderr.String(), "Warning: failed to pull changes from sandbox")
+	})
+}
+
+func TestService_StartSandbox(t *testing.T) {
+	t.Run("passes init params to InitiateRun", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Create .rwx directory and sandbox config file
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		sandboxConfig := "tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"
+		err = os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte(sandboxConfig), 0o644)
+		require.NoError(t, err)
+
+		// Mock git
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		// Mock API
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{
+				Image:  "ubuntu:24.04",
+				Config: "rwx/base 1.0.0",
+				Arch:   "x86_64",
+			}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		var receivedInitParams []api.InitializationParameter
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			receivedInitParams = cfg.InitializationParameters
+			return &api.InitiateRunResult{
+				RunID:  "run-init-123",
+				RunURL: "https://cloud.rwx.com/mint/runs/run-init-123",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
+			ConfigFile:     ".rwx/sandbox.yml",
+			Json:           true,
+			InitParameters: map[string]string{"foo": "bar"},
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "run-init-123", result.RunID)
+		require.Len(t, receivedInitParams, 1)
+		require.Equal(t, "foo", receivedInitParams[0].Key)
+		require.Equal(t, "bar", receivedInitParams[0].Value)
+	})
+}
+
+func TestService_ExecSandbox_InitParams(t *testing.T) {
+	t.Run("lazy-create passes init params through to InitiateRun", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Create .rwx directory and sandbox config file
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		sandboxConfig := "tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"
+		err = os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte(sandboxConfig), 0o644)
+		require.NoError(t, err)
+
+		// Mock git
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		// Mock API
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{
+				Image:  "ubuntu:24.04",
+				Config: "rwx/base 1.0.0",
+				Arch:   "x86_64",
+			}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		var receivedInitParams []api.InitializationParameter
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			receivedInitParams = cfg.InitializationParameters
+			return &api.InitiateRunResult{
+				RunID:  "run-lazy-123",
+				RunURL: "https://cloud.rwx.com/mint/runs/run-lazy-123",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		address := "192.168.1.1:22"
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		// No RunID provided - forces lazy-create path
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			Command:        []string{"echo", "hello"},
+			Json:           true,
+			InitParameters: map[string]string{"foo": "bar"},
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "run-lazy-123", result.RunID)
+		require.Len(t, receivedInitParams, 1)
+		require.Equal(t, "foo", receivedInitParams[0].Key)
+		require.Equal(t, "bar", receivedInitParams[0].Value)
 	})
 }
 

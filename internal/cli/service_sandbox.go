@@ -18,20 +18,22 @@ import (
 // Config types
 
 type StartSandboxConfig struct {
-	ConfigFile   string
-	RunID        string
-	RwxDirectory string
-	Json         bool
-	Wait         bool
+	ConfigFile     string
+	RunID          string
+	RwxDirectory   string
+	Json           bool
+	Wait           bool
+	InitParameters map[string]string
 }
 
 type ExecSandboxConfig struct {
-	ConfigFile   string
-	Command      []string
-	RunID        string
-	RwxDirectory string
-	Json         bool
-	Sync         bool
+	ConfigFile     string
+	Command        []string
+	RunID          string
+	RwxDirectory   string
+	Json           bool
+	Sync           bool
+	InitParameters map[string]string
 }
 
 type ListSandboxesConfig struct {
@@ -45,10 +47,11 @@ type StopSandboxConfig struct {
 }
 
 type ResetSandboxConfig struct {
-	ConfigFile   string
-	RwxDirectory string
-	Json         bool
-	Wait         bool
+	ConfigFile     string
+	RwxDirectory   string
+	Json           bool
+	Wait           bool
+	InitParameters map[string]string
 }
 
 // Result types
@@ -254,10 +257,11 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 	title := SandboxTitle(cwd, branch, cfg.ConfigFile)
 
 	runResult, err := s.InitiateRun(InitiateRunConfig{
-		MintFilePath: cfg.ConfigFile,
-		RwxDirectory: cfg.RwxDirectory,
-		Json:         cfg.Json,
-		Title:        title,
+		MintFilePath:   cfg.ConfigFile,
+		RwxDirectory:   cfg.RwxDirectory,
+		Json:           cfg.Json,
+		Title:          title,
+		InitParameters: cfg.InitParameters,
 	})
 
 	if err != nil {
@@ -411,9 +415,10 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 			}
 
 			startResult, err := s.StartSandbox(StartSandboxConfig{
-				ConfigFile:   cfgFile,
-				RwxDirectory: cfg.RwxDirectory,
-				Json:         cfg.Json,
+				ConfigFile:     cfgFile,
+				RwxDirectory:   cfg.RwxDirectory,
+				Json:           cfg.Json,
+				InitParameters: cfg.InitParameters,
 			})
 			if err != nil {
 				return nil, err
@@ -645,10 +650,11 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 
 	// Start new sandbox
 	startResult, err := s.StartSandbox(StartSandboxConfig{
-		ConfigFile:   cfg.ConfigFile,
-		RwxDirectory: cfg.RwxDirectory,
-		Json:         cfg.Json,
-		Wait:         cfg.Wait,
+		ConfigFile:     cfg.ConfigFile,
+		RwxDirectory:   cfg.RwxDirectory,
+		Json:           cfg.Json,
+		Wait:           cfg.Wait,
+		InitParameters: cfg.InitParameters,
 	})
 	if err != nil {
 		return nil, err
