@@ -8,6 +8,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	internalconfig "github.com/rwx-cloud/cli/internal/config"
 	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
@@ -34,15 +35,15 @@ var (
 		SilenceUsage:  true,
 		Version:       config.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-
-			accessTokenBackend, err = accesstoken.NewFileBackend([]string{
+			fileBackend, err := internalconfig.NewFileBackend([]string{
 				filepath.Join("~", ".config", "rwx"),
 				filepath.Join("~", ".mint"),
 			})
 			if err != nil {
-				return errors.Wrap(err, "unable to initialize access token backend")
+				return errors.Wrap(err, "unable to initialize config backend")
 			}
+
+			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
 
 			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend})
 			if err != nil {

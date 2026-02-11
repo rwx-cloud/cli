@@ -1,4 +1,4 @@
-package accesstoken
+package config
 
 import (
 	"fmt"
@@ -42,37 +42,36 @@ func NewFileBackend(dirs []string) (*FileBackend, error) {
 	}, nil
 }
 
-func (f FileBackend) Get() (string, error) {
-	token, err := f.getFrom(f.PrimaryDirectory)
+func (f FileBackend) Get(filename string) (string, error) {
+	value, err := f.getFrom(f.PrimaryDirectory, filename)
 
 	if err != nil && errors.Is(err, fs.ErrNotExist) {
 		for _, dir := range f.FallbackDirectories {
-			token, err = f.getFrom(dir)
+			value, err = f.getFrom(dir, filename)
 
 			if err != nil && errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
 
 			if err != nil {
-				return token, err
+				return value, err
 			}
 
-			if err := f.Set(token); err != nil {
-				return "", errors.Wrapf(err, "unable to migrate access token from %q to %q", dir, f.PrimaryDirectory)
+			if err := f.Set(filename, value); err != nil {
+				return "", errors.Wrapf(err, "unable to migrate %q from %q to %q", filename, dir, f.PrimaryDirectory)
 			}
 
-			return token, nil
+			return value, nil
 		}
 
-		// if no fallbacks were used, indicate no token was found
 		return "", nil
 	}
 
-	return token, err
+	return value, err
 }
 
-func (f FileBackend) getFrom(dir string) (string, error) {
-	path := filepath.Join(dir, "accesstoken")
+func (f FileBackend) getFrom(dir, filename string) (string, error) {
+	path := filepath.Join(dir, filename)
 	fd, err := os.Open(path)
 	if err != nil {
 		return "", errors.Wrapf(err, "unable to open %q", path)
@@ -87,13 +86,13 @@ func (f FileBackend) getFrom(dir string) (string, error) {
 	return strings.TrimSpace(string(contents)), nil
 }
 
-func (f FileBackend) Set(value string) error {
+func (f FileBackend) Set(filename, value string) error {
 	err := os.MkdirAll(f.PrimaryDirectory, os.ModePerm)
 	if err != nil {
 		return errors.Wrapf(err, "unable to create %q", f.PrimaryDirectory)
 	}
 
-	path := filepath.Join(f.PrimaryDirectory, "accesstoken")
+	path := filepath.Join(f.PrimaryDirectory, filename)
 	fd, err := os.Create(path)
 	if err != nil {
 		return errors.Wrapf(err, "unable to create %q", path)
@@ -102,7 +101,7 @@ func (f FileBackend) Set(value string) error {
 
 	_, err = io.WriteString(fd, value)
 	if err != nil {
-		return errors.Wrapf(err, "unable to write token to %q", path)
+		return errors.Wrapf(err, "unable to write to %q", path)
 	}
 
 	return nil

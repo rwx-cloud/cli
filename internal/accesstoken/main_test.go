@@ -9,10 +9,9 @@ import (
 
 func TestGet(t *testing.T) {
 	t.Run("prefers the provided access token", func(t *testing.T) {
-		backend, err := accesstoken.NewMemoryBackend()
-		require.NoError(t, err)
+		backend := accesstoken.NewMemoryBackend()
 
-		err = backend.Set("other-token")
+		err := backend.Set("other-token")
 		require.NoError(t, err)
 
 		token, err := accesstoken.Get(backend, "provided-token")
@@ -21,10 +20,9 @@ func TestGet(t *testing.T) {
 	})
 
 	t.Run("falls back to the stored access token", func(t *testing.T) {
-		backend, err := accesstoken.NewMemoryBackend()
-		require.NoError(t, err)
+		backend := accesstoken.NewMemoryBackend()
 
-		err = backend.Set("other-token")
+		err := backend.Set("other-token")
 		require.NoError(t, err)
 
 		token, err := accesstoken.Get(backend, "")
@@ -35,10 +33,9 @@ func TestGet(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	t.Run("stores the token in the backend", func(t *testing.T) {
-		backend, err := accesstoken.NewMemoryBackend()
-		require.NoError(t, err)
+		backend := accesstoken.NewMemoryBackend()
 
-		err = accesstoken.Set(backend, "some-token")
+		err := accesstoken.Set(backend, "some-token")
 		require.NoError(t, err)
 
 		token, err := backend.Get()
