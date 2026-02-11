@@ -14,7 +14,6 @@ type SSH struct {
 	MockExecuteCommand                           func(command string) (int, error)
 	MockExecuteCommandWithStdin                  func(command string, stdin io.Reader) (int, error)
 	MockExecuteCommandWithOutput                 func(command string) (int, string, error)
-	MockExecuteCommandWithCombinedOutput         func(command string) (int, string, error)
 	MockExecuteCommandWithStdinAndCombinedOutput func(command string, stdin io.Reader) (int, string, error)
 }
 
@@ -60,14 +59,6 @@ func (s *SSH) ExecuteCommandWithOutput(command string) (int, string, error) {
 	}
 
 	return -1, "", errors.New("MockExecuteCommandWithOutput was not configured")
-}
-
-func (s *SSH) ExecuteCommandWithCombinedOutput(command string) (int, string, error) {
-	if s.MockExecuteCommandWithCombinedOutput != nil {
-		return s.MockExecuteCommandWithCombinedOutput(command)
-	}
-
-	return -1, "", errors.New("MockExecuteCommandWithCombinedOutput was not configured")
 }
 
 func (s *SSH) ExecuteCommandWithStdinAndCombinedOutput(command string, stdin io.Reader) (int, string, error) {

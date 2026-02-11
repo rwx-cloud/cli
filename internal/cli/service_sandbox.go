@@ -668,17 +668,13 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 
 	// Include untracked files in the diff by adding them with intent-to-add
 	// Get untracked files, add with -N, get diff, then reset
-	lsExitCode, untrackedOutput, lsErr := s.SSHClient.ExecuteCommandWithCombinedOutput("/usr/bin/git ls-files --others --exclude-standard")
+	lsExitCode, untrackedOutput, lsErr := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
 	if lsErr != nil {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return nil, errors.Wrap(lsErr, "failed to list untracked files in sandbox")
 	}
 	if lsExitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		errMsg := strings.TrimSpace(untrackedOutput)
-		if errMsg != "" {
-			return nil, fmt.Errorf("failed to list untracked files in sandbox: %s", errMsg)
-		}
 		return nil, fmt.Errorf("failed to list untracked files in sandbox: git ls-files failed with exit code %d", lsExitCode)
 	}
 
@@ -696,23 +692,19 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 			quotedFiles[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
 		}
 		addCmd := fmt.Sprintf("/usr/bin/git add -N -- %s", strings.Join(quotedFiles, " "))
-		addExitCode, addOutput, addErr := s.SSHClient.ExecuteCommandWithCombinedOutput(addCmd)
+		addExitCode, _, addErr := s.SSHClient.ExecuteCommandWithOutput(addCmd)
 		if addErr != nil {
 			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 			return nil, errors.Wrap(addErr, "failed to stage untracked files in sandbox")
 		}
 		if addExitCode != 0 {
 			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-			errMsg := strings.TrimSpace(addOutput)
-			if errMsg != "" {
-				return nil, fmt.Errorf("failed to stage untracked files in sandbox: %s", errMsg)
-			}
 			return nil, fmt.Errorf("failed to stage untracked files in sandbox: git add failed with exit code %d", addExitCode)
 		}
 	}
 
-	// Get patch from sandbox
-	exitCode, patch, err := s.SSHClient.ExecuteCommandWithCombinedOutput("/usr/bin/git diff HEAD")
+	// Get patch from sandbox (stdout only to avoid output capture issues after sync markers)
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff HEAD")
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
@@ -721,27 +713,20 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 			quotedFiles[i] = fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
 		}
 		resetCmd := fmt.Sprintf("/usr/bin/git reset HEAD -- %s", strings.Join(quotedFiles, " "))
-		resetExitCode, resetOutput, resetErr := s.SSHClient.ExecuteCommandWithCombinedOutput(resetCmd)
+		resetExitCode, _, resetErr := s.SSHClient.ExecuteCommandWithOutput(resetCmd)
 		if resetErr != nil {
 			fmt.Fprintf(s.Stderr, "Warning: failed to reset staged files in sandbox: %v\n", resetErr)
 		} else if resetExitCode != 0 {
-			errMsg := strings.TrimSpace(resetOutput)
-			if errMsg != "" {
-				fmt.Fprintf(s.Stderr, "Warning: failed to reset staged files in sandbox: %s\n", errMsg)
-			}
+			fmt.Fprintf(s.Stderr, "Warning: failed to reset staged files in sandbox (exit code %d)\n", resetExitCode)
 		}
 	}
 
 	// Mark end of sync operations
-	_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_end__")
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get diff from sandbox")
 	}
 	if exitCode != 0 {
-		errMsg := strings.TrimSpace(patch)
-		if errMsg != "" {
-			return nil, fmt.Errorf("failed to get changes from sandbox: %s", errMsg)
-		}
 		return nil, fmt.Errorf("failed to get changes from sandbox: git diff failed with exit code %d", exitCode)
 	}
 
@@ -936,20 +921,18 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	}
 
 	// Mark start of sync operations (Mint filters these from logs)
-	_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_start__")
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 
 	// Check that .git directory exists on the sandbox
-	exitCode, _, _ := s.SSHClient.ExecuteCommandWithCombinedOutput("test -d .git")
+	exitCode, _ := s.SSHClient.ExecuteCommand("test -d .git")
 	if exitCode != 0 {
-		_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_end__")
+		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
 	}
 
 	// Get list of files that are dirty on the sandbox (from previous syncs)
 	// This includes both tracked files with modifications and untracked files
 	// We reset these to ensure files reverted locally are also reverted on sandbox
-	// Note: We use ExecuteCommandWithOutput which captures stdout only - this avoids
-	// the output capture issues that occur with ExecuteCommandWithCombinedOutput after sync markers
 	_, dirtyTracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff --name-only HEAD")
 	_, dirtyUntracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
 
@@ -987,7 +970,7 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	exitCode, applyOutput, err := s.SSHClient.ExecuteCommandWithStdinAndCombinedOutput("/usr/bin/git apply --allow-empty -", bytes.NewReader(patch))
 
 	// Mark end of sync operations
-	_, _, _ = s.SSHClient.ExecuteCommandWithCombinedOutput("__rwx_sandbox_sync_end__")
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 
 	if err != nil {
 		return errors.Wrap(err, "failed to apply patch on sandbox")
