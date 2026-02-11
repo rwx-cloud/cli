@@ -113,7 +113,6 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 }
 
 func (s Service) UpdatePackages(cfg UpdatePackagesConfig) (*UpdatePackagesResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
@@ -309,7 +308,6 @@ type ListPackagesResult struct {
 }
 
 func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, error) {
-	defer s.outputLatestVersionMessage()
 
 	packageVersions, err := s.APIClient.GetPackageVersions()
 	if err != nil {

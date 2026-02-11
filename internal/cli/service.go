@@ -29,7 +29,7 @@ func NewService(cfg Config) (Service, error) {
 	return Service{cfg}, nil
 }
 
-func (s Service) outputLatestVersionMessage() {
+func (s Service) OutputLatestVersionMessage() {
 	if !versions.NewVersionAvailable() {
 		return
 	}
@@ -45,6 +45,7 @@ func (s Service) outputLatestVersionMessage() {
 	}
 
 	w := s.Stderr
+	fmt.Fprintln(w)
 	fmt.Fprintf(w, "A new release of rwx is available: %s → %s\n", versions.GetCliCurrentVersion(), versions.GetCliLatestVersion())
 
 	if versions.InstalledWithHomebrew() {

@@ -20,7 +20,6 @@ type GetRunStatusResult struct {
 }
 
 func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, error) {
-	defer s.outputLatestVersionMessage()
 
 	var stopSpinner func()
 	if cfg.Wait && !cfg.Json {

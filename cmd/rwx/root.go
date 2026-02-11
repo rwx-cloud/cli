@@ -82,6 +82,10 @@ var (
 
 			return nil
 		},
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			service.OutputLatestVersionMessage()
+			return nil
+		},
 	}
 )
 
