@@ -34,6 +34,11 @@ var sandboxStartCmd = &cobra.Command{
 
 		useJson := useJsonOutput()
 
+		initParams, err := ParseInitParameters(sandboxInitParams)
+		if err != nil {
+			return fmt.Errorf("unable to parse init parameters: %w", err)
+		}
+
 		// Check for existing active sandbox (skip if --id is provided)
 		if sandboxRunID == "" {
 			existing, err := service.CheckExistingSandbox(configFile)
@@ -94,11 +99,12 @@ var sandboxStartCmd = &cobra.Command{
 		}
 
 		result, err := service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile:   configFile,
-			RunID:        sandboxRunID,
-			RwxDirectory: sandboxRwxDir,
-			Json:         useJson,
-			Wait:         sandboxWait,
+			ConfigFile:     configFile,
+			RunID:          sandboxRunID,
+			RwxDirectory:   sandboxRwxDir,
+			Json:           useJson,
+			Wait:           sandboxWait,
+			InitParameters: initParams,
 		})
 
 		// Open browser if we have a URL, even if there was an error
@@ -186,13 +192,20 @@ CONFIG FILE
 		}
 
 		useJson := useJsonOutput()
+
+		initParams, err := ParseInitParameters(sandboxInitParams)
+		if err != nil {
+			return fmt.Errorf("unable to parse init parameters: %w", err)
+		}
+
 		result, err := service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile:   configFile,
-			Command:      command,
-			RunID:        sandboxRunID,
-			RwxDirectory: sandboxRwxDir,
-			Json:         useJson,
-			Sync:         !sandboxNoSync,
+			ConfigFile:     configFile,
+			Command:        command,
+			RunID:          sandboxRunID,
+			RwxDirectory:   sandboxRwxDir,
+			Json:           useJson,
+			Sync:           !sandboxNoSync,
+			InitParameters: initParams,
 		})
 		if err != nil {
 			return err
@@ -329,11 +342,18 @@ var sandboxResetCmd = &cobra.Command{
 		}
 
 		useJson := useJsonOutput()
+
+		initParams, err := ParseInitParameters(sandboxInitParams)
+		if err != nil {
+			return fmt.Errorf("unable to parse init parameters: %w", err)
+		}
+
 		result, err := service.ResetSandbox(cli.ResetSandboxConfig{
-			ConfigFile:   configFile,
-			RwxDirectory: sandboxRwxDir,
-			Json:         useJson,
-			Wait:         sandboxWait,
+			ConfigFile:     configFile,
+			RwxDirectory:   sandboxRwxDir,
+			Json:           useJson,
+			Wait:           sandboxWait,
+			InitParameters: initParams,
 		})
 		if err != nil {
 			return err
@@ -358,12 +378,13 @@ var sandboxResetCmd = &cobra.Command{
 }
 
 var (
-	sandboxRunID   string
-	sandboxStopAll bool
-	sandboxRwxDir  string
-	sandboxOpen    bool
-	sandboxWait    bool
-	sandboxNoSync  bool
+	sandboxRunID      string
+	sandboxStopAll    bool
+	sandboxRwxDir     string
+	sandboxOpen       bool
+	sandboxWait       bool
+	sandboxNoSync     bool
+	sandboxInitParams []string
 )
 
 func init() {
@@ -379,12 +400,14 @@ func init() {
 	sandboxStartCmd.Flags().StringVar(&sandboxRunID, "id", "", "Use specific run ID")
 	sandboxStartCmd.Flags().BoolVar(&sandboxOpen, "open", false, "Open the run in a browser")
 	sandboxStartCmd.Flags().BoolVar(&sandboxWait, "wait", false, "Wait for sandbox to be ready")
+	sandboxStartCmd.Flags().StringArrayVar(&sandboxInitParams, "init", []string{}, "initialization parameters for the sandbox run, available in the `init` context. Can be specified multiple times")
 
 	// exec flags
 	sandboxExecCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
 	sandboxExecCmd.Flags().StringVar(&sandboxRunID, "id", "", "Use specific run ID")
 	sandboxExecCmd.Flags().BoolVar(&sandboxOpen, "open", false, "Open the run in a browser")
 	sandboxExecCmd.Flags().BoolVar(&sandboxNoSync, "no-sync", false, "Skip syncing local changes before execution")
+	sandboxExecCmd.Flags().StringArrayVar(&sandboxInitParams, "init", []string{}, "initialization parameters for the sandbox run, available in the `init` context. Can be specified multiple times")
 
 	// stop flags
 	sandboxStopCmd.Flags().StringVar(&sandboxRunID, "id", "", "Stop specific sandbox by run ID")
@@ -394,5 +417,6 @@ func init() {
 	sandboxResetCmd.Flags().StringVarP(&sandboxRwxDir, "dir", "d", "", "RWX directory")
 	sandboxResetCmd.Flags().BoolVar(&sandboxOpen, "open", false, "Open the run in a browser")
 	sandboxResetCmd.Flags().BoolVar(&sandboxWait, "wait", false, "Wait for sandbox to be ready")
+	sandboxResetCmd.Flags().StringArrayVar(&sandboxInitParams, "init", []string{}, "initialization parameters for the sandbox run, available in the `init` context. Can be specified multiple times")
 
 }

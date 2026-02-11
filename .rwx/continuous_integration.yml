@@ -151,6 +151,7 @@ tasks:
       repository: https://github.com/rwx-cloud/rwx-testing.git
       ref: main
       github-token: ${{ github['rwx-cloud'].token }}
+      preserve-git-dir: true
 
   - key: jq
     run: |
@@ -173,3 +174,70 @@ tasks:
     filter:
       - rwx
       - rwx-testing/.mint/trigger-integration-test.yml
+
+  - key: run-rwx-testing-sandbox
+    use: [rwx-testing-code, rwx-cli]
+    run: |
+      cd ./rwx-testing
+      ../rwx sandbox start .mint/sandbox.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }} --wait
+
+      echo "new file" > new-file.txt
+      echo "# Change to existing file" >> .mint/sandbox.yml
+
+      new_file_sha=$(sha1sum new-file.txt | awk '{print $1}')
+      changed_file_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+
+      sandbox_new_file_sha=$(../rwx sandbox exec -- sha1sum new-file.txt | awk 'NR==1{print $1}')
+      if [ "$new_file_sha" != "$sandbox_new_file_sha" ]; then
+        echo "new-file.txt content mismatch in sandbox (local: $new_file_sha, sandbox: $sandbox_new_file_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      changed_file_sha_check=$(../rwx sandbox exec -- sha1sum .mint/sandbox.yml | awk 'NR==1{print $1}')
+      if [ "$changed_file_sha" != "$changed_file_sha_check" ]; then
+        echo ".mint/sandbox.yml content mismatch in sandbox (local: $changed_file_sha, sandbox: $changed_file_sha_check)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      post_new_file_sha=$(sha1sum new-file.txt | awk '{print $1}')
+      if [ "$new_file_sha" != "$post_new_file_sha" ]; then
+        echo "new-file.txt was modified during sandbox exec (expected $new_file_sha, got $post_new_file_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      post_sandbox_yml_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+      if [ "$changed_file_sha" != "$post_sandbox_yml_sha" ]; then
+        echo ".mint/sandbox.yml was modified during sandbox exec (expected $changed_file_sha, got $post_sandbox_yml_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      ../rwx sandbox exec -- 'echo "new sandbox file" > new-sandbox-file.txt'
+      expected_sha=$(echo "new sandbox file" | sha1sum | awk '{print $1}')
+      actual_sha=$(sha1sum new-sandbox-file.txt | awk '{print $1}')
+      if [ "$expected_sha" != "$actual_sha" ]; then
+        echo "new-sandbox-file.txt content mismatch after sandbox exec (expected $expected_sha, got $actual_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      ../rwx sandbox exec -- 'echo "# Sandbox modification" >> .mint/sandbox.yml'
+      sandbox_modified_sha=$(../rwx sandbox exec --no-sync -- sha1sum .mint/sandbox.yml | awk 'NR==1{print $1}')
+      modified_sandbox_yml_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+      if [ "$changed_file_sha" = "$modified_sandbox_yml_sha" ]; then
+        echo ".mint/sandbox.yml was not modified by sandbox exec (sha still $changed_file_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+      if [ "$sandbox_modified_sha" != "$modified_sandbox_yml_sha" ]; then
+        echo ".mint/sandbox.yml local/sandbox mismatch after modification (local: $modified_sandbox_yml_sha, sandbox: $sandbox_modified_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      ../rwx sandbox stop
+    env:
+      RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
