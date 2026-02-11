@@ -55,7 +55,7 @@ func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata ap
 		require.Equal(t, expectedPatchMetadata.LFSFiles, cfg.Patch.LFSFiles)
 		receivedRwxDir = cfg.RwxDirectory
 		return &api.InitiateRunResult{
-			RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+			RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 			RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 			TargetedTaskKeys: []string{},
 			DefinitionPath:   ".mint/mint.yml",
@@ -217,7 +217,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 				require.False(t, cfg.Patch.Sent) // so we skip the patch
 				receivedRwxDir = cfg.RwxDirectory
 				return &api.InitiateRunResult{
-					RunId:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+					RunID:            "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					RunURL:           "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
 					TargetedTaskKeys: []string{},
 					DefinitionPath:   ".mint/mint.yml",

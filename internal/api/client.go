@@ -260,7 +260,7 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 
 	if respBody.CamelRunId != "" {
 		return &InitiateRunResult{
-			RunId:            respBody.CamelRunId,
+			RunID:            respBody.CamelRunId,
 			RunURL:           respBody.CamelRunURL,
 			TargetedTaskKeys: respBody.CamelTargetedTaskKeys,
 			DefinitionPath:   respBody.CamelDefinitionPath,
@@ -268,7 +268,7 @@ func (c Client) InitiateRun(cfg InitiateRunConfig) (*InitiateRunResult, error) {
 		}, nil
 	} else {
 		return &InitiateRunResult{
-			RunId:            respBody.SnakeRunId,
+			RunID:            respBody.SnakeRunId,
 			RunURL:           respBody.SnakeRunURL,
 			TargetedTaskKeys: respBody.SnakeTargetedTaskKeys,
 			DefinitionPath:   respBody.SnakeDefinitionPath,

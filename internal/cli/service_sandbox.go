@@ -60,6 +60,7 @@ type StartSandboxResult struct {
 }
 
 type ExecSandboxResult struct {
+	RunID       string
 	ExitCode    int
 	RunURL      string
 	PulledFiles []string
@@ -267,13 +268,13 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 	}
 
 	if finishSpinner != nil {
-		finishSpinner(fmt.Sprintf("Started sandbox: %s\n%s", runResult.RunId, runResult.RunURL))
+		finishSpinner(fmt.Sprintf("Started sandbox: %s\n%s", runResult.RunID, runResult.RunURL))
 	}
 
 	// Request a scoped token for this run
 	var scopedToken string
 	tokenResult, err := s.APIClient.CreateSandboxToken(api.CreateSandboxTokenConfig{
-		RunID: runResult.RunId,
+		RunID: runResult.RunID,
 	})
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to create scoped token: %v\n", err)
@@ -283,7 +284,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Build result now so we can return it even if waiting fails
 	result := &StartSandboxResult{
-		RunID:      runResult.RunId,
+		RunID:      runResult.RunID,
 		RunURL:     runResult.RunURL,
 		ConfigFile: cfg.ConfigFile,
 	}
@@ -294,7 +295,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 	} else {
 		storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
-			RunID:       runResult.RunId,
+			RunID:       runResult.RunID,
 			ConfigFile:  cfg.ConfigFile,
 			ScopedToken: scopedToken,
 		})
@@ -305,7 +306,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Only wait for sandbox to be ready if --wait flag is set
 	if cfg.Wait {
-		_, err = s.waitForSandboxReadyWithToken(runResult.RunId, scopedToken, cfg.Json)
+		_, err = s.waitForSandboxReadyWithToken(runResult.RunID, scopedToken, cfg.Json)
 		if err != nil {
 			// Return result WITH error so caller can still use the URL
 			return result, err
@@ -467,7 +468,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	}
 
 	runURL := fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", runID)
-	return &ExecSandboxResult{ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
+	return &ExecSandboxResult{RunID: runID, ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
 }
 
 func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, error) {

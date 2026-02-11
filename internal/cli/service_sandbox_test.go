@@ -92,6 +92,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.True(t, connectedViaSSH)
 		require.Contains(t, executedCommands, "echo hello")
@@ -146,6 +147,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 1, result.ExitCode)
 		require.True(t, userCommandRan)
 	})
@@ -225,6 +227,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.True(t, patchApplied)
 		require.Equal(t, "diff --git a/file.txt b/file.txt\n", string(appliedPatch))
@@ -274,6 +277,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.False(t, syncPatchApplied)
 	})
@@ -326,6 +330,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.False(t, syncPatchApplied)
 	})
@@ -381,6 +386,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.False(t, syncPatchApplied)
 		require.Contains(t, setup.mockStderr.String(), "LFS file(s) changed")
@@ -482,6 +488,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		// Should have: sync start, test -d .git, reset for file.txt, user command, and sync markers
 		require.Contains(t, commandOrder[0], "__rwx_sandbox_sync_start__")
@@ -630,6 +637,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.Contains(t, result.PulledFiles, "file.txt")
 	})
@@ -681,6 +689,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 1, result.ExitCode)
 		require.Contains(t, result.PulledFiles, "file.txt")
 	})
@@ -872,6 +881,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.Contains(t, setup.mockStderr.String(), "Warning: failed to pull changes from sandbox")
 	})

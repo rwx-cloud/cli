@@ -95,7 +95,7 @@ func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) 
 		}
 
 		statusResult, err := s.APIClient.TaskKeyStatus(api.TaskKeyStatusConfig{
-			RunID:   runResult.RunId,
+			RunID:   runResult.RunID,
 			TaskKey: config.TargetTaskKey,
 		})
 		if err != nil {

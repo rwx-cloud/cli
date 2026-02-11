@@ -38,7 +38,7 @@ func TestService_InitiatingDispatch(t *testing.T) {
 			return &api.GetDispatchResult{
 				Status: "ready",
 				Runs: []api.GetDispatchRun{
-					{RunId: "run-123", RunUrl: "https://example.com/run-123"},
+					{RunID: "run-123", RunUrl: "https://example.com/run-123"},
 				},
 			}, nil
 		}
@@ -106,14 +106,14 @@ func TestService_GettingDispatch(t *testing.T) {
 			return &api.GetDispatchResult{
 				Status: "ready",
 				Runs: []api.GetDispatchRun{
-					{RunId: "runid", RunUrl: "runurl"},
+					{RunID: "runid", RunUrl: "runurl"},
 				},
 			}, nil
 		}
 
 		runs, err := s.service.GetDispatch(dispatchConfig)
 		require.NoError(t, err)
-		require.Equal(t, "runid", runs[0].RunId)
+		require.Equal(t, "runid", runs[0].RunID)
 		require.Equal(t, "runurl", runs[0].RunUrl)
 	})
 
