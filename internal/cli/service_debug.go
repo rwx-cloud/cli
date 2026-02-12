@@ -22,7 +22,6 @@ func (c DebugTaskConfig) Validate() error {
 
 // DebugTask will connect to a running task over SSH. Key exchange is facilitated over the Cloud API.
 func (s Service) DebugTask(cfg DebugTaskConfig) error {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return errors.Wrap(err, "validation failed")

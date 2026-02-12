@@ -14,9 +14,7 @@ func TestService_LoggingIn(t *testing.T) {
 	var tokenBackend accesstoken.Backend
 
 	beforeEachSetup := func(t *testing.T) {
-		var err error
-		tokenBackend, err = accesstoken.NewMemoryBackend()
-		require.NoError(t, err)
+		tokenBackend = accesstoken.NewMemoryBackend()
 	}
 
 	t.Run("when unable to obtain an auth code", func(t *testing.T) {

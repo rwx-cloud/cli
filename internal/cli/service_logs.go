@@ -39,7 +39,6 @@ type DownloadLogsResult struct {
 }
 
 func (s Service) DownloadLogs(cfg DownloadLogsConfig) (*DownloadLogsResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

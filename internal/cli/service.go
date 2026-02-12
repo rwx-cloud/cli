@@ -26,10 +26,14 @@ func NewService(cfg Config) (Service, error) {
 		return Service{}, errors.Wrap(err, "validation failed")
 	}
 
-	return Service{cfg}, nil
+	svc := Service{cfg}
+	svc.outputLatestVersionMessage()
+	return svc, nil
 }
 
 func (s Service) outputLatestVersionMessage() {
+	versions.LoadLatestVersionFromFile(s.VersionsBackend)
+
 	if !versions.NewVersionAvailable() {
 		return
 	}

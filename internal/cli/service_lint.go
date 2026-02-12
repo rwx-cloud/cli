@@ -54,7 +54,6 @@ func NewLintConfig(rwxDir string, formatString string) (LintConfig, error) {
 }
 
 func (s Service) Lint(cfg LintConfig) (*api.LintResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

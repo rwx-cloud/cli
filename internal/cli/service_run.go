@@ -32,7 +32,6 @@ func (c InitiateRunConfig) Validate() error {
 
 // InitiateRun will connect to the Cloud API and start a new run in Mint.
 func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

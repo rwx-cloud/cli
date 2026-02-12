@@ -31,7 +31,6 @@ type GetDispatchRun struct {
 }
 
 func (s Service) InitiateDispatch(cfg InitiateDispatchConfig) (*api.InitiateDispatchResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
@@ -51,7 +50,6 @@ func (s Service) InitiateDispatch(cfg InitiateDispatchConfig) (*api.InitiateDisp
 }
 
 func (s Service) GetDispatch(cfg GetDispatchConfig) ([]GetDispatchRun, error) {
-	defer s.outputLatestVersionMessage()
 	dispatchResult, err := s.APIClient.GetDispatch(api.GetDispatchConfig{
 		DispatchId: cfg.DispatchId,
 	})
