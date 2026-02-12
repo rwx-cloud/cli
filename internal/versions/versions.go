@@ -13,6 +13,8 @@ var versionHolder *lockedVersions
 
 var EmptyVersion = semver.MustParse("0.0.0")
 
+const latestVersionFilename = "latestversion"
+
 type lockedVersions struct {
 	currentVersion *semver.Version
 	latestVersion  *semver.Version
@@ -70,4 +72,30 @@ func InstalledWithHomebrew() bool {
 	}
 
 	return strings.Contains(strings.ToLower(fname), "/homebrew/")
+}
+
+func LoadLatestVersionFromFile(backend Backend) {
+	if backend == nil {
+		return
+	}
+
+	versionStr, err := backend.Get()
+	if err != nil || versionStr == "" {
+		return
+	}
+
+	_ = SetCliLatestVersion(versionStr)
+}
+
+func SaveLatestVersionToFile(backend Backend) {
+	if backend == nil {
+		return
+	}
+
+	latestVersion := GetCliLatestVersion()
+	if latestVersion.Equal(EmptyVersion) {
+		return
+	}
+
+	_ = backend.Set(latestVersion.String())
 }

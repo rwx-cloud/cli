@@ -32,7 +32,6 @@ func (c SetSecretsInVaultConfig) Validate() error {
 }
 
 func (s Service) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

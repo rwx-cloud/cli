@@ -5,17 +5,19 @@ import (
 
 	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
-	APIClient   APIClient
-	SSHClient   SSHClient
-	GitClient   GitClient
-	DockerCLI   docker.Client
-	Stdout      io.Writer
-	StdoutIsTTY bool
-	Stderr      io.Writer
-	StderrIsTTY bool
+	APIClient       APIClient
+	SSHClient       SSHClient
+	GitClient       GitClient
+	DockerCLI       docker.Client
+	VersionsBackend versions.Backend
+	Stdout          io.Writer
+	StdoutIsTTY     bool
+	Stderr          io.Writer
+	StderrIsTTY     bool
 }
 
 func (c Config) Validate() error {

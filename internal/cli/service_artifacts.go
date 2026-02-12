@@ -45,7 +45,6 @@ type DownloadArtifactResult struct {
 }
 
 func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifactResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

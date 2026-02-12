@@ -19,7 +19,6 @@ func (c WhoamiConfig) Validate() error {
 
 func (s Service) Whoami(cfg WhoamiConfig) (*api.WhoamiResult, error) {
 	result, err := s.APIClient.Whoami()
-	s.outputLatestVersionMessage()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to determine details about the access token")
 	}

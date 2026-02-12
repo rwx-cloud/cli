@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/versions"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +35,6 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 				Status:     "201 Created",
 				StatusCode: 201,
 				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
-				Header:     http.Header{"X-Rwx-Cli-Latest-Version": []string{"1000000.0.0"}},
 			}, nil
 		}
 
@@ -54,9 +52,6 @@ func TestAPIClient_InitiateRun(t *testing.T) {
 		result, err := c.InitiateRun(initRunConfig)
 		require.NoError(t, err)
 		require.Equal(t, "123", result.RunID)
-
-		require.Equal(t, "1000000.0.0", versions.GetCliLatestVersion().String())
-		require.True(t, versions.NewVersionAvailable())
 	})
 
 	t.Run("prefixes the endpoint with the base path and parses snakecase responses", func(t *testing.T) {

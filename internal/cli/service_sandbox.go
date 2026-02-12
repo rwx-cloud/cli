@@ -175,8 +175,6 @@ func (s Service) CheckExistingSandbox(configFile string) (*CheckExistingSandboxR
 }
 
 func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, error) {
-	defer s.outputLatestVersionMessage()
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get current directory")
@@ -321,8 +319,6 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 }
 
 func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) {
-	defer s.outputLatestVersionMessage()
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get current directory")
@@ -477,8 +473,6 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 }
 
 func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, error) {
-	defer s.outputLatestVersionMessage()
-
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load sandbox sessions")
@@ -525,8 +519,6 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 }
 
 func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) {
-	defer s.outputLatestVersionMessage()
-
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load sandbox sessions")
@@ -608,8 +600,6 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 }
 
 func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, error) {
-	defer s.outputLatestVersionMessage()
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get current directory")

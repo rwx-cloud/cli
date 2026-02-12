@@ -9,12 +9,14 @@ import (
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/messages"
+	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
 	Host               string
 	AccessToken        string
 	AccessTokenBackend accesstoken.Backend
+	VersionsBackend    versions.Backend
 }
 
 func (c Config) Validate() error {

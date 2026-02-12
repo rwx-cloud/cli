@@ -55,12 +55,12 @@ func NewClient(cfg Config) (Client, error) {
 		return http.DefaultClient.Do(req)
 	}
 
-	return NewClientWithRoundTrip(roundTrip), nil
+	roundTripper := versions.NewRoundTripper(roundTripFunc(roundTrip), cfg.VersionsBackend)
+	return Client{roundTripper}, nil
 }
 
 func NewClientWithRoundTrip(rt func(*http.Request) (*http.Response, error)) Client {
-	roundTripper := versions.NewRoundTripper(roundTripFunc(rt))
-	return Client{roundTripper}
+	return Client{roundTripFunc(rt)}
 }
 
 func (c Client) GetDebugConnectionInfo(debugKey string) (DebugConnectionInfo, error) {
