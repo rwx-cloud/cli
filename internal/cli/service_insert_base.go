@@ -41,7 +41,6 @@ func (r InsertDefaultBaseResult) HasChanges() bool {
 }
 
 func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, error) {
-	defer s.outputLatestVersionMessage()
 	err := cfg.Validate()
 	if err != nil {
 		return InsertDefaultBaseResult{}, errors.Wrap(err, "validation failed")

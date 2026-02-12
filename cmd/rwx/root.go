@@ -13,6 +13,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
+	"github.com/rwx-cloud/cli/internal/versions"
 	"golang.org/x/term"
 
 	"github.com/spf13/cobra"
@@ -44,8 +45,9 @@ var (
 			}
 
 			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
+			versionsBackend := versions.NewFileBackend(fileBackend)
 
-			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend})
+			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend, VersionsBackend: versionsBackend})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize API client")
 			}
@@ -71,11 +73,12 @@ var (
 					Binary: "git",
 					Dir:    dir,
 				},
-				DockerCLI:   dockerCli,
-				Stdout:      os.Stdout,
-				StdoutIsTTY: term.IsTerminal(int(os.Stdout.Fd())),
-				Stderr:      os.Stderr,
-				StderrIsTTY: term.IsTerminal(int(os.Stderr.Fd())),
+				DockerCLI:       dockerCli,
+				VersionsBackend: versionsBackend,
+				Stdout:          os.Stdout,
+				StdoutIsTTY:     term.IsTerminal(int(os.Stdout.Fd())),
+				Stderr:          os.Stderr,
+				StderrIsTTY:     term.IsTerminal(int(os.Stderr.Fd())),
 			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize CLI")

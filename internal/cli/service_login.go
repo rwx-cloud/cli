@@ -55,7 +55,6 @@ func (s Service) Login(cfg LoginConfig) error {
 
 	stop := func() {
 		stopSpinner()
-		s.outputLatestVersionMessage()
 	}
 
 	for {
