@@ -162,7 +162,7 @@ tasks:
   - key: run-rwx-testing-tests
     use: [rwx-testing-code, jq, rwx-cli]
     run: |
-      run_result=$(./rwx run --wait --json --file ./rwx-testing/.mint/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init lsp=main --init cli=${{ init.commit-sha }}) 
+      run_result=$(./rwx run --wait --json --file ./rwx-testing/.rwx/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init lsp=main --init cli=${{ init.commit-sha }}) 
       echo "${run_result}"
       result_status=$(echo "${run_result}" | jq -r ".ResultStatus")
 
@@ -173,19 +173,19 @@ tasks:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
     filter:
       - rwx
-      - rwx-testing/.mint/trigger-integration-test.yml
+      - rwx-testing/.rwx/trigger-integration-test.yml
 
   - key: run-rwx-testing-sandbox
     use: [rwx-testing-code, rwx-cli]
     run: |
       cd ./rwx-testing
-      ../rwx sandbox start .mint/sandbox.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }} --wait
+      ../rwx sandbox start .rwx/sandbox.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }} --wait
 
       echo "new file" > new-file.txt
-      echo "# Change to existing file" >> .mint/sandbox.yml
+      echo "# Change to existing file" >> .rwx/sandbox.yml
 
       new_file_sha=$(sha1sum new-file.txt | awk '{print $1}')
-      changed_file_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+      changed_file_sha=$(sha1sum .rwx/sandbox.yml | awk '{print $1}')
 
       sandbox_new_file_sha=$(../rwx sandbox exec -- sha1sum new-file.txt | awk 'NR==1{print $1}')
       if [ "$new_file_sha" != "$sandbox_new_file_sha" ]; then
@@ -194,9 +194,9 @@ tasks:
         exit 1
       fi
 
-      changed_file_sha_check=$(../rwx sandbox exec -- sha1sum .mint/sandbox.yml | awk 'NR==1{print $1}')
+      changed_file_sha_check=$(../rwx sandbox exec -- sha1sum .rwx/sandbox.yml | awk 'NR==1{print $1}')
       if [ "$changed_file_sha" != "$changed_file_sha_check" ]; then
-        echo ".mint/sandbox.yml content mismatch in sandbox (local: $changed_file_sha, sandbox: $changed_file_sha_check)"
+        echo ".rwx/sandbox.yml content mismatch in sandbox (local: $changed_file_sha, sandbox: $changed_file_sha_check)"
         ../rwx sandbox stop
         exit 1
       fi
@@ -208,9 +208,9 @@ tasks:
         exit 1
       fi
 
-      post_sandbox_yml_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+      post_sandbox_yml_sha=$(sha1sum .rwx/sandbox.yml | awk '{print $1}')
       if [ "$changed_file_sha" != "$post_sandbox_yml_sha" ]; then
-        echo ".mint/sandbox.yml was modified during sandbox exec (expected $changed_file_sha, got $post_sandbox_yml_sha)"
+        echo ".rwx/sandbox.yml was modified during sandbox exec (expected $changed_file_sha, got $post_sandbox_yml_sha)"
         ../rwx sandbox stop
         exit 1
       fi
@@ -224,16 +224,16 @@ tasks:
         exit 1
       fi
 
-      ../rwx sandbox exec -- 'echo "# Sandbox modification" >> .mint/sandbox.yml'
-      sandbox_modified_sha=$(../rwx sandbox exec --no-sync -- sha1sum .mint/sandbox.yml | awk 'NR==1{print $1}')
-      modified_sandbox_yml_sha=$(sha1sum .mint/sandbox.yml | awk '{print $1}')
+      ../rwx sandbox exec -- 'echo "# Sandbox modification" >> .rwx/sandbox.yml'
+      sandbox_modified_sha=$(../rwx sandbox exec --no-sync -- sha1sum .rwx/sandbox.yml | awk 'NR==1{print $1}')
+      modified_sandbox_yml_sha=$(sha1sum .rwx/sandbox.yml | awk '{print $1}')
       if [ "$changed_file_sha" = "$modified_sandbox_yml_sha" ]; then
-        echo ".mint/sandbox.yml was not modified by sandbox exec (sha still $changed_file_sha)"
+        echo ".rwx/sandbox.yml was not modified by sandbox exec (sha still $changed_file_sha)"
         ../rwx sandbox stop
         exit 1
       fi
       if [ "$sandbox_modified_sha" != "$modified_sandbox_yml_sha" ]; then
-        echo ".mint/sandbox.yml local/sandbox mismatch after modification (local: $modified_sandbox_yml_sha, sandbox: $sandbox_modified_sha)"
+        echo ".rwx/sandbox.yml local/sandbox mismatch after modification (local: $modified_sandbox_yml_sha, sandbox: $sandbox_modified_sha)"
         ../rwx sandbox stop
         exit 1
       fi
