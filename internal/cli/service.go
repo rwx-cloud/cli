@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path"
-	"strings"
 	"sync/atomic"
 
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -56,31 +54,6 @@ func (s Service) outputLatestVersionMessage() {
 	}
 
 	fmt.Fprintln(w)
-}
-
-func findSnippets(fileNames []string) (nonSnippetFileNames []string, snippetFileNames []string) {
-	for _, fileName := range fileNames {
-		if strings.HasPrefix(path.Base(fileName), "_") {
-			snippetFileNames = append(snippetFileNames, fileName)
-		} else {
-			nonSnippetFileNames = append(nonSnippetFileNames, fileName)
-		}
-	}
-	return nonSnippetFileNames, snippetFileNames
-}
-
-func removeDuplicates[T any, K comparable](list []T, identity func(t T) K) []T {
-	seen := make(map[K]bool)
-	var ts []T
-
-	for _, t := range list {
-		id := identity(t)
-		if _, found := seen[id]; !found {
-			seen[id] = true
-			ts = append(ts, t)
-		}
-	}
-	return ts
 }
 
 func Map[T any, R any](input []T, transformer func(T) R) []R {

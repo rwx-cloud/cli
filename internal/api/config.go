@@ -1,14 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
 
 	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/messages"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
 
@@ -105,75 +101,6 @@ type GetDispatchResult struct {
 	Status string
 	Error  string
 	Runs   []GetDispatchRun
-}
-
-type LintConfig struct {
-	TaskDefinitions []TaskDefinition `json:"task_definitions"`
-	TargetPaths     []string         `json:"target_paths"`
-}
-
-func (c LintConfig) Validate() error {
-	if len(c.TaskDefinitions) == 0 {
-		return errors.New("no task definitions")
-	}
-
-	if len(c.TargetPaths) == 0 {
-		return errors.New("no target paths")
-	}
-
-	return nil
-}
-
-type LintProblem struct {
-	Severity   string                `json:"severity"`
-	Message    string                `json:"message"`
-	FileName   string                `json:"file_name"`
-	Line       NullInt               `json:"line"`
-	Column     NullInt               `json:"column"`
-	Advice     string                `json:"advice"`
-	StackTrace []messages.StackEntry `json:"stack_trace,omitempty"`
-	Frame      string                `json:"frame"`
-}
-
-func (lf LintProblem) FileLocation() string {
-	fileName := lf.FileName
-	line := lf.Line
-	column := lf.Column
-
-	if len(lf.StackTrace) > 0 {
-		lastStackEntry := lf.StackTrace[len(lf.StackTrace)-1]
-		fileName = lastStackEntry.FileName
-		line = NullInt{
-			Value:  lastStackEntry.Line,
-			IsNull: false,
-		}
-		column = NullInt{
-			Value:  lastStackEntry.Column,
-			IsNull: false,
-		}
-	}
-
-	if len(fileName) > 0 {
-		var buf bytes.Buffer
-		w := io.Writer(&buf)
-
-		fmt.Fprint(w, fileName)
-
-		if !line.IsNull {
-			fmt.Fprintf(w, ":%d", line.Value)
-		}
-		if !column.IsNull {
-			fmt.Fprintf(w, ":%d", column.Value)
-		}
-
-		return buf.String()
-	}
-
-	return ""
-}
-
-type LintResult struct {
-	Problems []LintProblem `json:"problems"`
 }
 
 type ObtainAuthCodeConfig struct {

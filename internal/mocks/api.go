@@ -16,7 +16,6 @@ type API struct {
 	MockSetSecretsInVault          func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	MockGetPackageVersions         func() (*api.PackageVersionsResult, error)
 	MockGetPackageDocumentation    func(string) (*api.PackageDocumentationResult, error)
-	MockLint                       func(api.LintConfig) (*api.LintResult, error)
 	MockInitiateDispatch           func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
 	MockGetDispatch                func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
 	MockGetDefaultBase             func() (api.DefaultBaseResult, error)
@@ -112,14 +111,6 @@ func (c *API) GetPackageDocumentation(packageName string) (*api.PackageDocumenta
 	}
 
 	return nil, errors.New("MockGetPackageDocumentation was not configured")
-}
-
-func (c *API) Lint(cfg api.LintConfig) (*api.LintResult, error) {
-	if c.MockLint != nil {
-		return c.MockLint(cfg)
-	}
-
-	return nil, errors.New("MockLint was not configured")
 }
 
 func (c *API) InitiateDispatch(cfg api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error) {

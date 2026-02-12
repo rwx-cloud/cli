@@ -364,50 +364,6 @@ func (c Client) GetDispatch(cfg GetDispatchConfig) (*GetDispatchResult, error) {
 	}, nil
 }
 
-func (c Client) Lint(cfg LintConfig) (*LintResult, error) {
-	endpoint := "/mint/api/lints"
-
-	if err := cfg.Validate(); err != nil {
-		return nil, errors.Wrap(err, "validation failed")
-	}
-
-	encodedBody, err := json.Marshal(struct {
-		Lint LintConfig `json:"lint"`
-	}{cfg})
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to encode as JSON")
-	}
-
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to create new HTTP request")
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.RoundTrip(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "HTTP request failed")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		msg := extractErrorMessage(resp.Body)
-		if msg == "" {
-			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
-		}
-
-		return nil, errors.New(msg)
-	}
-
-	lintResult := LintResult{}
-	if err := json.NewDecoder(resp.Body).Decode(&lintResult); err != nil {
-		return nil, errors.Wrap(err, "unable to parse API response")
-	}
-
-	return &lintResult, nil
-}
-
 // ObtainAuthCode requests a new one-time-use code to login on a device
 func (c Client) ObtainAuthCode(cfg ObtainAuthCodeConfig) (*ObtainAuthCodeResult, error) {
 	endpoint := "/api/auth/codes"
