@@ -20,7 +20,6 @@ type APIClient interface {
 	InitiateDispatch(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
 	ObtainAuthCode(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
 	AcquireToken(tokenUrl string) (*api.AcquireTokenResult, error)
-	Lint(api.LintConfig) (*api.LintResult, error)
 	Whoami() (*api.WhoamiResult, error)
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)

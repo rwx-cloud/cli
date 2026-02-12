@@ -22,6 +22,22 @@ type MintYAMLFile struct {
 	Doc   *YAMLDoc
 }
 
+func FindAndValidateRwxDirectoryPath(dir string) (string, error) {
+	return findAndValidateRwxDirectoryPath(dir)
+}
+
+func RwxDirectoryEntries(dir string) ([]RwxDirectoryEntry, error) {
+	return rwxDirectoryEntries(dir)
+}
+
+func FilterYAMLFiles(entries []RwxDirectoryEntry) []RwxDirectoryEntry {
+	return filterYAMLFiles(entries)
+}
+
+func GetFileOrDirectoryYAMLEntries(files []string, rwxDir string) ([]RwxDirectoryEntry, error) {
+	return getFileOrDirectoryYAMLEntries(files, rwxDir)
+}
+
 func FindDefaultDownloadsDir() (string, error) {
 	rwxDirectoryPath, err := findAndValidateRwxDirectoryPath("")
 
