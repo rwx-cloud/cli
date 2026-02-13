@@ -16,14 +16,12 @@ $(LSP_BUILT_SENTINEL):
 		echo "Installing language-server dependencies..."; \
 		cd $(LANGUAGE_SERVER_DIR) && npm ci; \
 	fi
-	@echo "Compiling language-server..."
-	@cd $(LANGUAGE_SERVER_DIR) && npm run compile
-	@rm -rf $(LSP_BUNDLE_DIR)/out $(LSP_BUNDLE_DIR)/support $(LSP_BUNDLE_DIR)/node_modules
-	@cp -r $(LANGUAGE_SERVER_DIR)/out $(LSP_BUNDLE_DIR)/out
-	@cp -r $(LANGUAGE_SERVER_DIR)/support $(LSP_BUNDLE_DIR)/support
-	@cp -r $(LANGUAGE_SERVER_DIR)/node_modules $(LSP_BUNDLE_DIR)/node_modules
+	@echo "Bundling language-server..."
+	@cd $(LANGUAGE_SERVER_DIR) && npm run bundle
+	@rm -f $(LSP_BUNDLE_DIR)/server.js
+	@cp $(LANGUAGE_SERVER_DIR)/dist/server.js $(LSP_BUNDLE_DIR)/server.js
 	@touch $(LSP_BUILT_SENTINEL)
 
 clean:
 	rm -rf $(LANGUAGE_SERVER_DIR)
-	cd $(LSP_BUNDLE_DIR) && rm -rf out support node_modules .built
+	rm -f $(LSP_BUNDLE_DIR)/server.js $(LSP_BUNDLE_DIR)/.built
