@@ -23,9 +23,12 @@ concurrency-pools:
     capacity: 1
     on-overflow: cancel-waiting
 
+aliases:
+  lsp-ref: &lsp-ref 95d87639fb99ef4a5ee430b8a7020abd466596c9
+
 base:
-  os: ubuntu 24.04
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: verify-inputs
