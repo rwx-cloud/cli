@@ -24,8 +24,8 @@ concurrency-pools:
     on-overflow: cancel-waiting
 
 base:
-  os: ubuntu 24.04
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: verify-inputs
@@ -44,9 +44,14 @@ tasks:
 
   - key: tool-versions
     use: code
-    call: rwx/tool-versions 1.0.6
+    run: |
+      while read -r tool version _; do
+        printf "%s" "$version" > "$RWX_VALUES/$tool"
+      done < .tool-versions
+      cp language-server-ref $RWX_VALUES
     filter:
       - .tool-versions
+      - language-server-ref
 
   - key: go
     call: golang/install 1.2.0
@@ -135,28 +140,25 @@ tasks:
       GITHUB_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
-  - key: node
-    call: nodejs/install 1.1.11
+  - key: lsp-code
+    call: git/clone 2.0.3
     with:
-      node-version: ${{ tasks.tool-versions.values.nodejs }}
-
-  - key: lsp-server-code
-    call: git/clone 2.0.1
-    with:
-      path: ./language-server
       repository: https://github.com/rwx-cloud/language-server.git
-      ref: main
-      github-token: ${{ github['rwx-cloud'].token }}
+      ref: ${{ tasks.tool-versions.values.language-server-ref }}
+      path: language-server
+
+  - key: lsp-build-def
+    use: lsp-code
+    run: cp language-server/.rwx/build.yml $RWX_ARTIFACTS/build-run-def
+
+  - key: lsp-build
+    call: ${{ tasks.lsp-build-def.artifacts.build-run-def }}
+    init:
+      ref: ${{ tasks.tool-versions.values.language-server-ref }}
 
   - key: lsp-server
-    use: [node, lsp-server-code, code]
-    run: |
-      cd language-server
-      npm ci
-      npm run compile
-      cp -r out ../internal/lsp/bundle/out
-      cp -r support ../internal/lsp/bundle/support
-      cp -r node_modules ../internal/lsp/bundle/node_modules
+    use: code
+    run: cp ${{ tasks.lsp-build.tasks.build.artifacts.bundle }} internal/lsp/bundle/server.js
 
   - key: codesigning
     run: |
