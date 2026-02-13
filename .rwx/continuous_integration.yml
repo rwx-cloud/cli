@@ -10,14 +10,17 @@ on:
       commit-sha: ${{ event.git.sha }}
       ref: ${{ event.git.sha }}
 
+aliases:
+  lsp-ref: &lsp-ref 95d87639fb99ef4a5ee430b8a7020abd466596c9
+
 concurrency-pools:
   - id: rwx-cloud/cli:ci-${{ init.ref }}
     capacity: 1
     on-overflow: cancel-running
 
 base:
-  os: ubuntu 24.04
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: code
@@ -71,28 +74,25 @@ tasks:
 
       git lfs install --skip-repo
 
-  - key: node
-    call: nodejs/install 1.1.11
+  - key: lsp-code
+    call: git/clone 2.0.3
     with:
-      node-version: ${{ tasks.tool-versions.values.nodejs }}
-
-  - key: lsp-server-code
-    call: git/clone 2.0.1
-    with:
-      path: ./language-server
       repository: https://github.com/rwx-cloud/language-server.git
-      ref: main
-      github-token: ${{ github['rwx-cloud'].token }}
+      ref: *lsp-ref
+      path: language-server
+
+  - key: lsp-build-def
+    use: lsp-code
+    run: cp language-server/.rwx/build.yml $RWX_ARTIFACTS/build-run-def
+
+  - key: lsp-build
+    call: ${{ tasks.lsp-build-def.artifacts.build-run-def }}
+    init:
+      ref: *lsp-ref
 
   - key: lsp-server
-    use: [node, lsp-server-code, code]
-    run: |
-      cd language-server
-      npm ci
-      npm run compile
-      cp -r out ../internal/lsp/bundle/out
-      cp -r support ../internal/lsp/bundle/support
-      cp -r node_modules ../internal/lsp/bundle/node_modules
+    use: code
+    run: cp ${{ tasks.lsp-build.tasks.build.artifacts.bundle }} internal/lsp/bundle/server.js
 
   - key: unit-tests
     use: [go-deps, rwx-cli, gotestsum, git]
@@ -143,6 +143,11 @@ tasks:
         echo "go fmt produced changes"
         exit 1
       fi
+
+  - key: test-build
+    call: ${{ run.dir }}/build.yml
+    init:
+      ref: ${{ init.commit-sha }}
 
   - key: rwx-testing-code
     call: git/clone 2.0.1

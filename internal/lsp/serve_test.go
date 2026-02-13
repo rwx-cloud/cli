@@ -56,8 +56,8 @@ func TestEnsureBundle_ExtractsAndCachesBundle(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, serverJS, "server.js")
 
-	// serverJS is at <cache-dir>/bundle/out/server.js — go up 3 levels
-	cacheDir := filepath.Dir(filepath.Dir(filepath.Dir(serverJS)))
+	// serverJS is at <cache-dir>/bundle/server.js — go up 3 levels
+	cacheDir := filepath.Dir(filepath.Dir(serverJS))
 	markerFile := filepath.Join(cacheDir, ".extracted")
 	_, err = os.Stat(markerFile)
 	require.NoError(t, err, "marker file should exist after extraction")

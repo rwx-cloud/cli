@@ -72,7 +72,7 @@ func ensureBundle() (string, error) {
 
 	cacheDir := filepath.Join(homeDir, ".config", "rwx", "lsp-server", config.Version+"-"+hash)
 	markerFile := filepath.Join(cacheDir, ".extracted")
-	serverJS := filepath.Join(cacheDir, "bundle", "out", "server.js")
+	serverJS := filepath.Join(cacheDir, "bundle", "server.js")
 
 	currentName := filepath.Base(cacheDir)
 	parentDir := filepath.Dir(cacheDir)
