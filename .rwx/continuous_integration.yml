@@ -89,10 +89,8 @@ tasks:
     run: |
       cd language-server
       npm ci
-      npm run compile
-      cp -r out ../internal/lsp/bundle/out
-      cp -r support ../internal/lsp/bundle/support
-      cp -r node_modules ../internal/lsp/bundle/node_modules
+      npm run bundle
+      cp dist/server.js ../internal/lsp/bundle/server.js
 
   - key: unit-tests
     use: [go-deps, rwx-cli, gotestsum, git]
@@ -111,6 +109,24 @@ tasks:
     use: [go-deps, lsp-server]
     run: |
       go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
+
+  - key: binary-size-check
+    use: rwx-cli
+    run: |
+      max_size_mib=30
+      max_size_bytes=$((max_size_mib * 1024 * 1024))
+      actual_size=$(stat --printf="%s" rwx)
+      actual_size_mib=$((actual_size / 1024 / 1024))
+
+      echo "Binary size: ${actual_size_mib} MiB (${actual_size} bytes)"
+      echo "Maximum allowed: ${max_size_mib} MiB (${max_size_bytes} bytes)"
+
+      if [ "$actual_size" -gt "$max_size_bytes" ]; then
+        echo "Error: Binary size exceeds ${max_size_mib} MiB limit"
+        exit 1
+      fi
+
+      echo "Binary size check passed"
 
   - key: integration-tests
     use: rwx-cli
