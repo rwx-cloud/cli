@@ -10,9 +10,6 @@ on:
       commit-sha: ${{ event.git.sha }}
       ref: ${{ event.git.sha }}
 
-aliases:
-  lsp-ref: &lsp-ref 95d87639fb99ef4a5ee430b8a7020abd466596c9
-
 concurrency-pools:
   - id: rwx-cloud/cli:ci-${{ init.ref }}
     capacity: 1
@@ -33,9 +30,14 @@ tasks:
 
   - key: tool-versions
     use: code
-    call: rwx/tool-versions 1.0.6
+    run: |
+      while read -r tool version _; do
+        printf "%s" "$version" > "$RWX_VALUES/$tool"
+      done < .tool-versions
+      cp language-server-ref $RWX_VALUES
     filter:
       - .tool-versions
+      - language-server-ref
 
   - key: go-installation
     call: golang/install 1.2.0
@@ -78,7 +80,7 @@ tasks:
     call: git/clone 2.0.3
     with:
       repository: https://github.com/rwx-cloud/language-server.git
-      ref: *lsp-ref
+      ref: ${{ tasks.tool-versions.values.language-server-ref }}
       path: language-server
 
   - key: lsp-build-def
@@ -88,7 +90,7 @@ tasks:
   - key: lsp-build
     call: ${{ tasks.lsp-build-def.artifacts.build-run-def }}
     init:
-      ref: *lsp-ref
+      ref: ${{ tasks.tool-versions.values.language-server-ref }}
 
   - key: lsp-server
     use: code

@@ -15,10 +15,6 @@ concurrency-pools:
     capacity: 1
     on-overflow: cancel-waiting
 
-base:
-  os: ubuntu 24.04
-  tag: 1.2
-
 tasks:
   - key: ci
     call: ${{ run.dir }}/continuous_integration.yml
