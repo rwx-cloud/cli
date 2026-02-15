@@ -867,6 +867,41 @@ func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationS
 	}
 }
 
+func (c Client) GetAllArtifactDownloadRequests(taskId string) ([]ArtifactDownloadRequestResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/tasks/%s/artifact_downloads", url.PathEscape(taskId))
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errMsg := extractErrorMessage(resp.Body)
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, errors.Wrap(ErrNotFound, errMsg)
+		}
+		return nil, errors.New(errMsg)
+	}
+
+	var results []ArtifactDownloadRequestResult
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return results, nil
+}
+
 func (c Client) GetArtifactDownloadRequest(taskId, artifactKey string) (ArtifactDownloadRequestResult, error) {
 	endpoint := fmt.Sprintf("/mint/api/tasks/%s/artifact_downloads/%s", url.PathEscape(taskId), url.PathEscape(artifactKey))
 	result := ArtifactDownloadRequestResult{}

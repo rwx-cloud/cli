@@ -468,6 +468,275 @@ func TestService_DownloadArtifact(t *testing.T) {
 	})
 }
 
+func TestService_DownloadAllArtifacts(t *testing.T) {
+	t.Run("when no artifacts are found", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			require.Equal(t, "task-123", taskId)
+			return []api.ArtifactDownloadRequestResult{}, nil
+		}
+
+		result, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-123",
+			OutputDir: s.tmp,
+		})
+
+		require.NoError(t, err)
+		require.Empty(t, result.OutputFiles)
+		require.Contains(t, s.mockStdout.String(), "No artifacts found for task task-123")
+	})
+
+	t.Run("when task is not found", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return nil, api.ErrNotFound
+		}
+
+		_, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-999",
+			OutputDir: s.tmp,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Artifacts for task task-999 not found")
+	})
+
+	t.Run("when GetAllArtifactDownloadRequests fails with other error", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return nil, errors.New("network error")
+		}
+
+		_, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-123",
+			OutputDir: s.tmp,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to fetch artifact download requests")
+		require.Contains(t, err.Error(), "network error")
+	})
+
+	t.Run("when validation fails - missing task ID", func(t *testing.T) {
+		s := setupTest(t)
+
+		_, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "",
+			OutputDir: s.tmp,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validation failed")
+		require.Contains(t, err.Error(), "task ID must be provided")
+	})
+
+	t.Run("downloads multiple file artifacts", func(t *testing.T) {
+		s := setupTest(t)
+
+		tar1 := createTestTar(t, map[string][]byte{
+			"file-a.txt": []byte("content a"),
+		})
+		tar2 := createTestTar(t, map[string][]byte{
+			"file-b.txt": []byte("content b"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", Kind: "file", Key: "artifact-a"},
+				{URL: "https://example.com/b", Filename: "task-123~artifact-b.tar", Kind: "file", Key: "artifact-b"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			if request.URL == "https://example.com/a" {
+				return tar1, nil
+			}
+			return tar2, nil
+		}
+
+		result, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-123",
+			OutputDir: s.tmp,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.OutputFiles, 2)
+
+		contentA, err := os.ReadFile(filepath.Join(s.tmp, "task-123~artifact-a", "file-a.txt"))
+		require.NoError(t, err)
+		require.Equal(t, []byte("content a"), contentA)
+
+		contentB, err := os.ReadFile(filepath.Join(s.tmp, "task-123~artifact-b", "file-b.txt"))
+		require.NoError(t, err)
+		require.Equal(t, []byte("content b"), contentB)
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, "Downloaded 2 artifact(s)")
+	})
+
+	t.Run("downloads directory artifact without auto-extract saves tar", func(t *testing.T) {
+		s := setupTest(t)
+
+		tarBytes := createTestTar(t, map[string][]byte{
+			"file1.txt": []byte("content 1"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~my-dir.tar", Kind: "directory", Key: "my-dir"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return tarBytes, nil
+		}
+
+		result, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:      "task-123",
+			OutputDir:   s.tmp,
+			AutoExtract: false,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.OutputFiles, 1)
+		expectedPath := filepath.Join(s.tmp, "task-123~my-dir.tar")
+		require.FileExists(t, expectedPath)
+
+		actualContents, err := os.ReadFile(expectedPath)
+		require.NoError(t, err)
+		require.Equal(t, tarBytes, actualContents)
+	})
+
+	t.Run("downloads directory artifact with auto-extract", func(t *testing.T) {
+		s := setupTest(t)
+
+		tarBytes := createTestTar(t, map[string][]byte{
+			"file1.txt": []byte("content 1"),
+			"file2.txt": []byte("content 2"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~my-dir.tar", Kind: "directory", Key: "my-dir"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return tarBytes, nil
+		}
+
+		result, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:      "task-123",
+			OutputDir:   s.tmp,
+			AutoExtract: true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.OutputFiles, 2)
+
+		extractDir := filepath.Join(s.tmp, "task-123~my-dir")
+		require.FileExists(t, filepath.Join(extractDir, "file1.txt"))
+		require.FileExists(t, filepath.Join(extractDir, "file2.txt"))
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, "Extracted 2 file(s)")
+	})
+
+	t.Run("when one download fails", func(t *testing.T) {
+		s := setupTest(t)
+
+		tar1 := createTestTar(t, map[string][]byte{
+			"file-a.txt": []byte("content a"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", Kind: "file", Key: "artifact-a"},
+				{URL: "https://example.com/b", Filename: "task-123~artifact-b.tar", Kind: "file", Key: "artifact-b"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			if request.URL == "https://example.com/a" {
+				return tar1, nil
+			}
+			return nil, errors.New("download failed")
+		}
+
+		_, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-123",
+			OutputDir: s.tmp,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to download artifact artifact-b")
+	})
+
+	t.Run("with JSON output", func(t *testing.T) {
+		s := setupTest(t)
+
+		tar1 := createTestTar(t, map[string][]byte{
+			"file-a.txt": []byte("content a"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", Kind: "file", Key: "artifact-a"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return tar1, nil
+		}
+
+		_, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-123",
+			OutputDir: s.tmp,
+			Json:      true,
+		})
+
+		require.NoError(t, err)
+		output := s.mockStdout.String()
+		require.Contains(t, output, `"OutputFiles"`)
+		require.Contains(t, output, "file-a.txt")
+		require.NotContains(t, output, "Downloaded")
+	})
+
+	t.Run("with explicit output dir extracts directly into it", func(t *testing.T) {
+		s := setupTest(t)
+
+		tar1 := createTestTar(t, map[string][]byte{
+			"file-a.txt": []byte("content a"),
+		})
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", Kind: "file", Key: "artifact-a"},
+			}, nil
+		}
+
+		s.mockAPI.MockDownloadArtifact = func(request api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return tar1, nil
+		}
+
+		customDir := filepath.Join(s.tmp, "custom-output")
+		require.NoError(t, os.MkdirAll(customDir, 0755))
+
+		result, err := s.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:                 "task-123",
+			OutputDir:              customDir,
+			OutputDirExplicitlySet: true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.OutputFiles, 1)
+		require.FileExists(t, filepath.Join(customDir, "file-a.txt"))
+	})
+}
+
 func createTestTar(t *testing.T, files map[string][]byte) []byte {
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
