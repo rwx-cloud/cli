@@ -468,6 +468,141 @@ func TestService_DownloadArtifact(t *testing.T) {
 	})
 }
 
+func TestService_ListArtifacts(t *testing.T) {
+	t.Run("when validation fails - missing task ID", func(t *testing.T) {
+		s := setupTest(t)
+
+		_, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validation failed")
+		require.Contains(t, err.Error(), "task ID must be provided")
+	})
+
+	t.Run("when task is not found", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return nil, api.ErrNotFound
+		}
+
+		_, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-999",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Artifacts for task task-999 not found")
+	})
+
+	t.Run("when API fails with other error", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return nil, errors.New("network error")
+		}
+
+		_, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-123",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to fetch artifacts")
+	})
+
+	t.Run("lists no artifacts with text output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{}, nil
+		}
+
+		result, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-123",
+		})
+
+		require.NoError(t, err)
+		require.Empty(t, result.Artifacts)
+		require.Contains(t, s.mockStdout.String(), "No artifacts found for task task-123")
+	})
+
+	t.Run("lists multiple artifacts with text output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			require.Equal(t, "task-123", taskId)
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", SizeInBytes: 1024, Kind: "file", Key: "artifact-a"},
+				{URL: "https://example.com/b", Filename: "task-123~artifact-b.tar", SizeInBytes: 2097152, Kind: "directory", Key: "artifact-b"},
+			}, nil
+		}
+
+		result, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-123",
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Artifacts, 2)
+		require.Equal(t, "artifact-a", result.Artifacts[0].Key)
+		require.Equal(t, "artifact-b", result.Artifacts[1].Key)
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, "KEY")
+		require.Contains(t, output, "KIND")
+		require.Contains(t, output, "SIZE")
+		require.Contains(t, output, "artifact-a")
+		require.Contains(t, output, "file")
+		require.Contains(t, output, "1.0 KB")
+		require.Contains(t, output, "artifact-b")
+		require.Contains(t, output, "directory")
+		require.Contains(t, output, "2.0 MB")
+	})
+
+	t.Run("lists artifacts with JSON output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{URL: "https://example.com/a", Filename: "task-123~artifact-a.tar", SizeInBytes: 512, Kind: "file", Key: "artifact-a"},
+			}, nil
+		}
+
+		result, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-123",
+			Json:   true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Artifacts, 1)
+
+		output := s.mockStdout.String()
+		require.Contains(t, output, `"Artifacts"`)
+		require.Contains(t, output, `"Key":"artifact-a"`)
+		require.Contains(t, output, `"Kind":"file"`)
+		require.Contains(t, output, `"SizeInBytes":512`)
+		require.NotContains(t, output, "Artifacts for task")
+	})
+
+	t.Run("lists empty artifacts with JSON output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockGetAllArtifactDownloadRequests = func(taskId string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{}, nil
+		}
+
+		_, err := s.service.ListArtifacts(cli.ListArtifactsConfig{
+			TaskID: "task-123",
+			Json:   true,
+		})
+
+		require.NoError(t, err)
+		output := s.mockStdout.String()
+		require.Contains(t, output, `"Artifacts"`)
+		require.NotContains(t, output, "No artifacts found")
+	})
+}
+
 func TestService_DownloadAllArtifacts(t *testing.T) {
 	t.Run("when no artifacts are found", func(t *testing.T) {
 		s := setupTest(t)

@@ -174,6 +174,104 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifact
 	return result, nil
 }
 
+type ListArtifactsConfig struct {
+	TaskID string
+	Json   bool
+}
+
+func (c ListArtifactsConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}
+
+type ArtifactInfo struct {
+	Key         string
+	Kind        string
+	SizeInBytes int64
+}
+
+type ListArtifactsResult struct {
+	Artifacts []ArtifactInfo
+}
+
+func (s Service) ListArtifacts(cfg ListArtifactsConfig) (*ListArtifactsResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	artifactDownloadRequests, err := s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	if err != nil {
+		if errors.Is(err, api.ErrNotFound) {
+			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
+		}
+		return nil, errors.Wrap(err, "unable to fetch artifacts")
+	}
+
+	artifacts := make([]ArtifactInfo, len(artifactDownloadRequests))
+	for i, req := range artifactDownloadRequests {
+		artifacts[i] = ArtifactInfo{
+			Key:         req.Key,
+			Kind:        req.Kind,
+			SizeInBytes: req.SizeInBytes,
+		}
+	}
+
+	result := &ListArtifactsResult{Artifacts: artifacts}
+
+	if cfg.Json {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(artifacts) == 0 {
+			fmt.Fprintf(s.Stdout, "No artifacts found for task %s\n", cfg.TaskID)
+		} else {
+			maxKeyLen := len("KEY")
+			maxKindLen := len("KIND")
+			maxSizeLen := len("SIZE")
+			for _, a := range artifacts {
+				if len(a.Key) > maxKeyLen {
+					maxKeyLen = len(a.Key)
+				}
+				if len(a.Kind) > maxKindLen {
+					maxKindLen = len(a.Kind)
+				}
+				if s := formatBytes(a.SizeInBytes); len(s) > maxSizeLen {
+					maxSizeLen = len(s)
+				}
+			}
+			fmtStr := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", maxKeyLen, maxKindLen)
+			fmt.Fprintf(s.Stdout, fmtStr, "KEY", "KIND", "SIZE")
+			for _, a := range artifacts {
+				fmt.Fprintf(s.Stdout, fmtStr, a.Key, a.Kind, formatBytes(a.SizeInBytes))
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func formatBytes(b int64) string {
+	const (
+		kb = 1024
+		mb = 1024 * kb
+		gb = 1024 * mb
+	)
+	switch {
+	case b >= gb:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
+	case b >= mb:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
+	case b >= kb:
+		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
 type DownloadAllArtifactsConfig struct {
 	TaskID                 string
 	OutputDir              string
