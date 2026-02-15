@@ -1,7 +1,6 @@
 on:
   github:
-    push:
-      if: ${{ event.git.branch != 'main' }}
+    pull_request:
       init:
         commit-sha: ${{ event.git.sha }}
         ref: ${{ event.git.ref }}
