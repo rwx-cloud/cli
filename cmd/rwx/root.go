@@ -75,6 +75,7 @@ var (
 				},
 				DockerCLI:       dockerCli,
 				VersionsBackend: versionsBackend,
+				Stdin:           os.Stdin,
 				Stdout:          os.Stdout,
 				StdoutIsTTY:     term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:          os.Stderr,
