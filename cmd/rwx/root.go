@@ -10,6 +10,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/cli"
 	internalconfig "github.com/rwx-cloud/cli/internal/config"
 	"github.com/rwx-cloud/cli/internal/docker"
+	"github.com/rwx-cloud/cli/internal/docs"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
@@ -25,6 +26,8 @@ var (
 	Output      string
 
 	rwxHost            string
+	docsHost           = "www.rwx.com"
+	docsScheme         = "https"
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
 
@@ -74,7 +77,9 @@ var (
 					Dir:    dir,
 				},
 				DockerCLI:       dockerCli,
+				DocsClient:      docs.Client{Host: docsHost, Scheme: docsScheme},
 				VersionsBackend: versionsBackend,
+				Stdin:           os.Stdin,
 				Stdout:          os.Stdout,
 				StdoutIsTTY:     term.IsTerminal(int(os.Stdout.Fd())),
 				Stderr:          os.Stderr,
@@ -110,6 +115,11 @@ func init() {
 		rwxHost = rwxHostEnv
 	}
 
+	if docsHostEnv := os.Getenv("RWX_DOCS_HOST"); docsHostEnv != "" {
+		docsHost = docsHostEnv
+		docsScheme = "http"
+	}
+
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
 	rootCmd.PersistentFlags().BoolVar(&Json, "json", false, "output json data to stdout")
 	_ = rootCmd.PersistentFlags().MarkHidden("json")
@@ -143,6 +153,7 @@ func init() {
 	rootCmd.AddCommand(sandboxCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(vaultsCmd)
+	rootCmd.AddCommand(docsCmd)
 	rootCmd.AddCommand(resultsCmd)
 	rootCmd.AddCommand(whoamiCmd)
 

@@ -17,7 +17,7 @@ concurrency-pools:
 
 tasks:
   - key: ci
-    call: ${{ run.dir }}/continuous_integration.yml
+    call: ${{ run.dir }}/ci.yml
     init:
       commit-sha: ${{ init.commit-sha }}
       ref: ${{ init.ref }}
