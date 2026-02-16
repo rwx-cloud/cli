@@ -10,6 +10,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/cli"
 	internalconfig "github.com/rwx-cloud/cli/internal/config"
 	"github.com/rwx-cloud/cli/internal/docker"
+	"github.com/rwx-cloud/cli/internal/docs"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
@@ -25,6 +26,7 @@ var (
 	Output      string
 
 	rwxHost            string
+	docsHost           = "www.rwx.com"
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
 
@@ -74,6 +76,7 @@ var (
 					Dir:    dir,
 				},
 				DockerCLI:       dockerCli,
+				DocsClient:      docs.Client{Host: docsHost},
 				VersionsBackend: versionsBackend,
 				Stdin:           os.Stdin,
 				Stdout:          os.Stdout,
@@ -144,6 +147,7 @@ func init() {
 	rootCmd.AddCommand(sandboxCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(vaultsCmd)
+	rootCmd.AddCommand(docsCmd)
 	rootCmd.AddCommand(resultsCmd)
 	rootCmd.AddCommand(whoamiCmd)
 
