@@ -27,6 +27,7 @@ var (
 
 	rwxHost            string
 	docsHost           = "www.rwx.com"
+	docsScheme         = "https"
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
 
@@ -76,7 +77,7 @@ var (
 					Dir:    dir,
 				},
 				DockerCLI:       dockerCli,
-				DocsClient:      docs.Client{Host: docsHost},
+				DocsClient:      docs.Client{Host: docsHost, Scheme: docsScheme},
 				VersionsBackend: versionsBackend,
 				Stdin:           os.Stdin,
 				Stdout:          os.Stdout,
@@ -112,6 +113,11 @@ func init() {
 		rwxHost = mintHostEnv
 	} else {
 		rwxHost = rwxHostEnv
+	}
+
+	if docsHostEnv := os.Getenv("RWX_DOCS_HOST"); docsHostEnv != "" {
+		docsHost = docsHostEnv
+		docsScheme = "http"
 	}
 
 	rootCmd.PersistentFlags().StringVar(&AccessToken, "access-token", "$RWX_ACCESS_TOKEN", "the access token for RWX")
