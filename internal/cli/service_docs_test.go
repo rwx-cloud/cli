@@ -224,6 +224,42 @@ func TestService_DocsSearch(t *testing.T) {
 		require.Empty(t, s.mockStdout.String())
 	})
 
+	t.Run("when multiple results are returned in TTY json mode", func(t *testing.T) {
+		s := setupDocsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeJSON(t, w, docs.SearchResponse{
+				Query:     "caching",
+				TotalHits: 2,
+				Results: []docs.SearchResult{
+					{
+						Title:   "Content Caching",
+						URL:     "https://www.rwx.com/docs/mint/caching",
+						Path:    "/mint/caching",
+						Snippet: "Learn about content-based caching.",
+					},
+					{
+						Title:   "Cache Configuration",
+						URL:     "https://www.rwx.com/docs/mint/cache-config",
+						Path:    "/mint/cache-config",
+						Snippet: "Configure cache behavior.",
+					},
+				},
+			})
+		}))
+
+		result, err := s.service.DocsSearch(cli.DocsSearchConfig{
+			Query:       "caching",
+			Limit:       5,
+			Json:        true,
+			StdoutIsTTY: true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 2, result.TotalHits)
+		require.Len(t, result.Results, 2)
+		// JSON mode: service should not print list or prompt for input
+		require.Empty(t, s.mockStdout.String())
+	})
+
 	t.Run("when multiple results are returned in TTY mode and user selects one", func(t *testing.T) {
 		s := setupDocsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {

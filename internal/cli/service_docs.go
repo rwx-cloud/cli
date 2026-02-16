@@ -77,17 +77,24 @@ func (s Service) DocsSearch(cfg DocsSearchConfig) (*DocsSearchResult, error) {
 		}, nil
 	}
 
+	// Multiple results, JSON: return structured data without interactive prompting
+	if cfg.Json {
+		return &DocsSearchResult{
+			Query:     resp.Query,
+			TotalHits: resp.TotalHits,
+			Results:   resp.Results,
+		}, nil
+	}
+
 	// Multiple results, non-TTY: print list
 	if !cfg.StdoutIsTTY {
-		if !cfg.Json {
-			for _, r := range resp.Results {
-				fmt.Fprintln(s.Stdout, r.Title)
-				fmt.Fprintf(s.Stdout, "  %s\n", r.URL)
-				if r.Snippet != "" {
-					fmt.Fprintf(s.Stdout, "  %s\n", r.Snippet)
-				}
-				fmt.Fprintln(s.Stdout)
+		for _, r := range resp.Results {
+			fmt.Fprintln(s.Stdout, r.Title)
+			fmt.Fprintf(s.Stdout, "  %s\n", r.URL)
+			if r.Snippet != "" {
+				fmt.Fprintf(s.Stdout, "  %s\n", r.Snippet)
 			}
+			fmt.Fprintln(s.Stdout)
 		}
 
 		return &DocsSearchResult{
