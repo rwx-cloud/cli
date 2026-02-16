@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/rwx-cloud/cli/cmd/rwx/config"
 )
@@ -81,8 +82,28 @@ func (c Client) Search(query string, limit int) (*SearchResponse, error) {
 	return &result, nil
 }
 
+// resolveURL converts a URL or path into a fully qualified request URL.
+// It accepts full URLs (with or without scheme), host-prefixed paths, and bare paths.
+func (c Client) resolveURL(urlOrPath string) string {
+	host := c.host()
+	hostWithoutWWW := strings.TrimPrefix(host, "www.")
+
+	// Full URL with scheme: https://www.rwx.com/docs/... or http://rwx.com/docs/...
+	if strings.HasPrefix(urlOrPath, "https://") || strings.HasPrefix(urlOrPath, "http://") {
+		return urlOrPath
+	}
+
+	// Host-prefixed without scheme: www.rwx.com/docs/... or rwx.com/docs/...
+	if strings.HasPrefix(urlOrPath, host) || strings.HasPrefix(urlOrPath, hostWithoutWWW) {
+		return fmt.Sprintf("%s://%s", c.scheme(), urlOrPath)
+	}
+
+	// Bare path: /docs/rwx/guides/ci
+	return fmt.Sprintf("%s://%s%s", c.scheme(), host, urlOrPath)
+}
+
 func (c Client) FetchArticle(urlOrPath string) (string, error) {
-	reqURL := fmt.Sprintf("%s://%s%s", c.scheme(), c.host(), urlOrPath)
+	reqURL := c.resolveURL(urlOrPath)
 
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {

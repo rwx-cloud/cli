@@ -378,6 +378,28 @@ func TestService_DocsPull(t *testing.T) {
 		require.Empty(t, s.mockStdout.String())
 	})
 
+	t.Run("when a full URL is provided", func(t *testing.T) {
+		s := setupDocsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/docs/rwx/guides/ci", r.URL.Path)
+			require.Equal(t, "text/markdown", r.Header.Get("Accept"))
+
+			fmt.Fprint(w, "# CI Guide\n\nWelcome to CI.")
+		}))
+
+		// Build a full URL using the test server's address
+		addr := s.config.DocsClient.Host
+		fullURL := fmt.Sprintf("http://%s/docs/rwx/guides/ci", addr)
+
+		result, err := s.service.DocsPull(cli.DocsPullConfig{
+			URL: fullURL,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, fullURL, result.URL)
+		require.Contains(t, s.mockStdout.String(), "# CI Guide")
+		require.Contains(t, s.mockStdout.String(), "Welcome to CI.")
+	})
+
 	t.Run("when the article API returns an error", func(t *testing.T) {
 		s := setupDocsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
