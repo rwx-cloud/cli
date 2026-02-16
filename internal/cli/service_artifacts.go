@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/skratchdot/open-golang/open"
 
@@ -165,6 +166,262 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifact
 		} else {
 			fmt.Fprintf(s.Stdout, "Artifact downloaded and extracted:\n")
 			for _, file := range outputFiles {
+				fmt.Fprintf(s.Stdout, "  %s\n", file)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+type ListArtifactsConfig struct {
+	TaskID string
+	Json   bool
+}
+
+func (c ListArtifactsConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}
+
+type ArtifactInfo struct {
+	Key         string
+	Kind        string
+	SizeInBytes int64
+}
+
+type ListArtifactsResult struct {
+	Artifacts []ArtifactInfo
+}
+
+func (s Service) ListArtifacts(cfg ListArtifactsConfig) (*ListArtifactsResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	artifactDownloadRequests, err := s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	if err != nil {
+		if errors.Is(err, api.ErrNotFound) {
+			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
+		}
+		return nil, errors.Wrap(err, "unable to fetch artifacts")
+	}
+
+	artifacts := make([]ArtifactInfo, len(artifactDownloadRequests))
+	for i, req := range artifactDownloadRequests {
+		artifacts[i] = ArtifactInfo{
+			Key:         req.Key,
+			Kind:        req.Kind,
+			SizeInBytes: req.SizeInBytes,
+		}
+	}
+
+	result := &ListArtifactsResult{Artifacts: artifacts}
+
+	if cfg.Json {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(artifacts) == 0 {
+			fmt.Fprintf(s.Stdout, "No artifacts found for task %s\n", cfg.TaskID)
+		} else {
+			maxKeyLen := len("KEY")
+			maxKindLen := len("KIND")
+			maxSizeLen := len("SIZE")
+			for _, a := range artifacts {
+				if len(a.Key) > maxKeyLen {
+					maxKeyLen = len(a.Key)
+				}
+				if len(a.Kind) > maxKindLen {
+					maxKindLen = len(a.Kind)
+				}
+				if s := formatBytes(a.SizeInBytes); len(s) > maxSizeLen {
+					maxSizeLen = len(s)
+				}
+			}
+			fmtStr := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", maxKeyLen, maxKindLen)
+			fmt.Fprintf(s.Stdout, fmtStr, "KEY", "KIND", "SIZE")
+			for _, a := range artifacts {
+				fmt.Fprintf(s.Stdout, fmtStr, a.Key, a.Kind, formatBytes(a.SizeInBytes))
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func formatBytes(b int64) string {
+	const (
+		kb = 1024
+		mb = 1024 * kb
+		gb = 1024 * mb
+	)
+	switch {
+	case b >= gb:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
+	case b >= mb:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
+	case b >= kb:
+		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
+type DownloadAllArtifactsConfig struct {
+	TaskID                 string
+	OutputDir              string
+	OutputDirExplicitlySet bool
+	Json                   bool
+	AutoExtract            bool
+	Open                   bool
+}
+
+func (c DownloadAllArtifactsConfig) Validate() error {
+	if c.TaskID == "" {
+		return errors.New("task ID must be provided")
+	}
+	return nil
+}
+
+type DownloadAllArtifactsResult struct {
+	OutputFiles []string
+}
+
+func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (*DownloadAllArtifactsResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	artifactDownloadRequests, err := s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	if err != nil {
+		if errors.Is(err, api.ErrNotFound) {
+			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
+		}
+		return nil, errors.Wrap(err, "unable to fetch artifact download requests")
+	}
+
+	if len(artifactDownloadRequests) == 0 {
+		if !cfg.Json {
+			fmt.Fprintf(s.Stdout, "No artifacts found for task %s\n", cfg.TaskID)
+		}
+		result := &DownloadAllArtifactsResult{}
+		if cfg.Json {
+			if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+				return nil, errors.Wrap(err, "unable to encode JSON output")
+			}
+		}
+		return result, nil
+	}
+
+	stopSpinner := Spin(
+		fmt.Sprintf("Downloading %d artifact(s)...", len(artifactDownloadRequests)),
+		s.StderrIsTTY,
+		s.Stderr,
+	)
+
+	type downloadResult struct {
+		index int
+		bytes []byte
+		err   error
+	}
+
+	results := make([]downloadResult, len(artifactDownloadRequests))
+	var wg sync.WaitGroup
+	for i, req := range artifactDownloadRequests {
+		wg.Add(1)
+		go func(idx int, r api.ArtifactDownloadRequestResult) {
+			defer wg.Done()
+			artifactBytes, err := s.APIClient.DownloadArtifact(r)
+			results[idx] = downloadResult{index: idx, bytes: artifactBytes, err: err}
+		}(i, req)
+	}
+	wg.Wait()
+	stopSpinner()
+
+	for _, r := range results {
+		if r.err != nil {
+			return nil, errors.Wrapf(r.err, "unable to download artifact %s", artifactDownloadRequests[r.index].Key)
+		}
+	}
+
+	var allOutputFiles []string
+	for i, req := range artifactDownloadRequests {
+		artifactBytes := results[i].bytes
+		shouldExtract := req.Kind == "file" || (req.Kind == "directory" && cfg.AutoExtract)
+
+		if shouldExtract {
+			var extractDir string
+			if cfg.OutputDirExplicitlySet {
+				extractDir = cfg.OutputDir
+			} else {
+				dirName := strings.TrimSuffix(req.Filename, ".tar")
+				dirName = filepath.Base(dirName)
+				extractDir = filepath.Join(cfg.OutputDir, dirName)
+			}
+
+			if err := os.MkdirAll(extractDir, 0755); err != nil {
+				return nil, errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
+			}
+
+			extractedFiles, err := extractTar(artifactBytes, extractDir)
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to extract tar archive for artifact %s", req.Key)
+			}
+
+			if !cfg.Json && req.Kind == "directory" {
+				fmt.Fprintf(s.Stdout, "Extracted %d file(s) to %s\n", len(extractedFiles), extractDir)
+			}
+
+			allOutputFiles = append(allOutputFiles, extractedFiles...)
+		} else {
+			outputPath := filepath.Join(cfg.OutputDir, req.Filename)
+			outputDir := filepath.Dir(outputPath)
+			if err := os.MkdirAll(outputDir, 0755); err != nil {
+				return nil, errors.Wrapf(err, "unable to create output directory %s", outputDir)
+			}
+
+			if _, err := os.Stat(outputPath); err == nil {
+				if !cfg.Json {
+					fmt.Fprintf(s.Stdout, "Overwriting existing file at %s\n", outputPath)
+				}
+			}
+
+			if err := os.WriteFile(outputPath, artifactBytes, 0644); err != nil {
+				return nil, errors.Wrapf(err, "unable to write artifact file to %s", outputPath)
+			}
+
+			allOutputFiles = append(allOutputFiles, outputPath)
+		}
+	}
+
+	if cfg.Open {
+		for _, file := range allOutputFiles {
+			if err := open.Run(file); err != nil {
+				if !cfg.Json {
+					fmt.Fprintf(s.Stderr, "Failed to open %s: %v\n", file, err)
+				}
+			}
+		}
+	}
+
+	result := &DownloadAllArtifactsResult{OutputFiles: allOutputFiles}
+
+	if cfg.Json {
+		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		if len(allOutputFiles) == 1 {
+			fmt.Fprintf(s.Stdout, "Artifact downloaded to %s\n", allOutputFiles[0])
+		} else {
+			fmt.Fprintf(s.Stdout, "Downloaded %d artifact(s):\n", len(artifactDownloadRequests))
+			for _, file := range allOutputFiles {
 				fmt.Fprintf(s.Stdout, "  %s\n", file)
 			}
 		}

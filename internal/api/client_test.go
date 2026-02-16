@@ -773,6 +773,88 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 	})
 }
 
+func TestAPIClient_GetAllArtifactDownloadRequests(t *testing.T) {
+	t.Run("parses array response", func(t *testing.T) {
+		body := []struct {
+			URL         string `json:"url"`
+			Filename    string `json:"filename"`
+			SizeInBytes int64  `json:"size_in_bytes"`
+			Kind        string `json:"kind"`
+			Key         string `json:"key"`
+		}{
+			{
+				URL:         "https://s3.example.com/artifacts/abc123",
+				Filename:    "task-123~artifact-a.tar",
+				SizeInBytes: 1024,
+				Kind:        "file",
+				Key:         "artifact-a",
+			},
+			{
+				URL:         "https://s3.example.com/artifacts/def456",
+				Filename:    "task-123~artifact-b.tar",
+				SizeInBytes: 2048,
+				Kind:        "directory",
+				Key:         "artifact-b",
+			},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/tasks/task-123/artifact_downloads", req.URL.Path)
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		results, err := c.GetAllArtifactDownloadRequests("task-123")
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		require.Equal(t, "artifact-a", results[0].Key)
+		require.Equal(t, "file", results[0].Kind)
+		require.Equal(t, "artifact-b", results[1].Key)
+		require.Equal(t, "directory", results[1].Kind)
+	})
+
+	t.Run("handles 404 not found", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: 404,
+				Body:       io.NopCloser(bytes.NewReader([]byte(`{"error": "Task not found"}`))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.GetAllArtifactDownloadRequests("task-999")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("handles empty array", func(t *testing.T) {
+		bodyBytes, _ := json.Marshal([]struct{}{})
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		results, err := c.GetAllArtifactDownloadRequests("task-123")
+		require.NoError(t, err)
+		require.Empty(t, results)
+	})
+}
+
 func TestAPIClient_RunStatus(t *testing.T) {
 	t.Run("parses the response when run is in progress", func(t *testing.T) {
 		backoffMs := 2000
