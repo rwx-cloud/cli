@@ -1,0 +1,53 @@
+on:
+  cron:
+    - key: language-server-update
+      schedule: "0 7 * * * America/New_York" # At 7am daily
+
+base:
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
+
+tasks:
+  - key: code
+    call: git/clone 2.0.1
+    with:
+      repository: https://github.com/rwx-cloud/cli.git
+      ref: main
+      github-token: ${{ github['rwx-cloud'].token }}
+      preserve-git-dir: true
+
+  - key: gh-cli
+    call: github/install-cli 1.0.8
+
+  - key: update-ref
+    use: [code, gh-cli]
+    cache: false
+    run: |
+      echo "$RWX_RUN_URL" > "$RWX_VALUES/run-url"
+
+      if git status --porcelain | grep -q .; then
+        echo "git working directory is not clean"
+        exit 1
+      fi
+
+      NEW_REF=$(gh api repos/rwx-cloud/language-server/commits/main --jq '.sha')
+      CURRENT_REF=$(cat language-server-ref)
+
+      if [ "$NEW_REF" = "$CURRENT_REF" ]; then
+        echo "language-server-ref is already up to date"
+        exit 0
+      fi
+
+      echo "$NEW_REF" > language-server-ref
+    env:
+      GITHUB_TOKEN: ${{ github['rwx-cloud'].token }}
+
+  - key: create-pull-request
+    call: github/create-pull-request 1.0.3
+    use: update-ref
+    with:
+      github-token: ${{ github-apps.rwx-cloud-bot.token }}
+      branch-prefix: language-server-update
+      pull-request-title: Update language-server-ref
+      pull-request-body: |
+        This PR was generated from ${{ tasks.update-ref.values.run-url }}
