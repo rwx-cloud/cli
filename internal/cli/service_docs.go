@@ -148,4 +148,3 @@ func (s Service) DocsPull(cfg DocsPullConfig) (*DocsPullResult, error) {
 
 	return result, nil
 }
-
