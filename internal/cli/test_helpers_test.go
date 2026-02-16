@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ type testSetup struct {
 	mockSSH    *mocks.SSH
 	mockGit    *mocks.Git
 	mockDocker *mocks.DockerClient
+	mockStdin  *bytes.Buffer
 	mockStdout *strings.Builder
 	mockStderr *strings.Builder
 	tmp        string
@@ -42,6 +44,7 @@ func setupTest(t *testing.T) *testSetup {
 	setup.mockSSH = new(mocks.SSH)
 	setup.mockGit = new(mocks.Git)
 	setup.mockDocker = new(mocks.DockerClient)
+	setup.mockStdin = &bytes.Buffer{}
 	setup.mockStdout = &strings.Builder{}
 	setup.mockStderr = &strings.Builder{}
 
@@ -50,6 +53,7 @@ func setupTest(t *testing.T) *testSetup {
 		SSHClient:   setup.mockSSH,
 		GitClient:   setup.mockGit,
 		DockerCLI:   setup.mockDocker,
+		Stdin:       setup.mockStdin,
 		Stdout:      setup.mockStdout,
 		StdoutIsTTY: false,
 		Stderr:      setup.mockStderr,

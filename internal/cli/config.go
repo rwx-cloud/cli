@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/rwx-cloud/cli/internal/docker"
+	"github.com/rwx-cloud/cli/internal/docs"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
@@ -13,7 +14,9 @@ type Config struct {
 	SSHClient       SSHClient
 	GitClient       GitClient
 	DockerCLI       docker.Client
+	DocsClient      docs.Client
 	VersionsBackend versions.Backend
+	Stdin           io.Reader
 	Stdout          io.Writer
 	StdoutIsTTY     bool
 	Stderr          io.Writer
