@@ -20,7 +20,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 2.0.1
+    call: git/clone 2.0.3
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/cli.git
@@ -151,7 +151,7 @@ tasks:
       ref: ${{ init.commit-sha }}
 
   - key: rwx-testing-code
-    call: git/clone 2.0.1
+    call: git/clone 2.0.3
     with:
       path: ./rwx-testing
       repository: https://github.com/rwx-cloud/rwx-testing.git
