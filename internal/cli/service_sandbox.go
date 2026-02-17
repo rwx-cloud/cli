@@ -584,7 +584,7 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 			if wasRunning {
 				fmt.Fprintf(s.Stdout, "Stopped sandbox: %s\n", session.RunID)
 			} else {
-				fmt.Fprintf(s.Stdout, "Sandbox already stopped (run timed out): %s\n", session.RunID)
+				fmt.Fprintf(s.Stdout, "Sandbox already stopped: %s\n", session.RunID)
 			}
 		}
 
