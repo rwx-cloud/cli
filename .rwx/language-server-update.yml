@@ -38,6 +38,9 @@ tasks:
         exit 0
       fi
 
+      echo "$CURRENT_REF" > "$RWX_VALUES/current-ref"
+      echo "$NEW_REF" > "$RWX_VALUES/new-ref"
+
       echo "$NEW_REF" > language-server-ref
     env:
       GITHUB_TOKEN: ${{ github['rwx-cloud'].token }}
@@ -51,3 +54,5 @@ tasks:
       pull-request-title: Update language-server-ref
       pull-request-body: |
         This PR was generated from ${{ tasks.update-ref.values.run-url }}
+
+        https://github.com/rwx-cloud/language-server/compare/${{ tasks.update-ref.values.current-ref }}...${{ tasks.update-ref.values.new-ref }}
