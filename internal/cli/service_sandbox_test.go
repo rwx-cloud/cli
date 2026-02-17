@@ -154,6 +154,47 @@ func TestService_ExecSandbox(t *testing.T) {
 		require.True(t, userCommandRan)
 	})
 
+	t.Run("shell-quotes command arguments for remote execution", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-quote-123"
+		address := "192.168.1.1:22"
+		var executedCommands []string
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			executedCommands = append(executedCommands, cmd)
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"bash", "-c", "cat README.md"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.Contains(t, executedCommands, "bash -c 'cat README.md'")
+	})
+
 	t.Run("returns error when run is no longer active", func(t *testing.T) {
 		setup := setupTest(t)
 

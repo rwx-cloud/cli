@@ -221,7 +221,7 @@ tasks:
         exit 1
       fi
 
-      ../rwx sandbox exec -- 'echo "new sandbox file" > new-sandbox-file.txt'
+      ../rwx sandbox exec -- sh -c 'echo "new sandbox file" > new-sandbox-file.txt'
       expected_sha=$(echo "new sandbox file" | sha1sum | awk '{print $1}')
       actual_sha=$(sha1sum new-sandbox-file.txt | awk '{print $1}')
       if [ "$expected_sha" != "$actual_sha" ]; then
@@ -230,7 +230,7 @@ tasks:
         exit 1
       fi
 
-      ../rwx sandbox exec -- 'echo "# Sandbox modification" >> .rwx/sandbox.yml'
+      ../rwx sandbox exec -- sh -c 'echo "# Sandbox modification" >> .rwx/sandbox.yml'
       sandbox_modified_sha=$(../rwx sandbox exec --no-sync -- sha1sum .rwx/sandbox.yml | awk 'NR==1{print $1}')
       modified_sandbox_yml_sha=$(sha1sum .rwx/sandbox.yml | awk '{print $1}')
       if [ "$changed_file_sha" = "$modified_sandbox_yml_sha" ]; then
@@ -240,6 +240,14 @@ tasks:
       fi
       if [ "$sandbox_modified_sha" != "$modified_sandbox_yml_sha" ]; then
         echo ".rwx/sandbox.yml local/sandbox mismatch after modification (local: $modified_sandbox_yml_sha, sandbox: $sandbox_modified_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
+      # Verify shell quoting: "bash -c" with a multi-word argument
+      bash_c_output=$(../rwx sandbox exec --no-sync -- bash -c "echo hello world" | awk 'NR==1')
+      if [ "$bash_c_output" != "hello world" ]; then
+        echo "bash -c shell quoting failed (expected 'hello world', got '$bash_c_output')"
         ../rwx sandbox stop
         exit 1
       fi

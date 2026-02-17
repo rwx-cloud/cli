@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"al.essio.dev/pkg/shellescape"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
 
@@ -452,8 +453,9 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		}
 	}
 
-	// Execute command
-	command := strings.Join(cfg.Command, " ")
+	// Execute command — shell-quote each argument so the remote shell
+	// preserves the original grouping (e.g. bash -c "cat README.md").
+	command := shellescape.QuoteCommand(cfg.Command)
 	exitCode, err := s.SSHClient.ExecuteCommand(command)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute command in sandbox")

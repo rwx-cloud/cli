@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
+	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/distribution/reference v0.6.0
