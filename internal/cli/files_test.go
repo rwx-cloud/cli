@@ -57,6 +57,39 @@ func TestReadRwxDirectoryEntries_SizeLimit(t *testing.T) {
 	})
 }
 
+func TestReadRwxDirectoryEntries_SkipsDownloads(t *testing.T) {
+	t.Run("excludes downloads directory from size calculation", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		rwxDir := ".rwx"
+		err := os.MkdirAll(rwxDir, 0755)
+		require.NoError(t, err)
+
+		// Write a small config file
+		smallContent := make([]byte, 1*1024*1024) // 1 MiB
+		err = os.WriteFile(filepath.Join(rwxDir, "config.yml"), smallContent, 0644)
+		require.NoError(t, err)
+
+		// Write a large file inside downloads that would push total over 5MiB
+		downloadsDir := filepath.Join(rwxDir, "downloads")
+		err = os.MkdirAll(downloadsDir, 0755)
+		require.NoError(t, err)
+
+		largeDownload := make([]byte, 6*1024*1024) // 6 MiB
+		err = os.WriteFile(filepath.Join(downloadsDir, "artifact.tar.gz"), largeDownload, 0644)
+		require.NoError(t, err)
+
+		// Should succeed because downloads directory is excluded
+		entries, err := cli.RwxDirectoryEntries(rwxDir)
+		require.NoError(t, err)
+
+		// Verify no entries from downloads directory are included
+		for _, entry := range entries {
+			require.NotContains(t, entry.Path, "downloads/")
+		}
+	})
+}
+
 func TestFindRunDefinitionFile(t *testing.T) {
 	t.Run("when file exists in pwd", func(t *testing.T) {
 		t.Chdir(t.TempDir())

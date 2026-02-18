@@ -561,7 +561,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
 					require.Len(t, cfg.TaskDefinitions, 1)
 					require.Equal(t, runConfig.MintFilePath, cfg.TaskDefinitions[0].Path)
-					require.Len(t, cfg.RwxDirectory, 9)
+					require.Len(t, cfg.RwxDirectory, 7)
 					require.Equal(t, ".", cfg.RwxDirectory[0].Path)
 					require.Equal(t, "mintdir-tasks.json", cfg.RwxDirectory[1].Path)
 					require.Equal(t, "mintdir-tasks.yml", cfg.RwxDirectory[2].Path)
@@ -569,8 +569,6 @@ func TestService_InitiatingRun(t *testing.T) {
 					require.Equal(t, "some/nested", cfg.RwxDirectory[4].Path)
 					require.Equal(t, "some/nested/path", cfg.RwxDirectory[5].Path)
 					require.Equal(t, "some/nested/path/tasks.yaml", cfg.RwxDirectory[6].Path)
-					require.Equal(t, "test-suites", cfg.RwxDirectory[7].Path)
-					require.Equal(t, "test-suites/config.yaml", cfg.RwxDirectory[8].Path)
 					require.True(t, cfg.UseCache)
 					receivedSpecifiedFileContent = cfg.TaskDefinitions[0].FileContents
 					receivedRwxDir = cfg.RwxDirectory
@@ -587,7 +585,7 @@ func TestService_InitiatingRun(t *testing.T) {
 
 				require.Equal(t, originalSpecifiedFileContent, receivedSpecifiedFileContent)
 				require.NotNil(t, receivedRwxDir)
-				require.Equal(t, 9, len(receivedRwxDir))
+				require.Equal(t, 7, len(receivedRwxDir))
 				require.Equal(t, ".", receivedRwxDir[0].Path)
 				require.Equal(t, "mintdir-tasks.json", receivedRwxDir[1].Path)
 				require.Equal(t, "mintdir-tasks.yml", receivedRwxDir[2].Path)
@@ -595,8 +593,6 @@ func TestService_InitiatingRun(t *testing.T) {
 				require.Equal(t, "some/nested", receivedRwxDir[4].Path)
 				require.Equal(t, "some/nested/path", receivedRwxDir[5].Path)
 				require.Equal(t, "some/nested/path/tasks.yaml", receivedRwxDir[6].Path)
-				require.Equal(t, "test-suites", receivedRwxDir[7].Path)
-				require.Equal(t, "test-suites/config.yaml", receivedRwxDir[8].Path)
 			})
 		})
 
