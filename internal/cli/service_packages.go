@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	tsize "github.com/kopoli/go-terminal-size"
+
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/text"
@@ -358,7 +360,11 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 				}
 			}
 			prefixWidth := maxNameLen + 2 + maxVersionLen + 2
-			descWidth := 80 - prefixWidth
+			termWidth := 80
+			if size, err := tsize.GetSize(); err == nil && size.Width > 0 {
+				termWidth = size.Width
+			}
+			descWidth := termWidth - prefixWidth
 			if descWidth < 20 {
 				descWidth = 0 // too narrow to wrap; print as-is
 			}
@@ -415,9 +421,13 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 	} else if cfg.Readme {
 		fmt.Fprint(s.Stdout, doc.Readme)
 	} else {
+		termWidth := 80
+		if size, err := tsize.GetSize(); err == nil && size.Width > 0 {
+			termWidth = size.Width
+		}
 		fmt.Fprintf(s.Stdout, "Name:         %s\n", doc.Name)
 		fmt.Fprintf(s.Stdout, "Version:      %s\n", doc.Version)
-		descLines := text.WrapText(doc.Description, 80-14)
+		descLines := text.WrapText(doc.Description, termWidth-14)
 		fmt.Fprintf(s.Stdout, "Description:  %s\n", descLines[0])
 		for _, line := range descLines[1:] {
 			fmt.Fprintf(s.Stdout, "              %s\n", line)
@@ -445,7 +455,7 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 			}
 			// PARAMETER + gap + REQUIRED(8) + gap + DEFAULT + gap
 			prefixWidth := maxParamNameLen + 2 + 8 + 2 + maxDefaultLen + 2
-			descWidth := 80 - prefixWidth
+			descWidth := termWidth - prefixWidth
 			if descWidth < 20 {
 				descWidth = 0 // too narrow to wrap; print as-is
 			}
