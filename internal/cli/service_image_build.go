@@ -54,6 +54,7 @@ func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) 
 		MintFilePath:   config.MintFilePath,
 		NoCache:        config.NoCache,
 		TargetedTasks:  []string{config.TargetTaskKey},
+		Patchable:      true,
 	})
 	if err != nil {
 		return nil, err

@@ -78,6 +78,7 @@ var (
 				NoCache:        NoCache,
 				TargetedTasks:  TargetedTasks,
 				Title:          Title,
+				Patchable:      true,
 			})
 			if err != nil {
 				return err

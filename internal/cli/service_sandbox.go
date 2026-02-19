@@ -261,6 +261,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		Json:           cfg.Json,
 		Title:          title,
 		InitParameters: cfg.InitParameters,
+		Patchable:      false,
 	})
 
 	if err != nil {

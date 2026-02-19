@@ -20,6 +20,7 @@ type InitiateRunConfig struct {
 	Title          string
 	GitBranch      string
 	GitSha         string
+	Patchable      bool
 }
 
 func (c InitiateRunConfig) Validate() error {
@@ -72,7 +73,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	defer os.RemoveAll(patchDir)
 
 	// Generate patches if enabled
-	patchable := true
+	patchable := cfg.Patchable
 	if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
 		patchable = false
 	}

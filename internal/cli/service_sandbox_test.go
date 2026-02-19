@@ -931,6 +931,63 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 }
 
 func TestService_StartSandbox(t *testing.T) {
+	t.Run("does not send a git patch", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Create .rwx directory and sandbox config file
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		sandboxConfig := "tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"
+		err = os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte(sandboxConfig), 0o644)
+		require.NoError(t, err)
+
+		// Mock git — set up a patch that would be sent if patching were enabled
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+		setup.mockGit.MockGeneratePatchFile = git.PatchFile{
+			Written:        true,
+			UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{"foo.txt"}, Count: 1},
+		}
+
+		// Mock API
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{
+				Image:  "ubuntu:24.04",
+				Config: "rwx/base 1.0.0",
+				Arch:   "x86_64",
+			}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		var receivedPatch api.PatchMetadata
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			receivedPatch = cfg.Patch
+			return &api.InitiateRunResult{
+				RunID:  "run-123",
+				RunURL: "https://cloud.rwx.com/mint/runs/run-123",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		_, err = setup.service.StartSandbox(cli.StartSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.False(t, receivedPatch.Sent, "sandbox start should not send a git patch")
+	})
+
 	t.Run("passes init params to InitiateRun", func(t *testing.T) {
 		setup := setupTest(t)
 
