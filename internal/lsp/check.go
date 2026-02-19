@@ -15,6 +15,7 @@ import (
 
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/messages"
 )
 
 type CheckOutputFormat int
@@ -41,11 +42,12 @@ type CheckResult struct {
 }
 
 type CheckDiagnostic struct {
-	Severity string
-	Message  string
-	FilePath string
-	Line     int
-	Column   int
+	Severity   string
+	Message    string
+	FilePath   string
+	Line       int
+	Column     int
+	StackTrace []messages.StackEntry
 }
 
 type textEdit struct {
@@ -313,6 +315,18 @@ func parseDiagnosticResult(result json.RawMessage, filePath string) ([]CheckDiag
 					Character int `json:"character"`
 				} `json:"start"`
 			} `json:"range"`
+			RelatedInformation []struct {
+				Location struct {
+					URI   string `json:"uri"`
+					Range struct {
+						Start struct {
+							Line      int `json:"line"`
+							Character int `json:"character"`
+						} `json:"start"`
+					} `json:"range"`
+				} `json:"location"`
+				Message string `json:"message"`
+			} `json:"relatedInformation"`
 		} `json:"items"`
 	}
 
@@ -324,12 +338,24 @@ func parseDiagnosticResult(result json.RawMessage, filePath string) ([]CheckDiag
 	for _, item := range report.Items {
 		severity := lspSeverityString(item.Severity)
 
+		var stackTrace []messages.StackEntry
+		for _, ri := range item.RelatedInformation {
+			fileName := strings.TrimPrefix(ri.Location.URI, "file://")
+			stackTrace = append(stackTrace, messages.StackEntry{
+				FileName: fileName,
+				Line:     ri.Location.Range.Start.Line + 1,
+				Column:   ri.Location.Range.Start.Character + 1,
+				Name:     ri.Message,
+			})
+		}
+
 		diagnostics = append(diagnostics, CheckDiagnostic{
-			Severity: severity,
-			Message:  item.Message,
-			FilePath: filePath,
-			Line:     item.Range.Start.Line + 1, // LSP lines are 0-based
-			Column:   item.Range.Start.Character + 1,
+			Severity:   severity,
+			Message:    item.Message,
+			FilePath:   filePath,
+			Line:       item.Range.Start.Line + 1, // LSP lines are 0-based
+			Column:     item.Range.Start.Character + 1,
+			StackTrace: stackTrace,
 		})
 	}
 
@@ -512,6 +538,13 @@ func outputCheckMultiLine(w io.Writer, result *CheckResult) error {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "%s:%d:%d  [%s]\n", d.FilePath, d.Line, d.Column, d.Severity)
 		fmt.Fprintln(w, d.Message)
+		for _, entry := range d.StackTrace {
+			if entry.Name != "" {
+				fmt.Fprintf(w, "  at %s (%s:%d:%d)\n", entry.Name, entry.FileName, entry.Line, entry.Column)
+			} else {
+				fmt.Fprintf(w, "  at %s:%d:%d\n", entry.FileName, entry.Line, entry.Column)
+			}
+		}
 	}
 
 	pluralizedProblems := "problems"
