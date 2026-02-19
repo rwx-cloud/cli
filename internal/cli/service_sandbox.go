@@ -883,7 +883,13 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 
 	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
 	if len(patch) == 0 {
-		_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD 2>/dev/null")
+		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
+		if err != nil {
+			return errors.Wrap(err, "failed to create sync ref with no local changes")
+		}
+		if exitCode != 0 {
+			return fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
+		}
 		return nil
 	}
 
