@@ -881,8 +881,9 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Skip applying patch if no changes
+	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
 	if len(patch) == 0 {
+		_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD 2>/dev/null")
 		return nil
 	}
 

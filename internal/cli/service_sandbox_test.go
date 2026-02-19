@@ -378,6 +378,56 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.False(t, syncPatchApplied)
 	})
 
+	t.Run("creates sync ref even when no local changes", func(t *testing.T) {
+		// When there are no local changes, sync returns early but must still
+		// create refs/rwx-sync so pull has a valid baseline to diff against.
+		setup := setupTest(t)
+
+		runID := "run-no-changes-ref"
+		address := "192.168.1.1:22"
+		createdSyncRef := false
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil // No changes
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			if strings.Contains(cmd, "update-ref refs/rwx-sync HEAD") {
+				createdSyncRef = true
+			}
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.True(t, createdSyncRef, "sync should create refs/rwx-sync even with no local changes")
+	})
+
 	t.Run("warns and skips sync for LFS files", func(t *testing.T) {
 		setup := setupTest(t)
 
