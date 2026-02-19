@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -703,7 +702,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	}
 
 	// Get patch from sandbox (stdout only to avoid output capture issues after sync markers)
-	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff HEAD")
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff refs/rwx-sync")
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
@@ -731,42 +730,14 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 
 	sandboxPatchFiles := parsePatchFiles(patch)
 
-	// Get locally-changed files to detect the "rubocop case":
-	// files changed locally but reverted to HEAD on sandbox
-	localPatch, _, localPatchErr := s.GitClient.GeneratePatch(nil)
-	localChangedFiles := []string{}
-	if localPatchErr == nil && len(localPatch) > 0 {
-		localChangedFiles = parsePatchFiles(string(localPatch))
-	}
-
-	// Build union of files to reset: sandbox patch files + locally-changed files
-	filesToReset := make(map[string]bool)
-	for _, f := range sandboxPatchFiles {
-		filesToReset[f] = true
-	}
-	for _, f := range localChangedFiles {
-		filesToReset[f] = true
-	}
-
-	if len(filesToReset) == 0 {
+	if len(sandboxPatchFiles) == 0 {
 		if !jsonMode {
 			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
 		}
 		return []string{}, nil
 	}
 
-	// Reset local files from both lists to HEAD before applying sandbox patch
-	for f := range filesToReset {
-		// Try to reset tracked file to HEAD
-		checkoutCmd := exec.Command("git", "checkout", "HEAD", "--", f)
-		checkoutCmd.Dir = cwd
-		if err := checkoutCmd.Run(); err != nil {
-			// File is not tracked - remove any existing version
-			os.Remove(filepath.Join(cwd, f))
-		}
-	}
-
-	// Apply sandbox patch locally (if non-empty)
+	// Apply sandbox patch locally (git apply is atomic — on failure nothing is modified)
 	if len(strings.TrimSpace(patch)) > 0 {
 		cmd := s.GitClient.ApplyPatch([]byte(patch))
 		if err := cmd.Run(); err != nil {
@@ -774,11 +745,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		}
 	}
 
-	// Report all affected files (union of sandbox patch + locally-changed)
-	var files []string
-	for f := range filesToReset {
-		files = append(files, f)
-	}
+	files := sandboxPatchFiles
 
 	if !jsonMode {
 		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))
@@ -929,6 +896,9 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
 	}
 
+	// Remove previous sync snapshot ref if present
+	_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null")
+
 	// Get list of files that are dirty on the sandbox (from previous syncs)
 	// This includes both tracked files with modifications and untracked files
 	// We reset these to ensure files reverted locally are also reverted on sandbox
@@ -984,6 +954,10 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		}
 		return fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode)
 	}
+
+	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
+	// We commit, save the ref, then reset HEAD back so the user's branch tip is unchanged during exec.
+	_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD && /usr/bin/git reset HEAD~1 >/dev/null 2>&1")
 
 	return nil
 }
