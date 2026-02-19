@@ -903,9 +903,6 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
 	}
 
-	// Remove previous sync snapshot ref if present
-	_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null")
-
 	// Get list of files that are dirty on the sandbox (from previous syncs)
 	// This includes both tracked files with modifications and untracked files
 	// We reset these to ensure files reverted locally are also reverted on sandbox
@@ -963,9 +960,10 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	}
 
 	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
-	// We commit, save the ref, then reset HEAD back so the user's branch tip is unchanged during exec.
-	// Each step is separate so we can detect and recover from partial failures.
-	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
+	// We delete the old ref, commit, save the new ref, then reset HEAD back so the user's branch
+	// tip is unchanged during exec. The old ref is deleted here (not earlier) so that if sync fails
+	// before this point, pull still has the previous baseline to diff against.
+	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null; /usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
 	if snapshotErr != nil {
 		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
 	}
