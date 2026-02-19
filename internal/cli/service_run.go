@@ -49,12 +49,18 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, err
 	}
 
-	sha, err := s.GitClient.GetCommit()
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to determine git commit")
+	// Check if git operations are disabled
+	_, gitPatchDisabled := os.LookupEnv("RWX_DISABLE_GIT_PATCH")
+
+	var sha, branch, originUrl string
+	if !gitPatchDisabled {
+		sha, err = s.GitClient.GetCommit()
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to determine git commit")
+		}
+		branch = s.GitClient.GetBranch()
+		originUrl = s.GitClient.GetOriginUrl()
 	}
-	branch := s.GitClient.GetBranch()
-	originUrl := s.GitClient.GetOriginUrl()
 	patchFile := git.PatchFile{}
 
 	// When there's no .rwx directory, create a temporary one for patches and to set run.dir
@@ -72,10 +78,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	defer os.RemoveAll(patchDir)
 
 	// Generate patches if enabled
-	patchable := true
-	if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
-		patchable = false
-	}
+	patchable := !gitPatchDisabled
 
 	// Convert to relative path for display purposes (e.g., run title)
 	relativeRunDefinitionPath := relativePathFromWd(runDefinitionPath)
