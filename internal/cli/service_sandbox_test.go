@@ -96,6 +96,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
+		require.Equal(t, "", result.RunURL)
 		require.True(t, connectedViaSSH)
 		require.Contains(t, executedCommands, "echo hello")
 	})
@@ -983,6 +984,7 @@ func TestService_StartSandbox(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, "run-init-123", result.RunID)
+		require.Equal(t, "https://cloud.rwx.com/mint/runs/run-init-123", result.RunURL)
 		require.Len(t, receivedInitParams, 1)
 		require.Equal(t, "foo", receivedInitParams[0].Key)
 		require.Equal(t, "bar", receivedInitParams[0].Value)
@@ -1091,5 +1093,123 @@ func TestService_StopSandbox(t *testing.T) {
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found in local storage")
+	})
+}
+
+func TestService_ExecSandbox_RunURL(t *testing.T) {
+	t.Run("returns empty RunURL when no server-provided URL is stored", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-url"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "", result.RunURL)
+	})
+}
+
+func TestService_StartSandbox_RunURL(t *testing.T) {
+	t.Run("reattach via --id returns empty RunURL", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reattach-no-url"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable: true,
+				Polling:     api.PollingResult{Completed: false},
+			}, nil
+		}
+
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "", result.RunURL)
+	})
+
+	t.Run("normal start uses server-provided RunURL", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Create .rwx directory and sandbox config file
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		sandboxConfig := "tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"
+		err = os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte(sandboxConfig), 0o644)
+		require.NoError(t, err)
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{
+				Image:  "ubuntu:24.04",
+				Config: "rwx/base 1.0.0",
+				Arch:   "x86_64",
+			}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunID:  "run-server-url",
+				RunURL: "https://cloud.rwx.com/mint/my-org/runs/run-server-url",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		// Should use the server-provided URL (which includes org slug), not a constructed one
+		require.Equal(t, "https://cloud.rwx.com/mint/my-org/runs/run-server-url", result.RunURL)
 	})
 }

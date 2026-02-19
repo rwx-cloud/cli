@@ -165,7 +165,7 @@ func (s Service) CheckExistingSandbox(configFile string) (*CheckExistingSandboxR
 		}, nil
 	}
 
-	runURL := fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", session.RunID)
+	runURL := s.sandboxRunURL(session)
 	return &CheckExistingSandboxResult{
 		Exists:     true,
 		Active:     true,
@@ -234,9 +234,13 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 			}
 		}
 
-		runURL := fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", cfg.RunID)
+		runURL := s.sandboxRunURL(nil)
 		if !cfg.Json {
-			fmt.Fprintf(s.Stdout, "Attached to sandbox: %s\n%s\n", cfg.RunID, runURL)
+			if runURL != "" {
+				fmt.Fprintf(s.Stdout, "Attached to sandbox: %s\n%s\n", cfg.RunID, runURL)
+			} else {
+				fmt.Fprintf(s.Stdout, "Attached to sandbox: %s\n", cfg.RunID)
+			}
 		}
 
 		return &StartSandboxResult{
@@ -301,6 +305,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 			RunID:       runResult.RunID,
 			ConfigFile:  cfg.ConfigFile,
 			ScopedToken: scopedToken,
+			RunURL:      runResult.RunURL,
 		})
 		if err := storage.Save(); err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -329,6 +334,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	var runID string
 	var configFile string
 	var scopedToken string
+	var sessionRunURL string
 
 	// Sandbox selection priority:
 	// 1. --id flag
@@ -345,6 +351,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		if err == nil {
 			if existingSession, _, found := storage.FindByRunID(cfg.RunID); found {
 				scopedToken = existingSession.ScopedToken
+				sessionRunURL = existingSession.RunURL
 			}
 		}
 	} else {
@@ -376,6 +383,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 					runID = session.RunID
 					configFile = session.ConfigFile
 					scopedToken = session.ScopedToken
+					sessionRunURL = session.RunURL
 				}
 			}
 		} else {
@@ -399,6 +407,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				runID = activeSessions[0].RunID
 				configFile = activeSessions[0].ConfigFile
 				scopedToken = activeSessions[0].ScopedToken
+				sessionRunURL = activeSessions[0].RunURL
 				found = true
 			} else if len(activeSessions) > 1 {
 				return nil, fmt.Errorf("Multiple active sandboxes found for %s:%s.\nSpecify a config file to select one, or use --id to specify a run ID.", cwd, branch)
@@ -470,7 +479,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		pulledFiles = pulled
 	}
 
-	runURL := fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", runID)
+	runURL := s.sandboxRunURL(&SandboxSession{RunURL: sessionRunURL})
 	return &ExecSandboxResult{RunID: runID, ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
 }
 
@@ -804,6 +813,16 @@ func parsePatchFiles(patch string) []string {
 		}
 	}
 	return files
+}
+
+// sandboxRunURL returns the run URL from the session if available.
+// Returns empty string when no server-provided URL is stored, since
+// client-constructed URLs lack the org slug and would 404.
+func (s Service) sandboxRunURL(session *SandboxSession) string {
+	if session != nil && session.RunURL != "" {
+		return session.RunURL
+	}
+	return ""
 }
 
 // Helper methods

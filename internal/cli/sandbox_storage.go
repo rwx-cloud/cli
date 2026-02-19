@@ -15,6 +15,7 @@ type SandboxSession struct {
 	RunID       string `json:"runId"`
 	ConfigFile  string `json:"configFile"`
 	ScopedToken string `json:"scopedToken,omitempty"`
+	RunURL      string `json:"runUrl,omitempty"`
 }
 
 type SandboxStorage struct {
