@@ -33,13 +33,13 @@ tasks:
       NEW_REF=$(gh api repos/rwx-cloud/language-server/commits/main --jq '.sha')
       CURRENT_REF=$(cat language-server-ref)
 
+      echo "$CURRENT_REF" > "$RWX_VALUES/current-ref"
+      echo "$NEW_REF" > "$RWX_VALUES/new-ref"
+
       if [ "$NEW_REF" = "$CURRENT_REF" ]; then
         echo "language-server-ref is already up to date"
         exit 0
       fi
-
-      echo "$CURRENT_REF" > "$RWX_VALUES/current-ref"
-      echo "$NEW_REF" > "$RWX_VALUES/new-ref"
 
       echo "$NEW_REF" > language-server-ref
     env:
