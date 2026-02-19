@@ -958,7 +958,22 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 
 	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
 	// We commit, save the ref, then reset HEAD back so the user's branch tip is unchanged during exec.
-	_, _ = s.SSHClient.ExecuteCommand("/usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD && /usr/bin/git reset HEAD~1 >/dev/null 2>&1")
+	// Each step is separate so we can detect and recover from partial failures.
+	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
+	if snapshotErr != nil {
+		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
+	}
+	if snapshotExitCode != 0 {
+		return fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
+	}
+
+	resetExitCode, resetErr := s.SSHClient.ExecuteCommand("/usr/bin/git reset HEAD~1 >/dev/null 2>&1")
+	if resetErr != nil {
+		return errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
+	}
+	if resetExitCode != 0 {
+		return fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
+	}
 
 	return nil
 }
