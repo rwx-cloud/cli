@@ -20,14 +20,18 @@ type initiateRunResult struct {
 	stderr string
 }
 
-func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata api.PatchMetadata) initiateRunResult {
+func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata api.PatchMetadata, opts ...func(*cli.InitiateRunConfig)) initiateRunResult {
 	s := setupTest(t)
 	s.mockGit.MockGetCommit = "3e76c8295cd0ce4decbf7b56253c902ce296cb25"
 	s.mockGit.MockGeneratePatchFile = patchFile
 
 	var receivedRwxDir []api.RwxDirectoryEntry
 
-	runConfig := cli.InitiateRunConfig{}
+	runConfig := cli.InitiateRunConfig{Patchable: true}
+
+	for _, opt := range opts {
+		opt(&runConfig)
+	}
 
 	rwxDir := filepath.Join(s.tmp, ".rwx")
 	err := os.MkdirAll(rwxDir, 0o755)
@@ -70,6 +74,21 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 	t.Run("when the run is not patchable", func(t *testing.T) {
 		// it launches a run but does not patch
 		result := initiateRun(t, git.PatchFile{}, api.PatchMetadata{})
+
+		for _, entry := range result.rwxDir {
+			require.False(t, strings.HasPrefix(entry.Path, ".patches/"))
+		}
+	})
+
+	t.Run("when patchable is false", func(t *testing.T) {
+		patchFile := git.PatchFile{
+			Written:        true,
+			UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{"foo.txt"}, Count: 1},
+		}
+		notPatchable := func(cfg *cli.InitiateRunConfig) { cfg.Patchable = false }
+
+		// it launches a run but does not include the patch
+		result := initiateRun(t, patchFile, api.PatchMetadata{}, notPatchable)
 
 		for _, entry := range result.rwxDir {
 			require.False(t, strings.HasPrefix(entry.Path, ".patches/"))
@@ -201,6 +220,7 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			runConfig := cli.InitiateRunConfig{
 				RwxDirectory: rwxDir,
 				MintFilePath: definitionsFile,
+				Patchable:    true,
 				InitParameters: map[string]string{
 					"sha": "3e76c8295cd0ce4decbf7b56253c902ce296cb25", // a git param is passed by --init
 				},
