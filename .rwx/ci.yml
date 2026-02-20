@@ -252,6 +252,20 @@ tasks:
         exit 1
       fi
 
+      # Test: uncommitted changes survive when branch has unpushed commits
+      git commit --allow-empty -m "unpushed local commit"
+      echo "uncommitted edit" > uncommitted-test.txt
+      uncommitted_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
+
+      ../rwx sandbox exec -- echo "exercising sandbox with unpushed commits"
+
+      post_exec_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
+      if [ "$uncommitted_sha" != "$post_exec_sha" ]; then
+        echo "uncommitted-test.txt was lost during sandbox exec with unpushed commits (expected $uncommitted_sha, got $post_exec_sha)"
+        ../rwx sandbox stop
+        exit 1
+      fi
+
       ../rwx sandbox stop
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -713,7 +712,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	}
 
 	// Get patch from sandbox (stdout only to avoid output capture issues after sync markers)
-	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff HEAD")
+	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff refs/rwx-sync")
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
@@ -741,42 +740,14 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 
 	sandboxPatchFiles := parsePatchFiles(patch)
 
-	// Get locally-changed files to detect the "rubocop case":
-	// files changed locally but reverted to HEAD on sandbox
-	localPatch, _, localPatchErr := s.GitClient.GeneratePatch(nil)
-	localChangedFiles := []string{}
-	if localPatchErr == nil && len(localPatch) > 0 {
-		localChangedFiles = parsePatchFiles(string(localPatch))
-	}
-
-	// Build union of files to reset: sandbox patch files + locally-changed files
-	filesToReset := make(map[string]bool)
-	for _, f := range sandboxPatchFiles {
-		filesToReset[f] = true
-	}
-	for _, f := range localChangedFiles {
-		filesToReset[f] = true
-	}
-
-	if len(filesToReset) == 0 {
+	if len(sandboxPatchFiles) == 0 {
 		if !jsonMode {
 			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
 		}
 		return []string{}, nil
 	}
 
-	// Reset local files from both lists to HEAD before applying sandbox patch
-	for f := range filesToReset {
-		// Try to reset tracked file to HEAD
-		checkoutCmd := exec.Command("git", "checkout", "HEAD", "--", f)
-		checkoutCmd.Dir = cwd
-		if err := checkoutCmd.Run(); err != nil {
-			// File is not tracked - remove any existing version
-			os.Remove(filepath.Join(cwd, f))
-		}
-	}
-
-	// Apply sandbox patch locally (if non-empty)
+	// Apply sandbox patch locally (git apply is atomic — on failure nothing is modified)
 	if len(strings.TrimSpace(patch)) > 0 {
 		cmd := s.GitClient.ApplyPatch([]byte(patch))
 		if err := cmd.Run(); err != nil {
@@ -784,11 +755,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		}
 	}
 
-	// Report all affected files (union of sandbox patch + locally-changed)
-	var files []string
-	for f := range filesToReset {
-		files = append(files, f)
-	}
+	files := sandboxPatchFiles
 
 	if !jsonMode {
 		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))
@@ -934,8 +901,15 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Skip applying patch if no changes
+	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
 	if len(patch) == 0 {
+		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
+		if err != nil {
+			return errors.Wrap(err, "failed to create sync ref with no local changes")
+		}
+		if exitCode != 0 {
+			return fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
+		}
 		return nil
 	}
 
@@ -1003,6 +977,26 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 			return fmt.Errorf("failed to sync changes to sandbox: git apply failed: %s", errMsg)
 		}
 		return fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode)
+	}
+
+	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
+	// We delete the old ref, commit, save the new ref, then reset HEAD back so the user's branch
+	// tip is unchanged during exec. The old ref is deleted here (not earlier) so that if sync fails
+	// before this point, pull still has the previous baseline to diff against.
+	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null; /usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
+	if snapshotErr != nil {
+		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
+	}
+	if snapshotExitCode != 0 {
+		return fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
+	}
+
+	resetExitCode, resetErr := s.SSHClient.ExecuteCommand("/usr/bin/git reset HEAD~1 >/dev/null 2>&1")
+	if resetErr != nil {
+		return errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
+	}
+	if resetExitCode != 0 {
+		return fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
 	}
 
 	return nil
