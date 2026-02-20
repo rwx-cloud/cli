@@ -26,9 +26,14 @@ var (
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			outputFormat := LintOutputFormat
+			if Json {
+				outputFormat = "json"
+			}
+
 			cfg, err := lsp.NewCheckConfig(
 				LintRwxDirectory,
-				LintOutputFormat,
+				outputFormat,
 				LintTimeout,
 				args,
 				LintFix,
