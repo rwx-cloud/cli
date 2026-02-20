@@ -90,7 +90,7 @@ func TestService_InsertBase(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, "", bl.s.mockStderr.String())
-		require.Contains(t, bl.s.mockStdout.String(), "No run files were missing base")
+		require.Contains(t, bl.s.mockStdout.String(), "No run files needed base updates")
 	})
 
 	t.Run("when yaml file doesn't include base", func(t *testing.T) {
@@ -131,7 +131,7 @@ tasks:
 `, string(contents))
 
 			require.Equal(t, fmt.Sprintf(
-				"Added base to the following run definitions:\n%s\n",
+				"Updated base in the following run definitions:\n%s\n",
 				"\t../.mint/bar.yaml → ubuntu:24.04",
 			), bl.s.mockStdout.String())
 
@@ -181,7 +181,7 @@ tasks:
 `, string(contents))
 
 			require.Equal(t, fmt.Sprintf(
-				"Added base to the following run definitions:\n%s\n",
+				"Updated base in the following run definitions:\n%s\n",
 				"\t../.mint/bar.yaml → ubuntu:24.04",
 			), bl.s.mockStdout.String())
 
@@ -199,7 +199,7 @@ tasks:
 		})
 	})
 
-	t.Run("when yaml file has a base", func(t *testing.T) {
+	t.Run("when yaml file has a base with deprecated os and tag", func(t *testing.T) {
 		bl := setupBaseLayer(t)
 
 		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`on:
@@ -226,15 +226,98 @@ tasks:
     push: {}
 
 base:
-  os: ubuntu 24.04
-  tag: 1.2
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
 
 tasks:
   - key: a
   - key: b
 `, string(contents))
 
-		require.Contains(t, bl.s.mockStdout.String(), "No run files were missing base")
+		require.Contains(t, bl.s.mockStdout.String(), "Updated base in the following run definitions")
+		require.Contains(t, bl.s.mockStdout.String(), "ci.yaml → ubuntu:24.04")
+	})
+
+	t.Run("when yaml file has a base with deprecated os, tag, and arch", func(t *testing.T) {
+		bl := setupBaseLayer(t)
+
+		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`base:
+  os: ubuntu 24.04
+  tag: 1.2
+  arch: arm64
+
+tasks:
+  - key: a
+`), 0o644)
+		require.NoError(t, err)
+
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
+		require.NoError(t, err)
+
+		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, `base:
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
+  arch: arm64
+
+tasks:
+  - key: a
+`, string(contents))
+	})
+
+	t.Run("when yaml file has a base with only tag (no os)", func(t *testing.T) {
+		bl := setupBaseLayer(t)
+
+		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`base:
+  image: debian:12
+  tag: 1.2
+
+tasks:
+  - key: a
+`), 0o644)
+		require.NoError(t, err)
+
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
+		require.NoError(t, err)
+
+		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, `base:
+  image: debian:12
+  config: rwx/base 1.0.0
+
+tasks:
+  - key: a
+`, string(contents))
+	})
+
+	t.Run("when yaml file has a modern base (no deprecated fields)", func(t *testing.T) {
+		bl := setupBaseLayer(t)
+
+		err := os.WriteFile(filepath.Join(bl.mintDir, "ci.yaml"), []byte(`base:
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
+
+tasks:
+  - key: a
+`), 0o644)
+		require.NoError(t, err)
+
+		_, err = bl.s.service.InsertBase(cli.InsertBaseConfig{})
+		require.NoError(t, err)
+
+		contents, err := os.ReadFile(filepath.Join(bl.mintDir, "ci.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, `base:
+  image: ubuntu:24.04
+  config: rwx/base 1.0.0
+
+tasks:
+  - key: a
+`, string(contents))
+
+		require.Contains(t, bl.s.mockStdout.String(), "No run files needed base updates")
 	})
 
 	t.Run("with multiple yaml files", func(t *testing.T) {
@@ -298,7 +381,7 @@ tasks:
 `, string(contents))
 
 			require.Equal(t, fmt.Sprintf(
-				"Added base to the following run definitions:\n%s\n%s\n%s\n",
+				"Updated base in the following run definitions:\n%s\n%s\n%s\n",
 				"\t../.mint/one.yaml → ubuntu:24.04",
 				"\t../.mint/three.yaml → ubuntu:24.04",
 				"\t../.mint/two.yaml → ubuntu:24.04",

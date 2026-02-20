@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/rwx-cloud/cli/internal/errors"
 
@@ -60,25 +61,25 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 		return InsertDefaultBaseResult{}, fmt.Errorf("no files provided, and no yaml files found in directory %s", rwxDirectoryPath)
 	}
 
-	result, err := s.insertDefaultBaseIfMissing(yamlFiles)
+	result, err := s.insertOrUpdateBase(yamlFiles, true)
 	if err != nil {
 		return InsertDefaultBaseResult{}, err
 	}
 
 	if cfg.Json {
-		addedBases := make(map[string]string)
+		updatedBases := make(map[string]string)
 		for _, runFile := range result.UpdatedRunFiles {
-			addedBases[relativePathFromWd(runFile.OriginalPath)] = runFile.ResolvedBase.Image
+			updatedBases[relativePathFromWd(runFile.OriginalPath)] = runFile.ResolvedBase.Image
 		}
 		erroredBases := make(map[string]string)
 		for _, runFile := range result.ErroredRunFiles {
 			erroredBases[relativePathFromWd(runFile.OriginalPath)] = runFile.Error.Error()
 		}
 		output := struct {
-			AddedBases   map[string]string
+			UpdatedBases map[string]string
 			ErroredBases map[string]string `json:",omitempty"`
 		}{
-			AddedBases:   addedBases,
+			UpdatedBases: updatedBases,
 			ErroredBases: erroredBases,
 		}
 		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
@@ -88,10 +89,10 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 		if len(yamlFiles) == 0 {
 			fmt.Fprintf(s.Stdout, "No run files found in %q.\n", cfg.RwxDirectory)
 		} else if !result.HasChanges() {
-			fmt.Fprintln(s.Stdout, "No run files were missing base.")
+			fmt.Fprintln(s.Stdout, "No run files needed base updates.")
 		} else {
 			if len(result.UpdatedRunFiles) > 0 {
-				fmt.Fprintln(s.Stdout, "Added base to the following run definitions:")
+				fmt.Fprintln(s.Stdout, "Updated base in the following run definitions:")
 				for _, runFile := range result.UpdatedRunFiles {
 					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.ResolvedBase.Image)
 				}
@@ -101,7 +102,7 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 			}
 
 			if len(result.ErroredRunFiles) > 0 {
-				fmt.Fprintln(s.Stdout, "Failed to add base to the following run definitions:")
+				fmt.Fprintln(s.Stdout, "Failed to update base in the following run definitions:")
 				for _, runFile := range result.ErroredRunFiles {
 					fmt.Fprintf(s.Stdout, "\t%s → %s\n", relativePathFromWd(runFile.OriginalPath), runFile.Error)
 				}
@@ -113,12 +114,24 @@ func (s Service) InsertBase(cfg InsertBaseConfig) (InsertDefaultBaseResult, erro
 }
 
 func (s Service) insertDefaultBaseIfMissing(mintFiles []RwxDirectoryEntry) (InsertDefaultBaseResult, error) {
-	runFiles, err := s.getFilesForBaseInsert(mintFiles)
+	return s.insertOrUpdateBase(mintFiles, false)
+}
+
+func (s Service) insertOrUpdateBase(mintFiles []RwxDirectoryEntry, updateDeprecated bool) (InsertDefaultBaseResult, error) {
+	runFilesToInsert, err := s.getFilesForBaseInsert(mintFiles)
 	if err != nil {
 		return InsertDefaultBaseResult{}, err
 	}
 
-	if len(runFiles) == 0 {
+	var runFilesToUpdate []BaseLayerRunFile
+	if updateDeprecated {
+		runFilesToUpdate, err = s.getFilesForBaseUpdate(mintFiles)
+		if err != nil {
+			return InsertDefaultBaseResult{}, err
+		}
+	}
+
+	if len(runFilesToInsert) == 0 && len(runFilesToUpdate) == 0 {
 		return InsertDefaultBaseResult{}, nil
 	}
 
@@ -127,9 +140,11 @@ func (s Service) insertDefaultBaseIfMissing(mintFiles []RwxDirectoryEntry) (Inse
 		return InsertDefaultBaseResult{}, errors.Wrap(err, "unable to get default base spec")
 	}
 
-	erroredRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
-	updatedRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
-	for _, runFile := range runFiles {
+	erroredRunFiles := make([]BaseLayerRunFile, 0)
+	updatedRunFiles := make([]BaseLayerRunFile, 0)
+
+	// Insert base for files missing it
+	for _, runFile := range runFilesToInsert {
 		runFile.ResolvedBase = defaultBaseSpec
 
 		err := s.writeRunFileWithBase(runFile)
@@ -139,6 +154,17 @@ func (s Service) insertDefaultBaseIfMissing(mintFiles []RwxDirectoryEntry) (Inse
 		} else {
 			updatedRunFiles = append(updatedRunFiles, runFile)
 		}
+	}
+
+	// Update deprecated base configurations
+	if updateDeprecated {
+		updateResult, err := s.updateDeprecatedBase(runFilesToUpdate, defaultBaseSpec)
+		if err != nil {
+			return InsertDefaultBaseResult{}, err
+		}
+
+		erroredRunFiles = append(erroredRunFiles, updateResult.ErroredRunFiles...)
+		updatedRunFiles = append(updatedRunFiles, updateResult.UpdatedRunFiles...)
 	}
 
 	return InsertDefaultBaseResult{
@@ -212,4 +238,96 @@ func (s Service) writeRunFileWithBase(runFile BaseLayerRunFile) error {
 	}
 
 	return doc.WriteFile(runFile.OriginalPath)
+}
+
+func (s Service) getFilesForBaseUpdate(entries []RwxDirectoryEntry) ([]BaseLayerRunFile, error) {
+	yamlFiles := filterYAMLFilesForModification(entries, func(doc *YAMLDoc) bool {
+		if !doc.HasBase() {
+			return false
+		}
+
+		// Include files that have deprecated os or tag fields
+		return doc.HasBaseOs() || doc.HasBaseTag()
+	})
+
+	runFiles := make([]BaseLayerRunFile, 0)
+	for _, yamlFile := range yamlFiles {
+		runFiles = append(runFiles, BaseLayerRunFile{OriginalPath: yamlFile.Entry.OriginalPath})
+	}
+
+	return runFiles, nil
+}
+
+func (s Service) updateDeprecatedBase(runFiles []BaseLayerRunFile, defaultBaseSpec BaseSpec) (InsertDefaultBaseResult, error) {
+	erroredRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
+	updatedRunFiles := make([]BaseLayerRunFile, 0, len(runFiles))
+
+	for _, runFile := range runFiles {
+		resolvedBase, err := s.updateRunFileBase(runFile, defaultBaseSpec)
+		if err != nil {
+			runFile.Error = err
+			erroredRunFiles = append(erroredRunFiles, runFile)
+		} else {
+			runFile.ResolvedBase = resolvedBase
+			updatedRunFiles = append(updatedRunFiles, runFile)
+		}
+	}
+
+	return InsertDefaultBaseResult{
+		ErroredRunFiles: erroredRunFiles,
+		UpdatedRunFiles: updatedRunFiles,
+	}, nil
+}
+
+func (s Service) updateRunFileBase(runFile BaseLayerRunFile, defaultBaseSpec BaseSpec) (BaseSpec, error) {
+	doc, err := ParseYAMLFile(runFile.OriginalPath)
+	if err != nil {
+		return BaseSpec{}, err
+	}
+
+	// Read current base values
+	osValue := doc.TryReadStringAtPath("$.base.os")
+	archValue := doc.TryReadStringAtPath("$.base.arch")
+	currentImage := doc.TryReadStringAtPath("$.base.image")
+
+	// Determine the image value
+	var image string
+	if osValue != "" {
+		// Convert "ubuntu 24.04" to "ubuntu:24.04"
+		image = strings.Replace(osValue, " ", ":", 1)
+	} else if currentImage != "" {
+		image = currentImage
+	} else {
+		image = defaultBaseSpec.Image
+	}
+
+	// Use default config (tag is removed)
+	config := defaultBaseSpec.Config
+
+	// Build the new base section
+	base := yaml.MapSlice{
+		{Key: "image", Value: image},
+		{Key: "config", Value: config},
+	}
+
+	// Preserve arch if present and not default
+	if archValue != "" && archValue != DefaultArch {
+		base = append(base, yaml.MapItem{Key: "arch", Value: archValue})
+	}
+
+	err = doc.ReplaceRootField("base", base)
+	if err != nil {
+		return BaseSpec{}, err
+	}
+
+	err = doc.WriteFile(runFile.OriginalPath)
+	if err != nil {
+		return BaseSpec{}, err
+	}
+
+	return BaseSpec{
+		Image:  image,
+		Config: config,
+		Arch:   archValue,
+	}, nil
 }

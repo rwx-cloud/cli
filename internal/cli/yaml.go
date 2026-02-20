@@ -58,6 +58,14 @@ func (doc *YAMLDoc) HasBase() bool {
 	return doc.hasPath("$.base")
 }
 
+func (doc *YAMLDoc) HasBaseOs() bool {
+	return doc.hasPath("$.base.os")
+}
+
+func (doc *YAMLDoc) HasBaseTag() bool {
+	return doc.hasPath("$.base.tag")
+}
+
 func (doc *YAMLDoc) HasTasks() bool {
 	return doc.hasPath("$.tasks")
 }
@@ -264,6 +272,94 @@ func (doc *YAMLDoc) ReplaceAtPath(yamlPath string, replacement any) error {
 
 	doc.modified()
 	return nil
+}
+
+// ReplaceRootField replaces a root-level field with a new value, preserving
+// proper YAML formatting. Use this for replacing entire sections like "base:".
+func (doc *YAMLDoc) ReplaceRootField(fieldName string, value any) error {
+	yamlPath := "$." + fieldName
+	p, err := yaml.PathString(yamlPath)
+	if err != nil {
+		return err
+	}
+
+	// We need to reparse to get accurate token positions
+	reparsedFile, err := parser.ParseBytes([]byte(doc.astFile.String()), parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	fieldNode, err := p.FilterFile(reparsedFile)
+	if err != nil {
+		return err
+	}
+
+	// Get the position of the field value
+	token := fieldNode.GetToken()
+	if token.Prev == nil || token.Prev.Prev == nil {
+		return errors.New("unexpected token structure")
+	}
+
+	// Find the start of the line containing the key
+	keyToken := token.Prev.Prev
+	content := []byte(doc.astFile.String())
+
+	startIdx := keyToken.Position.Offset
+	for startIdx > 0 && content[startIdx-1] != '\n' {
+		startIdx--
+	}
+
+	// Find the end of this field section (next root-level key or EOF)
+	endIdx := len(content)
+
+	// Get the root mapping node to find all root-level keys
+	if len(reparsedFile.Docs) > 0 && reparsedFile.Docs[0].Body != nil {
+		if mapNode, ok := reparsedFile.Docs[0].Body.(*ast.MappingNode); ok {
+			for _, entry := range mapNode.Values {
+				entryOffset := entry.Key.GetToken().Position.Offset
+				// Find the next key after our field
+				if entryOffset > keyToken.Position.Offset {
+					// Back up to start of line
+					nextStart := entryOffset
+					for nextStart > 0 && content[nextStart-1] != '\n' {
+						nextStart--
+					}
+					// Also include any blank lines before the next field
+					for nextStart > startIdx && nextStart > 0 && content[nextStart-1] == '\n' {
+						checkIdx := nextStart - 1
+						for checkIdx > 0 && content[checkIdx-1] != '\n' {
+							checkIdx--
+						}
+						line := strings.TrimSpace(string(content[checkIdx : nextStart-1]))
+						if line == "" || strings.HasPrefix(line, "#") {
+							nextStart = checkIdx
+						} else {
+							break
+						}
+					}
+					endIdx = nextStart
+					break
+				}
+			}
+		}
+	}
+
+	// Encode the new value
+	newNode, err := yaml.NewEncoder(nil).EncodeToNode(map[string]any{fieldName: value})
+	if err != nil {
+		return err
+	}
+
+	// Build the replacement
+	newContent := newNode.String()
+	if endIdx < len(content) {
+		newContent += "\n"
+	}
+
+	// Replace the section
+	result := string(content[:startIdx]) + newContent + string(content[endIdx:])
+
+	return doc.reparseAst(result)
 }
 
 func (doc *YAMLDoc) SetAtPath(yamlPath string, value any) error {

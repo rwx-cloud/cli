@@ -34,9 +34,10 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return updateBase(args)
 		},
-		Short: "Add a base image to RWX run configurations that do not have one",
-		Long: "Add a base image to RWX run configurations that do not have one.\n" +
-			"Updates all top-level YAML files in .rwx that are missing a 'base' to include one.",
+		Short: "Update base images in RWX run configurations",
+		Long: "Update base images in RWX run configurations.\n" +
+			"Adds a base image to run configurations that don't have one, and migrates\n" +
+			"deprecated 'os' and 'tag' fields to the new 'image' and 'config' format.",
 		Use: "base [flags] [files...]",
 	}
 
