@@ -33,7 +33,7 @@ func TestService_GetRunStatus(t *testing.T) {
 		require.True(t, result.Completed)
 	})
 
-	t.Run("polls until run completes", func(t *testing.T) {
+	t.Run("polls until run completes with failure", func(t *testing.T) {
 		setup := setupTest(t)
 
 		callCount := 0
@@ -64,6 +64,41 @@ func TestService_GetRunStatus(t *testing.T) {
 		require.Equal(t, 3, callCount)
 		require.Equal(t, "run-456", result.RunID)
 		require.Equal(t, "failed", result.ResultStatus)
+		require.True(t, result.Completed)
+	})
+
+	t.Run("polls until run completes with success", func(t *testing.T) {
+		setup := setupTest(t)
+
+		callCount := 0
+		backoffMs := 0
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			callCount++
+			if callCount < 2 {
+				return api.RunStatusResult{
+					Status:  &api.RunStatus{Result: "in_progress"},
+					RunID:   "run-789",
+					Polling: api.PollingResult{Completed: false, BackoffMs: &backoffMs},
+				}, nil
+			}
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "succeeded"},
+				RunID:   "run-789",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			RunID: "run-789",
+			Wait:  true,
+			Json:  false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+		require.Equal(t, "run-789", result.RunID)
+		require.Equal(t, "succeeded", result.ResultStatus)
+		require.True(t, result.Completed)
 	})
 
 	t.Run("returns error when backoff is nil and polling not completed", func(t *testing.T) {

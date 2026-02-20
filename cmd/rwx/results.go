@@ -61,6 +61,10 @@ var (
 				}
 			}
 
+			if result.Completed && result.ResultStatus != "succeeded" {
+				return HandledError
+			}
+
 			return nil
 		},
 	}
