@@ -168,8 +168,14 @@ tasks:
   - key: run-rwx-testing-tests
     use: [rwx-testing-code, jq, rwx-cli]
     run: |
-      run_result=$(./rwx run --wait --json --file ./rwx-testing/.rwx/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init lsp=main --init cli=${{ init.commit-sha }}) 
+      run_result=$(./rwx run --wait --json --file ./rwx-testing/.rwx/trigger-integration-test.yml --init 'grep=@cli' --init ref=main --init lsp=main --init cli=${{ init.commit-sha }})
       echo "${run_result}"
+
+      run_url=$(echo "${run_result}" | jq -r ".RunURL")
+      if [ -n "$run_url" ] && [ "$run_url" != "null" ]; then
+        echo "$run_url" > "$RWX_LINKS/Integration Tests Run"
+      fi
+
       result_status=$(echo "${run_result}" | jq -r ".ResultStatus")
 
       if [ "$result_status" != "succeeded" ]; then
@@ -182,10 +188,17 @@ tasks:
       - rwx-testing/.rwx/trigger-integration-test.yml
 
   - key: run-rwx-testing-sandbox
-    use: [rwx-testing-code, rwx-cli]
+    use: [rwx-testing-code, jq, rwx-cli]
     run: |
       cd ./rwx-testing
-      ../rwx sandbox start .rwx/sandbox.yml --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }} --wait
+
+      sandbox_result=$(../rwx sandbox start .rwx/sandbox.yml --json --init 'grep=@cli' --init ref=main --init cli=${{ init.commit-sha }} --wait)
+      echo "${sandbox_result}"
+
+      sandbox_url=$(echo "${sandbox_result}" | jq -r ".RunURL")
+      if [ -n "$sandbox_url" ] && [ "$sandbox_url" != "null" ]; then
+        echo "$sandbox_url" > "$RWX_LINKS/Sandbox Run"
+      fi
 
       echo "new file" > new-file.txt
       echo "# Change to existing file" >> .rwx/sandbox.yml
