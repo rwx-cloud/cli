@@ -144,6 +144,10 @@ var (
 						fmt.Printf("\n%s", promptResult.Prompt)
 					}
 				}
+
+				if waitResult.ResultStatus != "succeeded" {
+					return HandledError
+				}
 			}
 
 			if Debug {
