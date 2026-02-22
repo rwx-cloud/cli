@@ -100,7 +100,7 @@ func TestService_DocsSearch(t *testing.T) {
 						},
 					},
 				})
-			case "/captain/flaky-tests":
+			case "/docs/captain/flaky-tests":
 				require.Equal(t, "text/markdown", r.Header.Get("Accept"))
 				fmt.Fprint(w, "# Flaky Test Detection\n\nFull article body.")
 			default:
@@ -282,7 +282,7 @@ func TestService_DocsSearch(t *testing.T) {
 						},
 					},
 				})
-			case "/mint/cache-config":
+			case "/docs/mint/cache-config":
 				fmt.Fprint(w, "# Cache Configuration\n\nFull article about cache config.")
 			default:
 				t.Fatalf("unexpected request path: %s", r.URL.Path)
@@ -346,7 +346,7 @@ func TestService_DocsSearch(t *testing.T) {
 func TestService_DocsPull(t *testing.T) {
 	t.Run("when the article is found", func(t *testing.T) {
 		s := setupDocsServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/captain/getting-started", r.URL.Path)
+			require.Equal(t, "/docs/captain/getting-started", r.URL.Path)
 			require.Equal(t, "text/markdown", r.Header.Get("Accept"))
 
 			fmt.Fprint(w, "# Getting Started\n\nWelcome to Captain.")

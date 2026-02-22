@@ -98,6 +98,11 @@ func (c Client) resolveURL(urlOrPath string) string {
 		return fmt.Sprintf("%s://%s", c.scheme(), urlOrPath)
 	}
 
+	// Bare path without /docs prefix:
+	if strings.HasPrefix(urlOrPath, "/") && !strings.HasPrefix(urlOrPath, "/docs") {
+		return fmt.Sprintf("%s://%s/docs%s", c.scheme(), host, urlOrPath)
+	}
+
 	// Bare path: /docs/rwx/guides/ci
 	return fmt.Sprintf("%s://%s%s", c.scheme(), host, urlOrPath)
 }
