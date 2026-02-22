@@ -44,8 +44,8 @@ func TestClient_resolveURL(t *testing.T) {
 		},
 		{
 			name:     "bare path without docs prefix",
-			input:    "/mint/get-started",
-			expected: "https://www.rwx.com/docs/mint/get-started",
+			input:    "/rwx/get-started",
+			expected: "https://www.rwx.com/docs/rwx/get-started",
 		},
 		{
 			name:     "bare root path without docs prefix",
@@ -129,17 +129,17 @@ func TestClient_FetchArticle_withPath(t *testing.T) {
 
 func TestClient_FetchArticle_withPathWithoutDocsPrefix(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/docs/mint/get-started", r.URL.Path)
+		require.Equal(t, "/docs/rwx/get-started", r.URL.Path)
 		require.Equal(t, "text/markdown", r.Header.Get("Accept"))
-		fmt.Fprint(w, "# Get Started\n\nWelcome to Mint.")
+		fmt.Fprint(w, "# Get Started\n\nWelcome to RWX.")
 	}))
 	t.Cleanup(server.Close)
 
 	c := Client{Host: server.Listener.Addr().String(), Scheme: "http"}
 
-	body, err := c.FetchArticle("/mint/get-started")
+	body, err := c.FetchArticle("/rwx/get-started")
 	require.NoError(t, err)
-	require.Equal(t, "# Get Started\n\nWelcome to Mint.", body)
+	require.Equal(t, "# Get Started\n\nWelcome to RWX.", body)
 }
 
 func TestClient_FetchArticle_withHostNoScheme(t *testing.T) {

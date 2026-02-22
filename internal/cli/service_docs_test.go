@@ -155,14 +155,14 @@ func TestService_DocsSearch(t *testing.T) {
 				Results: []docs.SearchResult{
 					{
 						Title:   "Content Caching",
-						URL:     "https://www.rwx.com/docs/mint/caching",
-						Path:    "/mint/caching",
+						URL:     "https://www.rwx.com/docs/rwx/caching",
+						Path:    "/rwx/caching",
 						Snippet: "Learn about content-based caching.",
 					},
 					{
 						Title:   "Cache Configuration",
-						URL:     "https://www.rwx.com/docs/mint/cache-config",
-						Path:    "/mint/cache-config",
+						URL:     "https://www.rwx.com/docs/rwx/cache-config",
+						Path:    "/rwx/cache-config",
 						Snippet: "Configure cache behavior.",
 					},
 				},
@@ -181,10 +181,10 @@ func TestService_DocsSearch(t *testing.T) {
 
 		output := s.mockStdout.String()
 		require.Contains(t, output, "Content Caching")
-		require.Contains(t, output, "https://www.rwx.com/docs/mint/caching")
+		require.Contains(t, output, "https://www.rwx.com/docs/rwx/caching")
 		require.Contains(t, output, "Learn about content-based caching.")
 		require.Contains(t, output, "Cache Configuration")
-		require.Contains(t, output, "https://www.rwx.com/docs/mint/cache-config")
+		require.Contains(t, output, "https://www.rwx.com/docs/rwx/cache-config")
 		require.Contains(t, output, "Configure cache behavior.")
 	})
 
@@ -196,14 +196,14 @@ func TestService_DocsSearch(t *testing.T) {
 				Results: []docs.SearchResult{
 					{
 						Title:   "Content Caching",
-						URL:     "https://www.rwx.com/docs/mint/caching",
-						Path:    "/mint/caching",
+						URL:     "https://www.rwx.com/docs/rwx/caching",
+						Path:    "/rwx/caching",
 						Snippet: "Learn about content-based caching.",
 					},
 					{
 						Title:   "Cache Configuration",
-						URL:     "https://www.rwx.com/docs/mint/cache-config",
-						Path:    "/mint/cache-config",
+						URL:     "https://www.rwx.com/docs/rwx/cache-config",
+						Path:    "/rwx/cache-config",
 						Snippet: "Configure cache behavior.",
 					},
 				},
@@ -232,14 +232,14 @@ func TestService_DocsSearch(t *testing.T) {
 				Results: []docs.SearchResult{
 					{
 						Title:   "Content Caching",
-						URL:     "https://www.rwx.com/docs/mint/caching",
-						Path:    "/mint/caching",
+						URL:     "https://www.rwx.com/docs/rwx/caching",
+						Path:    "/rwx/caching",
 						Snippet: "Learn about content-based caching.",
 					},
 					{
 						Title:   "Cache Configuration",
-						URL:     "https://www.rwx.com/docs/mint/cache-config",
-						Path:    "/mint/cache-config",
+						URL:     "https://www.rwx.com/docs/rwx/cache-config",
+						Path:    "/rwx/cache-config",
 						Snippet: "Configure cache behavior.",
 					},
 				},
@@ -270,19 +270,19 @@ func TestService_DocsSearch(t *testing.T) {
 					Results: []docs.SearchResult{
 						{
 							Title:   "Content Caching",
-							URL:     "https://www.rwx.com/docs/mint/caching",
-							Path:    "/mint/caching",
+							URL:     "https://www.rwx.com/docs/rwx/caching",
+							Path:    "/rwx/caching",
 							Snippet: "Learn about content-based caching.",
 						},
 						{
 							Title:   "Cache Configuration",
-							URL:     "https://www.rwx.com/docs/mint/cache-config",
-							Path:    "/mint/cache-config",
+							URL:     "https://www.rwx.com/docs/rwx/cache-config",
+							Path:    "/rwx/cache-config",
 							Snippet: "Configure cache behavior.",
 						},
 					},
 				})
-			case "/docs/mint/cache-config":
+			case "/docs/rwx/cache-config":
 				fmt.Fprint(w, "# Cache Configuration\n\nFull article about cache config.")
 			default:
 				t.Fatalf("unexpected request path: %s", r.URL.Path)
