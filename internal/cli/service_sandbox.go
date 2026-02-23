@@ -479,6 +479,11 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		pulledFiles = pulled
 	}
 
+	// Revert sandbox to clean HEAD so the next exec starts from a known state
+	if revertErr := s.revertSandbox(); revertErr != nil {
+		fmt.Fprintf(s.Stderr, "Warning: failed to revert sandbox: %v\n", revertErr)
+	}
+
 	runURL := s.sandboxRunURL(&SandboxSession{RunURL: sessionRunURL})
 	return &ExecSandboxResult{RunID: runID, ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
 }
@@ -767,6 +772,24 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	return files, nil
 }
 
+// revertSandbox resets the sandbox working tree to a clean HEAD state.
+// This runs after pull so the next exec starts from a known clean baseline.
+func (s Service) revertSandbox() error {
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
+	exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git checkout . >/dev/null 2>&1; /usr/bin/git clean -fd >/dev/null 2>&1; /usr/bin/git update-ref refs/rwx-sync HEAD 2>/dev/null")
+
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+
+	if err != nil {
+		return errors.Wrap(err, "failed to revert sandbox")
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("failed to revert sandbox (exit code %d)", exitCode)
+	}
+	return nil
+}
+
 // parsePatchFiles extracts file paths from a git patch
 func parsePatchFiles(patch string) []string {
 	var files []string
@@ -921,42 +944,6 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	if exitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
-	}
-
-	// Get list of files that are dirty on the sandbox (from previous syncs)
-	// This includes both tracked files with modifications and untracked files
-	// We reset these to ensure files reverted locally are also reverted on sandbox
-	_, dirtyTracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff --name-only HEAD")
-	_, dirtyUntracked, _ := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
-
-	// Combine dirty files with files in current patch for complete reset list
-	filesToReset := make(map[string]bool)
-	for _, f := range strings.Split(strings.TrimSpace(dirtyTracked), "\n") {
-		if f != "" {
-			filesToReset[f] = true
-		}
-	}
-	for _, f := range strings.Split(strings.TrimSpace(dirtyUntracked), "\n") {
-		if f != "" {
-			filesToReset[f] = true
-		}
-	}
-	for _, f := range parsePatchFiles(string(patch)) {
-		filesToReset[f] = true
-	}
-
-	// Reset only the dirty files (preserves build artifacts and other generated files)
-	for f := range filesToReset {
-		quotedPath := fmt.Sprintf("'%s'", strings.ReplaceAll(f, "'", "'\\''"))
-		// Try git checkout first (works for tracked files), fall back to rm for untracked
-		resetCmd := fmt.Sprintf("/usr/bin/git checkout HEAD -- %s 2>/dev/null || /bin/rm -f %s", quotedPath, quotedPath)
-		exitCode, err := s.SSHClient.ExecuteCommand(resetCmd)
-		if err != nil {
-			return errors.Wrapf(err, "failed to reset file %s in sandbox", f)
-		}
-		if exitCode != 0 {
-			return fmt.Errorf("failed to reset file %s in sandbox (exit code %d)", f, exitCode)
-		}
 	}
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
