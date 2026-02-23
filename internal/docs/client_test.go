@@ -95,6 +95,56 @@ func TestClient_resolveURL_customHost(t *testing.T) {
 	}
 }
 
+func TestClient_Search_sendsDocsTokenHeader(t *testing.T) {
+	t.Run("when docs token is set", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "my-docs-token", r.Header.Get("X-RWX-Docs-Token"))
+			fmt.Fprint(w, `{"query":"test","totalHits":0,"results":[]}`)
+		}))
+		t.Cleanup(server.Close)
+
+		c := Client{
+			Host:      server.Listener.Addr().String(),
+			Scheme:    "http",
+			DocsToken: "my-docs-token",
+		}
+
+		_, err := c.Search("test", 5)
+		require.NoError(t, err)
+	})
+
+	t.Run("when docs token is empty", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Empty(t, r.Header.Get("X-RWX-Docs-Token"))
+			fmt.Fprint(w, `{"query":"test","totalHits":0,"results":[]}`)
+		}))
+		t.Cleanup(server.Close)
+
+		c := Client{Host: server.Listener.Addr().String(), Scheme: "http"}
+
+		_, err := c.Search("test", 5)
+		require.NoError(t, err)
+	})
+}
+
+func TestClient_FetchArticle_sendsDocsTokenHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "my-docs-token", r.Header.Get("X-RWX-Docs-Token"))
+		fmt.Fprint(w, "# Article")
+	}))
+	t.Cleanup(server.Close)
+
+	c := Client{
+		Host:      server.Listener.Addr().String(),
+		Scheme:    "http",
+		DocsToken: "my-docs-token",
+	}
+
+	body, err := c.FetchArticle("/docs/test")
+	require.NoError(t, err)
+	require.Equal(t, "# Article", body)
+}
+
 func TestClient_FetchArticle_withFullURL(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/docs/rwx/guides/ci", r.URL.Path)

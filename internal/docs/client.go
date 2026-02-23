@@ -13,8 +13,9 @@ import (
 )
 
 type Client struct {
-	Host   string // default "www.rwx.com"
-	Scheme string // default "https"
+	Host      string // default "www.rwx.com"
+	Scheme    string // default "https"
+	DocsToken string
 }
 
 type SearchResponse struct {
@@ -30,6 +31,12 @@ type SearchResult struct {
 	Title    string `json:"title"`
 	Snippet  string `json:"snippet"`
 	Body     string `json:"body"`
+}
+
+func (c Client) setDocsTokenHeader(req *http.Request) {
+	if c.DocsToken != "" {
+		req.Header.Set("X-RWX-Docs-Token", c.DocsToken)
+	}
 }
 
 func (c Client) host() string {
@@ -60,6 +67,7 @@ func (c Client) Search(query string, limit int) (*SearchResponse, error) {
 		return nil, fmt.Errorf("unable to create request: %w", err)
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("rwx-cli/%s", config.Version))
+	c.setDocsTokenHeader(req)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -116,6 +124,7 @@ func (c Client) FetchArticle(urlOrPath string) (string, error) {
 	}
 	req.Header.Set("Accept", "text/markdown")
 	req.Header.Set("User-Agent", fmt.Sprintf("rwx-cli/%s", config.Version))
+	c.setDocsTokenHeader(req)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
