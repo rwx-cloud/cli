@@ -55,13 +55,14 @@ if [ "$expected_sha" != "$actual_sha" ]; then
 fi
 
 ../rwx sandbox exec -- sh -c 'echo "# Sandbox modification" >> .rwx/sandbox.yml'
-sandbox_modified_sha=$(../rwx sandbox exec --no-sync -- sha1sum .rwx/sandbox.yml | awk 'NR==1{print $1}')
 modified_sandbox_yml_sha=$(sha1sum .rwx/sandbox.yml | awk '{print $1}')
 if [ "$changed_file_sha" = "$modified_sandbox_yml_sha" ]; then
   echo ".rwx/sandbox.yml was not modified by sandbox exec (sha still $changed_file_sha)"
   ../rwx sandbox stop
   exit 1
 fi
+# Verify that re-syncing the modified file to the sandbox produces a consistent result
+sandbox_modified_sha=$(../rwx sandbox exec -- sha1sum .rwx/sandbox.yml | awk 'NR==1{print $1}')
 if [ "$sandbox_modified_sha" != "$modified_sandbox_yml_sha" ]; then
   echo ".rwx/sandbox.yml local/sandbox mismatch after modification (local: $modified_sandbox_yml_sha, sandbox: $sandbox_modified_sha)"
   ../rwx sandbox stop
@@ -86,6 +87,24 @@ uncommitted_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
 post_exec_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
 if [ "$uncommitted_sha" != "$post_exec_sha" ]; then
   echo "uncommitted-test.txt was lost during sandbox exec with unpushed commits (expected $uncommitted_sha, got $post_exec_sha)"
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Test: reverting local changes doesn't leak stale sandbox state back.
+# The bug only triggers when the local patch is completely empty, so we must
+# start from a fully clean working tree.
+git checkout .
+git clean -fd
+
+echo "revert-test content" > revert-test.txt
+../rwx sandbox exec -- cat revert-test.txt > /dev/null
+rm -f revert-test.txt
+
+../rwx sandbox exec -- echo "exec after local revert"
+
+if [ -f revert-test.txt ]; then
+  echo "revert-test.txt was pulled back from sandbox after being reverted locally"
   ../rwx sandbox stop
   exit 1
 fi

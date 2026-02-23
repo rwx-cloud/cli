@@ -533,7 +533,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Contains(t, err.Error(), "git apply failed")
 	})
 
-	t.Run("syncs changes by resetting dirty files and applying patch", func(t *testing.T) {
+	t.Run("syncs changes and reverts sandbox after pull", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-sync-123"
@@ -564,7 +564,6 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
-			// Return empty for git diff --name-only and ls-files (no dirty files on sandbox)
 			return 0, "", nil
 		}
 
@@ -584,12 +583,19 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
-		// Should have: sync start, test -d .git, reset for file.txt, user command, and sync markers
 		require.Contains(t, commandOrder[0], "__rwx_sandbox_sync_start__")
 		require.Contains(t, commandOrder, "echo hello")
 		// git apply uses stdin method
 		require.GreaterOrEqual(t, len(stdinCommandOrder), 1)
 		require.Equal(t, "/usr/bin/git apply --allow-empty -", stdinCommandOrder[0])
+		// Sandbox should be reverted after pull (git checkout + git clean)
+		lastSyncEnd := -1
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "git checkout .") && strings.Contains(cmd, "git clean -fd") {
+				lastSyncEnd = i
+			}
+		}
+		require.NotEqual(t, -1, lastSyncEnd, "sandbox should be reverted after pull")
 	})
 
 	t.Run("returns helpful error when git is not installed", func(t *testing.T) {
