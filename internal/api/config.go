@@ -135,6 +135,10 @@ type WhoamiResult struct {
 	UserEmail        *string `json:"user_email,omitempty"`
 }
 
+type DocsTokenResult struct {
+	Token string `json:"token"`
+}
+
 type SetSecretsInVaultConfig struct {
 	Secrets   []Secret `json:"secrets"`
 	VaultName string   `json:"vault_name"`
