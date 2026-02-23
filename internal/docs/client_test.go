@@ -42,6 +42,16 @@ func TestClient_resolveURL(t *testing.T) {
 			input:    "rwx.com/docs/rwx/guides/ci",
 			expected: "https://rwx.com/docs/rwx/guides/ci",
 		},
+		{
+			name:     "bare path without docs prefix",
+			input:    "/rwx/get-started",
+			expected: "https://www.rwx.com/docs/rwx/get-started",
+		},
+		{
+			name:     "bare root path without docs prefix",
+			input:    "/rwx/guides/ci",
+			expected: "https://www.rwx.com/docs/rwx/guides/ci",
+		},
 	}
 
 	for _, tt := range tests {
@@ -61,9 +71,9 @@ func TestClient_resolveURL_customHost(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "bare path with custom host",
+			name:     "bare path with custom host prepends docs prefix",
 			input:    "/some/article",
-			expected: "http://docs.example.com/some/article",
+			expected: "http://docs.example.com/docs/some/article",
 		},
 		{
 			name:     "full URL ignores custom host",
@@ -115,6 +125,21 @@ func TestClient_FetchArticle_withPath(t *testing.T) {
 	body, err := c.FetchArticle("/docs/rwx/guides/ci")
 	require.NoError(t, err)
 	require.Equal(t, "# CI Guide\n\nWelcome.", body)
+}
+
+func TestClient_FetchArticle_withPathWithoutDocsPrefix(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/docs/rwx/get-started", r.URL.Path)
+		require.Equal(t, "text/markdown", r.Header.Get("Accept"))
+		fmt.Fprint(w, "# Get Started\n\nWelcome to RWX.")
+	}))
+	t.Cleanup(server.Close)
+
+	c := Client{Host: server.Listener.Addr().String(), Scheme: "http"}
+
+	body, err := c.FetchArticle("/rwx/get-started")
+	require.NoError(t, err)
+	require.Equal(t, "# Get Started\n\nWelcome to RWX.", body)
 }
 
 func TestClient_FetchArticle_withHostNoScheme(t *testing.T) {
