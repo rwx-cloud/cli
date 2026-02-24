@@ -409,7 +409,9 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return 0, "", nil
 		}
 
+		var commandOrder []string
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
 			if strings.Contains(cmd, "update-ref refs/rwx-sync HEAD") {
 				createdSyncRef = true
 			}
@@ -427,6 +429,18 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 0, result.ExitCode)
 		require.True(t, createdSyncRef, "sync should create refs/rwx-sync even with no local changes")
+
+		// The update-ref command must be wrapped in sync markers so it doesn't appear in task logs.
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "update-ref refs/rwx-sync HEAD") && !strings.Contains(cmd, "update-ref -d") {
+				require.Greater(t, i, 0, "update-ref should not be first command")
+				require.Equal(t, "__rwx_sandbox_sync_start__", commandOrder[i-1],
+					"update-ref should be preceded by sync start marker")
+				require.Less(t, i, len(commandOrder)-1, "update-ref should not be last command")
+				require.Equal(t, "__rwx_sandbox_sync_end__", commandOrder[i+1],
+					"update-ref should be followed by sync end marker")
+			}
+		}
 	})
 
 	t.Run("warns and skips sync for LFS files", func(t *testing.T) {
@@ -596,6 +610,47 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			}
 		}
 		require.NotEqual(t, -1, lastSyncEnd, "sandbox should be reverted after pull")
+
+		// Snapshot and reset git commands must be wrapped in sync markers
+		// so they don't appear in task logs. Find the sync block that contains them.
+		snapshotIdx := -1
+		resetIdx := -1
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "git update-ref -d refs/rwx-sync") {
+				snapshotIdx = i
+			}
+			if strings.Contains(cmd, "git reset HEAD~1") {
+				resetIdx = i
+			}
+		}
+		require.NotEqual(t, -1, snapshotIdx, "snapshot command should be present")
+		require.NotEqual(t, -1, resetIdx, "reset command should be present")
+
+		// Walk backward from snapshot to find sync start
+		foundStart := false
+		for j := snapshotIdx - 1; j >= 0; j-- {
+			if commandOrder[j] == "__rwx_sandbox_sync_start__" {
+				foundStart = true
+				break
+			}
+			if commandOrder[j] == "__rwx_sandbox_sync_end__" {
+				break // Hit end of a different sync block
+			}
+		}
+		require.True(t, foundStart, "snapshot/reset commands should be preceded by sync start marker")
+
+		// Walk forward from reset to find sync end
+		foundEnd := false
+		for j := resetIdx + 1; j < len(commandOrder); j++ {
+			if commandOrder[j] == "__rwx_sandbox_sync_end__" {
+				foundEnd = true
+				break
+			}
+			if commandOrder[j] == "__rwx_sandbox_sync_start__" {
+				break // Hit start of a different sync block
+			}
+		}
+		require.True(t, foundEnd, "snapshot/reset commands should be followed by sync end marker")
 	})
 
 	t.Run("returns helpful error when git is not installed", func(t *testing.T) {
