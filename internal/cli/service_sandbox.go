@@ -926,7 +926,9 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 
 	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
 	if len(patch) == 0 {
+		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
+		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		if err != nil {
 			return errors.Wrap(err, "failed to create sync ref with no local changes")
 		}
@@ -970,15 +972,20 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	// We delete the old ref, commit, save the new ref, then reset HEAD back so the user's branch
 	// tip is unchanged during exec. The old ref is deleted here (not earlier) so that if sync fails
 	// before this point, pull still has the previous baseline to diff against.
+	// Wrap in sync markers so these internal git commands don't appear in task logs.
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null; /usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
 	if snapshotErr != nil {
+		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
 	}
 	if snapshotExitCode != 0 {
+		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
 	}
 
 	resetExitCode, resetErr := s.SSHClient.ExecuteCommand("/usr/bin/git reset HEAD~1 >/dev/null 2>&1")
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if resetErr != nil {
 		return errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
 	}
