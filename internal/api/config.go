@@ -40,9 +40,9 @@ type InitializationParameter struct {
 }
 
 type GitMetadata struct {
-	Branch    string `json:"branch"`
-	Sha       string `json:"sha"`
-	OriginUrl string `json:"origin_url"`
+	Branch    string `json:"branch,omitempty"`
+	Sha       string `json:"sha,omitempty"`
+	OriginUrl string `json:"origin_url,omitempty"`
 }
 
 type PatchMetadata struct {
@@ -51,6 +51,9 @@ type PatchMetadata struct {
 	LFSCount       int      `json:"lfs_count"`
 	UntrackedFiles []string `json:"untracked_files"`
 	UntrackedCount int      `json:"untracked_count"`
+	ErrorMessage   string   `json:"cli_error_message,omitempty"`
+	GitDirectory   bool     `json:"git_directory"`
+	GitInstalled   bool     `json:"git_installed"`
 }
 
 type InitiateRunResult struct {

@@ -15,6 +15,8 @@ type Git struct {
 	MockGetOriginUrl      string
 	MockGeneratePatchFile git.PatchFile
 	MockGeneratePatch     func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
+	MockIsInstalled       bool
+	MockIsInsideWorkTree  bool
 }
 
 func (c *Git) GetBranch() string {
@@ -64,4 +66,12 @@ func (c *Git) GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMeta
 func (c *Git) ApplyPatch(patch []byte) *exec.Cmd {
 	// Return a no-op command for testing
 	return exec.Command("true")
+}
+
+func (c *Git) IsInstalled() bool {
+	return c.MockIsInstalled
+}
+
+func (c *Git) IsInsideWorkTree() bool {
+	return c.MockIsInsideWorkTree
 }

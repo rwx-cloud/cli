@@ -61,4 +61,6 @@ type GitClient interface {
 	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 	GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
 	ApplyPatch(patch []byte) *exec.Cmd
+	IsInstalled() bool
+	IsInsideWorkTree() bool
 }

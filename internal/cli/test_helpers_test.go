@@ -42,7 +42,10 @@ func setupTest(t *testing.T) *testSetup {
 	require.NoError(t, err)
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
-	setup.mockGit = new(mocks.Git)
+	setup.mockGit = &mocks.Git{
+		MockIsInstalled:      true,
+		MockIsInsideWorkTree: true,
+	}
 	setup.mockDocker = new(mocks.DockerClient)
 	setup.mockStdin = &bytes.Buffer{}
 	setup.mockStdout = &strings.Builder{}

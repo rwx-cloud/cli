@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,6 +72,130 @@ func initiateRun(t *testing.T, patchFile git.PatchFile, expectedPatchMetadata ap
 }
 
 func TestService_InitiatingRunPatch(t *testing.T) {
+	t.Run("when git is not installed", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockGit.MockIsInstalled = false
+		s.mockGit.MockIsInsideWorkTree = false
+
+		rwxDir := filepath.Join(s.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+		definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+		err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+		require.NoError(t, err)
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			require.False(t, cfg.Patch.Sent)
+			require.False(t, cfg.Patch.GitInstalled)
+			require.False(t, cfg.Patch.GitDirectory)
+			require.Equal(t, "Git is not installed", cfg.Patch.ErrorMessage)
+			require.Empty(t, cfg.Git.Sha)
+			require.Empty(t, cfg.Git.Branch)
+			require.Empty(t, cfg.Git.OriginUrl)
+			return &api.InitiateRunResult{
+				RunID:  "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+				RunURL: "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+			}, nil
+		}
+
+		_, err = s.service.InitiateRun(cli.InitiateRunConfig{
+			RwxDirectory: rwxDir,
+			MintFilePath: definitionsFile,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("when not in a git directory", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockGit.MockIsInstalled = true
+		s.mockGit.MockIsInsideWorkTree = false
+
+		rwxDir := filepath.Join(s.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+		definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+		err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+		require.NoError(t, err)
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			require.False(t, cfg.Patch.Sent)
+			require.True(t, cfg.Patch.GitInstalled)
+			require.False(t, cfg.Patch.GitDirectory)
+			require.Equal(t, "You are not in a git repository", cfg.Patch.ErrorMessage)
+			require.Empty(t, cfg.Git.Sha)
+			require.Empty(t, cfg.Git.Branch)
+			require.Empty(t, cfg.Git.OriginUrl)
+			return &api.InitiateRunResult{
+				RunID:  "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+				RunURL: "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+			}, nil
+		}
+
+		_, err = s.service.InitiateRun(cli.InitiateRunConfig{
+			RwxDirectory: rwxDir,
+			MintFilePath: definitionsFile,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("when git commit fails", func(t *testing.T) {
+		s := setupTest(t)
+		s.mockGit.MockIsInstalled = true
+		s.mockGit.MockIsInsideWorkTree = true
+		s.mockGit.MockGetCommitError = errors.New("no git remote named 'origin' is configured")
+
+		rwxDir := filepath.Join(s.tmp, ".rwx")
+		err := os.MkdirAll(rwxDir, 0o755)
+		require.NoError(t, err)
+
+		definitionsFile := filepath.Join(rwxDir, "rwx.yml")
+		definition := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\nbase:\n  os: ubuntu 24.04\n  tag: 1.0\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n"
+		err = os.WriteFile(definitionsFile, []byte(definition), 0o644)
+		require.NoError(t, err)
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+		s.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			require.False(t, cfg.Patch.Sent)
+			require.True(t, cfg.Patch.GitInstalled)
+			require.True(t, cfg.Patch.GitDirectory)
+			require.Equal(t, "no git remote named 'origin' is configured", cfg.Patch.ErrorMessage)
+			require.Empty(t, cfg.Git.Sha)
+			require.Empty(t, cfg.Git.Branch)
+			require.Empty(t, cfg.Git.OriginUrl)
+			return &api.InitiateRunResult{
+				RunID:  "785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+				RunURL: "https://cloud.rwx.com/mint/rwx/runs/785ce4e8-17b9-4c8b-8869-a55e95adffe7",
+			}, nil
+		}
+
+		_, err = s.service.InitiateRun(cli.InitiateRunConfig{
+			RwxDirectory: rwxDir,
+			MintFilePath: definitionsFile,
+		})
+		require.NoError(t, err)
+	})
+
 	t.Run("when the run is not patchable", func(t *testing.T) {
 		// it launches a run but does not patch
 		result := initiateRun(t, git.PatchFile{}, api.PatchMetadata{})

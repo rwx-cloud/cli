@@ -14,6 +14,21 @@ type Client struct {
 	Dir    string
 }
 
+func (c *Client) IsInstalled() bool {
+	_, err := exec.LookPath(c.Binary)
+	return err == nil
+}
+
+func (c *Client) IsInsideWorkTree() bool {
+	cmd := exec.Command(c.Binary, "rev-parse", "--is-inside-work-tree")
+	cmd.Dir = c.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) == "true"
+}
+
 func (c *Client) GetBranch() string {
 	cmd := exec.Command(c.Binary, "branch", "--show-current")
 	cmd.Dir = c.Dir
