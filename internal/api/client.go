@@ -457,6 +457,34 @@ func (c Client) Whoami() (*WhoamiResult, error) {
 	return &respBody, nil
 }
 
+func (c Client) CreateDocsToken() (*DocsTokenResult, error) {
+	endpoint := "/api/auth/docs_token"
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 && resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
+	}
+
+	respBody := DocsTokenResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &respBody, nil
+}
+
 func (c Client) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*SetSecretsInVaultResult, error) {
 	endpoint := "/mint/api/vaults/secrets"
 

@@ -21,6 +21,7 @@ type APIClient interface {
 	ObtainAuthCode(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
 	AcquireToken(tokenUrl string) (*api.AcquireTokenResult, error)
 	Whoami() (*api.WhoamiResult, error)
+	CreateDocsToken() (*api.DocsTokenResult, error)
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)
 	GetPackageDocumentation(packageName string) (*api.PackageDocumentationResult, error)

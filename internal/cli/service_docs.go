@@ -32,8 +32,15 @@ type DocsPullResult struct {
 	Body string `json:"Body"`
 }
 
+func (s Service) docsClientWithToken() docs.Client {
+	client := s.DocsClient
+	client.DocsToken = s.resolveDocsToken()
+	return client
+}
+
 func (s Service) DocsSearch(cfg DocsSearchConfig) (*DocsSearchResult, error) {
-	resp, err := s.DocsClient.Search(cfg.Query, cfg.Limit)
+	docsClient := s.docsClientWithToken()
+	resp, err := docsClient.Search(cfg.Query, cfg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +70,7 @@ func (s Service) DocsSearch(cfg DocsSearchConfig) (*DocsSearchResult, error) {
 			fmt.Fprintln(s.Stdout, result.Body)
 		} else {
 			// Fetch full article if body not included
-			body, err := s.DocsClient.FetchArticle(result.Path)
+			body, err := docsClient.FetchArticle(result.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +129,7 @@ func (s Service) DocsSearch(cfg DocsSearchConfig) (*DocsSearchResult, error) {
 	}
 
 	selected := resp.Results[choice-1]
-	body, err := s.DocsClient.FetchArticle(selected.Path)
+	body, err := docsClient.FetchArticle(selected.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +144,8 @@ func (s Service) DocsSearch(cfg DocsSearchConfig) (*DocsSearchResult, error) {
 }
 
 func (s Service) DocsPull(cfg DocsPullConfig) (*DocsPullResult, error) {
-	body, err := s.DocsClient.FetchArticle(cfg.URL)
+	docsClient := s.docsClientWithToken()
+	body, err := docsClient.FetchArticle(cfg.URL)
 	if err != nil {
 		return nil, err
 	}

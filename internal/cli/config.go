@@ -3,24 +3,28 @@ package cli
 import (
 	"io"
 
+	"github.com/rwx-cloud/cli/internal/accesstoken"
 	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/docs"
+	"github.com/rwx-cloud/cli/internal/docstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
 
 type Config struct {
-	APIClient       APIClient
-	SSHClient       SSHClient
-	GitClient       GitClient
-	DockerCLI       docker.Client
-	DocsClient      docs.Client
-	VersionsBackend versions.Backend
-	Stdin           io.Reader
-	Stdout          io.Writer
-	StdoutIsTTY     bool
-	Stderr          io.Writer
-	StderrIsTTY     bool
+	APIClient          APIClient
+	SSHClient          SSHClient
+	GitClient          GitClient
+	DockerCLI          docker.Client
+	DocsClient         docs.Client
+	DocsTokenBackend   docstoken.Backend
+	AccessTokenBackend accesstoken.Backend
+	VersionsBackend    versions.Backend
+	Stdin              io.Reader
+	Stdout             io.Writer
+	StdoutIsTTY        bool
+	Stderr             io.Writer
+	StderrIsTTY        bool
 }
 
 func (c Config) Validate() error {

@@ -11,6 +11,7 @@ import (
 	internalconfig "github.com/rwx-cloud/cli/internal/config"
 	"github.com/rwx-cloud/cli/internal/docker"
 	"github.com/rwx-cloud/cli/internal/docs"
+	"github.com/rwx-cloud/cli/internal/docstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
@@ -48,6 +49,7 @@ var (
 			}
 
 			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
+			docsTokenBackend := docstoken.NewFileBackend(fileBackend)
 			versionsBackend := versions.NewFileBackend(fileBackend)
 
 			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend, VersionsBackend: versionsBackend})
@@ -76,14 +78,16 @@ var (
 					Binary: "git",
 					Dir:    dir,
 				},
-				DockerCLI:       dockerCli,
-				DocsClient:      docs.Client{Host: docsHost, Scheme: docsScheme},
-				VersionsBackend: versionsBackend,
-				Stdin:           os.Stdin,
-				Stdout:          os.Stdout,
-				StdoutIsTTY:     term.IsTerminal(int(os.Stdout.Fd())),
-				Stderr:          os.Stderr,
-				StderrIsTTY:     term.IsTerminal(int(os.Stderr.Fd())),
+				DockerCLI:          dockerCli,
+				DocsClient:         docs.Client{Host: docsHost, Scheme: docsScheme},
+				DocsTokenBackend:   docsTokenBackend,
+				AccessTokenBackend: accessTokenBackend,
+				VersionsBackend:    versionsBackend,
+				Stdin:              os.Stdin,
+				Stdout:             os.Stdout,
+				StdoutIsTTY:        term.IsTerminal(int(os.Stdout.Fd())),
+				Stderr:             os.Stderr,
+				StderrIsTTY:        term.IsTerminal(int(os.Stderr.Fd())),
 			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize CLI")
