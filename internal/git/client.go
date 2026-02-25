@@ -14,6 +14,15 @@ type Client struct {
 	Dir    string
 }
 
+const defaultRemote = "origin"
+
+func getRemote() string {
+	if remote := os.Getenv("RWX_GIT_REMOTE"); remote != "" {
+		return remote
+	}
+	return defaultRemote
+}
+
 func (c *Client) IsInstalled() bool {
 	_, err := exec.LookPath(c.Binary)
 	return err == nil
@@ -63,13 +72,15 @@ func (c *Client) GetCommit() (string, error) {
 		return "", fmt.Errorf("current branch has no commits")
 	}
 
-	// Check if origin remote exists
-	if c.GetOriginUrl() == "" {
-		return "", fmt.Errorf("no git remote named 'origin' is configured")
+	remote := getRemote()
+
+	// Check if remote exists
+	if c.GetRemoteUrl(remote) == "" {
+		return "", fmt.Errorf("no git remote named '%s' is configured (set RWX_GIT_REMOTE to use a different remote)", remote)
 	}
 
-	// Find commits on HEAD that aren't on any origin ref, with boundary markers
-	cmd := exec.Command(c.Binary, "rev-list", "HEAD", "--not", "--remotes=origin", "--boundary")
+	// Find commits on HEAD that aren't on any remote ref, with boundary markers
+	cmd := exec.Command(c.Binary, "rev-list", "HEAD", "--not", "--remotes="+remote, "--boundary")
 	cmd.Dir = c.Dir
 
 	out, err := cmd.CombinedOutput()
@@ -100,11 +111,15 @@ func (c *Client) GetCommit() (string, error) {
 	}
 
 	// Output but no boundary means no common ancestor
-	return "", fmt.Errorf("current branch has no commits in common with the 'origin' remote")
+	return "", fmt.Errorf("current branch has no commits in common with the '%s' remote (set RWX_GIT_REMOTE to use a different remote)", remote)
 }
 
 func (c *Client) GetOriginUrl() string {
-	cmd := exec.Command(c.Binary, "remote", "get-url", "origin")
+	return c.GetRemoteUrl(getRemote())
+}
+
+func (c *Client) GetRemoteUrl(remote string) string {
+	cmd := exec.Command(c.Binary, "remote", "get-url", remote)
 	cmd.Dir = c.Dir
 
 	url, err := cmd.Output()

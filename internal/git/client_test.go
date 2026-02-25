@@ -96,7 +96,7 @@ func TestGetCommit(t *testing.T) {
 		client := &git.Client{Binary: "git", Dir: repo}
 		sha, err := client.GetCommit()
 		require.Equal(t, "", sha)
-		require.EqualError(t, err, "no git remote named 'origin' is configured")
+		require.EqualError(t, err, "no git remote named 'origin' is configured (set RWX_GIT_REMOTE to use a different remote)")
 	})
 
 	t.Run("returns error if branch has no commits", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestGetCommit(t *testing.T) {
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		sha, err := client.GetCommit()
 		require.Equal(t, "", sha)
-		require.EqualError(t, err, "no git remote named 'origin' is configured")
+		require.EqualError(t, err, "no git remote named 'origin' is configured (set RWX_GIT_REMOTE to use a different remote)")
 	})
 
 	t.Run("returns error if there is no common ancestor (orphan branch)", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestGetCommit(t *testing.T) {
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		sha, err := client.GetCommit()
 		require.Equal(t, "", sha)
-		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote")
+		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote (set RWX_GIT_REMOTE to use a different remote)")
 	})
 
 	t.Run("returns HEAD when in detached HEAD state", func(t *testing.T) {
