@@ -56,13 +56,25 @@ func (c *Client) GetCommit() (string, error) {
 		return strings.TrimSpace(string(out)), nil
 	}
 
+	// Check if HEAD resolves first
+	checkHead := exec.Command(c.Binary, "rev-parse", "HEAD")
+	checkHead.Dir = c.Dir
+	if err := checkHead.Run(); err != nil {
+		return "", fmt.Errorf("current branch has no commits")
+	}
+
+	// Check if origin remote exists
+	if c.GetOriginUrl() == "" {
+		return "", fmt.Errorf("no git remote named 'origin' is configured")
+	}
+
 	// Find commits on HEAD that aren't on any origin ref, with boundary markers
 	cmd := exec.Command(c.Binary, "rev-list", "HEAD", "--not", "--remotes=origin", "--boundary")
 	cmd.Dir = c.Dir
 
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("no git remote named 'origin' is configured")
+		return "", fmt.Errorf("git rev-list failed: %s", strings.TrimSpace(string(out)))
 	}
 
 	output := strings.TrimSpace(string(out))

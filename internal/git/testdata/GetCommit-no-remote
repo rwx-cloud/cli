@@ -2,3 +2,4 @@
 set -eou pipefail
 
 git init > /dev/null
+git commit --allow-empty -m "Initial commit" > /dev/null
