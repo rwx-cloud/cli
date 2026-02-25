@@ -99,13 +99,22 @@ func TestGetCommit(t *testing.T) {
 		require.EqualError(t, err, "no git remote named 'origin' is configured")
 	})
 
+	t.Run("returns error if branch has no commits", func(t *testing.T) {
+		repo, _ := repoFixture(t, "testdata/GetCommit-no-commits")
+
+		client := &git.Client{Binary: "git", Dir: repo}
+		sha, err := client.GetCommit()
+		require.Equal(t, "", sha)
+		require.EqualError(t, err, "current branch has no commits")
+	})
+
 	t.Run("returns error if remote origin is not set", func(t *testing.T) {
 		repo, _ := repoFixture(t, "testdata/GetCommit-no-remote-origin")
 
 		client := &git.Client{Binary: "git", Dir: filepath.Join(repo, "repo")}
 		sha, err := client.GetCommit()
 		require.Equal(t, "", sha)
-		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote")
+		require.EqualError(t, err, "no git remote named 'origin' is configured")
 	})
 
 	t.Run("returns error if there is no common ancestor (orphan branch)", func(t *testing.T) {
