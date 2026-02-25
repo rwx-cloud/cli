@@ -50,12 +50,30 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		return nil, err
 	}
 
-	sha, err := s.GitClient.GetCommit()
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to determine git commit")
+	gitInstalled := s.GitClient.IsInstalled()
+	gitDirectory := s.GitClient.IsInsideWorkTree()
+	var errorMessage string
+	var sha, branch, originUrl string
+
+	// Track whether we can generate patches (requires working git)
+	gitAvailable := gitInstalled && gitDirectory
+
+	if gitAvailable {
+		var err error
+		sha, err = s.GitClient.GetCommit()
+		if err != nil {
+			errorMessage = err.Error()
+			gitAvailable = false
+		} else {
+			branch = s.GitClient.GetBranch()
+			originUrl = s.GitClient.GetOriginUrl()
+		}
+	} else if !gitInstalled {
+		errorMessage = "Git is not installed"
+	} else if !gitDirectory {
+		errorMessage = "You are not in a git repository"
 	}
-	branch := s.GitClient.GetBranch()
-	originUrl := s.GitClient.GetOriginUrl()
+
 	patchFile := git.PatchFile{}
 
 	// When there's no .rwx directory, create a temporary one for patches and to set run.dir
@@ -72,8 +90,8 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	patchDir := filepath.Join(rwxDirectoryPath, ".patches")
 	defer os.RemoveAll(patchDir)
 
-	// Generate patches if enabled
-	patchable := cfg.Patchable
+	// Generate patches if enabled and git is available
+	patchable := cfg.Patchable && gitAvailable
 	if _, ok := os.LookupEnv("RWX_DISABLE_GIT_PATCH"); ok {
 		patchable = false
 	}
@@ -225,6 +243,9 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 			UntrackedCount: patchFile.UntrackedFiles.Count,
 			LFSFiles:       patchFile.LFSChangedFiles.Files,
 			LFSCount:       patchFile.LFSChangedFiles.Count,
+			ErrorMessage:   errorMessage,
+			GitDirectory:   gitDirectory,
+			GitInstalled:   gitInstalled,
 		},
 	})
 	if err != nil {
