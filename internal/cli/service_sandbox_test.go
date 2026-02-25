@@ -1,12 +1,14 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/git"
@@ -1253,6 +1255,143 @@ func TestService_StopSandbox(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found in local storage")
 	})
+
+	t.Run("calls CancelRun for active but not yet sandboxable run", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorage(t, setup.tmp, "run-initializing", "scoped-token-123")
+
+		cancelCalled := false
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable: false,
+				Polling:     api.PollingResult{Completed: false},
+			}, nil
+		}
+		setup.mockAPI.MockCancelRun = func(runID, scopedToken string) error {
+			require.Equal(t, "run-initializing", runID)
+			require.Equal(t, "scoped-token-123", scopedToken)
+			cancelCalled = true
+			return nil
+		}
+
+		result, err := setup.service.StopSandbox(cli.StopSandboxConfig{
+			RunID: "run-initializing",
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.True(t, cancelCalled, "CancelRun should have been called")
+		require.Len(t, result.Stopped, 1)
+		require.True(t, result.Stopped[0].WasRunning)
+	})
+
+	t.Run("logs warning when CancelRun fails but still succeeds", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorage(t, setup.tmp, "run-cancel-fail", "token-456")
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable: false,
+				Polling:     api.PollingResult{Completed: false},
+			}, nil
+		}
+		setup.mockAPI.MockCancelRun = func(runID, scopedToken string) error {
+			return errors.New("server error")
+		}
+
+		result, err := setup.service.StopSandbox(cli.StopSandboxConfig{
+			RunID: "run-cancel-fail",
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Stopped, 1)
+		require.True(t, result.Stopped[0].WasRunning)
+		require.Contains(t, setup.mockStderr.String(), "Warning: failed to cancel run")
+	})
+
+	t.Run("does not call CancelRun for sandboxable run", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorage(t, setup.tmp, "run-sandboxable", "token-789")
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        "192.168.1.1:22",
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+		setup.mockAPI.MockCancelRun = func(runID, scopedToken string) error {
+			t.Fatal("CancelRun should not be called for sandboxable runs")
+			return nil
+		}
+
+		result, err := setup.service.StopSandbox(cli.StopSandboxConfig{
+			RunID: "run-sandboxable",
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Stopped, 1)
+		require.True(t, result.Stopped[0].WasRunning)
+	})
+
+	t.Run("does not call CancelRun for completed run", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorage(t, setup.tmp, "run-completed", "token-done")
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable: false,
+				Polling:     api.PollingResult{Completed: true},
+			}, nil
+		}
+		setup.mockAPI.MockCancelRun = func(runID, scopedToken string) error {
+			t.Fatal("CancelRun should not be called for completed runs")
+			return nil
+		}
+
+		result, err := setup.service.StopSandbox(cli.StopSandboxConfig{
+			RunID: "run-completed",
+			Json:  true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Stopped, 1)
+		require.False(t, result.Stopped[0].WasRunning)
+	})
+}
+
+// seedSandboxStorage writes a sandbox session into storage within the test's temp HOME directory.
+func seedSandboxStorage(t *testing.T, tmpHome, runID, scopedToken string) {
+	t.Helper()
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	t.Cleanup(func() { os.Setenv("HOME", originalHome) })
+
+	storageDir := filepath.Join(tmpHome, ".config", "rwx")
+	require.NoError(t, os.MkdirAll(storageDir, 0o755))
+
+	storage := cli.SandboxStorage{
+		Sandboxes: map[string]cli.SandboxSession{
+			"test-key": {
+				RunID:       runID,
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: scopedToken,
+			},
+		},
+	}
+
+	data, err := json.Marshal(storage)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(storageDir, "sandboxes.json"), data, 0o644))
 }
 
 func TestService_ExecSandbox_RunURL(t *testing.T) {

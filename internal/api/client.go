@@ -984,6 +984,38 @@ func (c Client) DownloadArtifact(request ArtifactDownloadRequestResult) ([]byte,
 	return nil, errors.New(errMsg)
 }
 
+func (c Client) CancelRun(runID, scopedToken string) error {
+	if runID == "" {
+		return errors.New("missing runID")
+	}
+
+	endpoint := fmt.Sprintf("/mint/api/runs/%s/cancel", url.PathEscape(runID))
+	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
+	if err != nil {
+		return errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	if scopedToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", scopedToken))
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		return errors.New(msg)
+	}
+
+	return nil
+}
+
 func (c Client) GetSandboxInitTemplate() (SandboxInitTemplateResult, error) {
 	endpoint := "/mint/api/sandbox_init_template"
 	result := SandboxInitTemplateResult{}

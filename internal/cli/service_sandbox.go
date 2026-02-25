@@ -587,7 +587,10 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 				wasRunning = true
 			}
 		} else if err == nil && !connInfo.Polling.Completed {
-			// Run is still active but not yet sandboxable
+			// Run is still active but not yet sandboxable — cancel it server-side
+			if cancelErr := s.APIClient.CancelRun(session.RunID, session.ScopedToken); cancelErr != nil {
+				fmt.Fprintf(s.Stderr, "Warning: failed to cancel run %s: %v\n", session.RunID, cancelErr)
+			}
 			wasRunning = true
 		}
 
