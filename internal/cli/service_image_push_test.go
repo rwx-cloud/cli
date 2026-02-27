@@ -28,9 +28,10 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "b.registry.com/repo-one:tag-two"),
 				ReferenceMustParse(t, "c.registry.com/repo-one:tag-three"),
 			},
-			JSON:    false,
-			Wait:    true,
-			OpenURL: func(url string) error { return nil },
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
+			OpenURL:     func(url string) error { return nil },
 		}
 
 		result, err := s.service.ImagePush(cfg)
@@ -50,9 +51,10 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo-two:tag-two"),
 				ReferenceMustParse(t, "registry.com/repo-three:tag-three"),
 			},
-			JSON:    false,
-			Wait:    true,
-			OpenURL: func(url string) error { return nil },
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
+			OpenURL:     func(url string) error { return nil },
 		}
 
 		result, err := s.service.ImagePush(cfg)
@@ -74,9 +76,10 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "postgres:latest"),
 				ReferenceMustParse(t, "postgres:17.1"),
 			},
-			JSON:    false,
-			Wait:    true,
-			OpenURL: func(url string) error { return nil },
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
+			OpenURL:     func(url string) error { return nil },
 		}
 
 		result, err := s.service.ImagePush(cfg)
@@ -104,9 +107,10 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON:    false,
-			Wait:    true,
-			OpenURL: func(url string) error { return nil },
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
+			OpenURL:     func(url string) error { return nil },
 		}
 
 		result, err := s.service.ImagePush(cfg)
@@ -147,8 +151,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				require.Fail(t, "open url should not be called when the push does not start")
 				return nil
@@ -180,6 +185,7 @@ func TestService_ImagePush(t *testing.T) {
 			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
 			require.Equal(t, "my-username", cfg.Credentials.Username)
 			require.Equal(t, "my-password", cfg.Credentials.Password)
+			require.Equal(t, "zstd", cfg.Compression)
 
 			return api.StartImagePushResult{}, fmt.Errorf("failed to start push")
 		}
@@ -190,8 +196,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				require.Fail(t, "open url should not be called when the push does not start")
 				return nil
@@ -223,6 +230,7 @@ func TestService_ImagePush(t *testing.T) {
 			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
 			require.Equal(t, "my-username", cfg.Credentials.Username)
 			require.Equal(t, "my-password", cfg.Credentials.Password)
+			require.Equal(t, "gzip", cfg.Compression)
 
 			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
 		}
@@ -239,8 +247,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "gzip",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -276,6 +285,7 @@ func TestService_ImagePush(t *testing.T) {
 			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
 			require.Equal(t, "my-username", cfg.Credentials.Username)
 			require.Equal(t, "my-password", cfg.Credentials.Password)
+			require.Equal(t, "none", cfg.Compression)
 
 			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
 		}
@@ -292,8 +302,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "none",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -332,6 +343,7 @@ func TestService_ImagePush(t *testing.T) {
 			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
 			require.Equal(t, "my-username", cfg.Credentials.Username)
 			require.Equal(t, "my-password", cfg.Credentials.Password)
+			require.Equal(t, "zstd", cfg.Compression)
 
 			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
 		}
@@ -348,8 +360,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -392,6 +405,7 @@ func TestService_ImagePush(t *testing.T) {
 			require.ElementsMatch(t, []string{"latest", "17.1"}, cfg.Image.Tags)
 			require.Equal(t, "env-username", cfg.Credentials.Username)
 			require.Equal(t, "env-password", cfg.Credentials.Password)
+			require.Equal(t, "zstd", cfg.Compression)
 
 			return api.StartImagePushResult{PushID: "some-push-id", RunURL: "some-run-url"}, nil
 		}
@@ -408,8 +422,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				didOpenURL = true
 				require.Equal(t, "some-run-url", url)
@@ -463,8 +478,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				require.Equal(t, "some-run-url", url)
 				return nil
@@ -507,8 +523,9 @@ func TestService_ImagePush(t *testing.T) {
 				ReferenceMustParse(t, "registry.com/repo:latest"),
 				ReferenceMustParse(t, "registry.com/repo:17.1"),
 			},
-			JSON: false,
-			Wait: true,
+			Compression: "zstd",
+			JSON:        false,
+			Wait:        true,
 			OpenURL: func(url string) error {
 				require.Equal(t, "some-run-url", url)
 				return nil

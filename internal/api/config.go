@@ -195,6 +195,7 @@ type StartImagePushConfig struct {
 	TaskID      string                          `json:"task_id"`
 	Image       StartImagePushConfigImage       `json:"image"`
 	Credentials StartImagePushConfigCredentials `json:"credentials"`
+	Compression string                          `json:"compression"`
 }
 
 type StartImagePushConfigImage struct {

@@ -15,6 +15,7 @@ import (
 type ImagePushConfig struct {
 	TaskID       string
 	References   []reference.Named
+	Compression  string
 	JSON         bool
 	Wait         bool
 	OpenURL      func(url string) error
@@ -27,13 +28,20 @@ type ImagePushResult struct {
 	Status string `json:",omitempty"`
 }
 
-func NewImagePushConfig(taskID string, references []string, json bool, wait bool, openURL func(url string) error) (ImagePushConfig, error) {
+func NewImagePushConfig(taskID string, references []string, compression string, json bool, wait bool, openURL func(url string) error) (ImagePushConfig, error) {
 	if taskID == "" {
 		return ImagePushConfig{}, errors.New("a task ID must be provided")
 	}
 
 	if len(references) == 0 {
 		return ImagePushConfig{}, errors.New("at least one OCI reference must be provided")
+	}
+
+	switch compression {
+	case "zstd", "gzip", "none":
+		// valid
+	default:
+		return ImagePushConfig{}, fmt.Errorf("unsupported compression %q: must be one of zstd, gzip, none", compression)
 	}
 
 	parsedReferences := make([]reference.Named, 0, len(references))
@@ -48,6 +56,7 @@ func NewImagePushConfig(taskID string, references []string, json bool, wait bool
 	return ImagePushConfig{
 		TaskID:       taskID,
 		References:   parsedReferences,
+		Compression:  compression,
 		JSON:         json,
 		Wait:         wait,
 		OpenURL:      openURL,
@@ -60,6 +69,7 @@ func (s Service) ImagePush(config ImagePushConfig) (*ImagePushResult, error) {
 		TaskID:      config.TaskID,
 		Image:       api.StartImagePushConfigImage{},
 		Credentials: api.StartImagePushConfigCredentials{},
+		Compression: config.Compression,
 	}
 
 	for _, ref := range config.References {
