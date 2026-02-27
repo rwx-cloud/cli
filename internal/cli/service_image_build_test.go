@@ -660,6 +660,7 @@ func TestService_ImageBuild(t *testing.T) {
 			TargetTaskKey:    "build-task",
 			Tags:             []string{},
 			PushToReferences: []string{"registry.com/myrepo:latest", "registry.com/myrepo:v1.0"},
+			PushCompression:  "zstd",
 			Timeout:          1 * time.Second,
 			OpenURL:          func(string) error { return nil },
 		}
@@ -714,6 +715,7 @@ func TestService_ImageBuild(t *testing.T) {
 			MintFilePath:     "test.yml",
 			TargetTaskKey:    "build-task",
 			PushToReferences: []string{"registry.com/myrepo:latest"},
+			PushCompression:  "zstd",
 			Timeout:          1 * time.Second,
 			OpenURL:          func(string) error { return nil },
 		}

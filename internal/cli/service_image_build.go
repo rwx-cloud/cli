@@ -20,6 +20,7 @@ type ImageBuildConfig struct {
 	TargetTaskKey    string
 	Tags             []string
 	PushToReferences []string
+	PushCompression  string
 	Timeout          time.Duration
 	OpenURL          func(string) error
 	OutputJSON       bool
@@ -190,6 +191,7 @@ func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) 
 		pushConfig, err := NewImagePushConfig(
 			taskID,
 			config.PushToReferences,
+			config.PushCompression,
 			config.OutputJSON,
 			true,
 			func(url string) error {

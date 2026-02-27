@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	pushImageReferences []string
-	pushImageNoWait     bool
-	pushImageOpen       bool
+	pushImageReferences  []string
+	pushImageNoWait      bool
+	pushImageOpen        bool
+	pushImageCompression string
 
 	PushCmd *cobra.Command
 )
@@ -27,7 +28,7 @@ func InitPush(requireAccessToken func() error, getService func() cli.Service, us
 				openURL = func(input string) error { return nil }
 			}
 
-			config, err := cli.NewImagePushConfig(args[0], pushImageReferences, useJsonOutput(), !pushImageNoWait, openURL)
+			config, err := cli.NewImagePushConfig(args[0], pushImageReferences, pushImageCompression, useJsonOutput(), !pushImageNoWait, openURL)
 			if err != nil {
 				return err
 			}
@@ -40,6 +41,7 @@ func InitPush(requireAccessToken func() error, getService func() cli.Service, us
 	}
 
 	PushCmd.Flags().StringArrayVar(&pushImageReferences, "to", []string{}, "the qualified OCI reference to push the image to (can be specified multiple times)")
+	PushCmd.Flags().StringVar(&pushImageCompression, "compression", "zstd", "compression format for newly pushed layers in the image (zstd, gzip, none)")
 	PushCmd.Flags().BoolVar(&pushImageNoWait, "no-wait", false, "do not wait for the push to complete")
 	PushCmd.Flags().BoolVar(&pushImageOpen, "open", false, "open the run URL in the default browser once the push starts")
 }

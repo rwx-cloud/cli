@@ -18,6 +18,7 @@ var (
 	buildTargetTaskKey    string
 	buildTags             []string
 	buildPushToReferences []string
+	buildPushCompression  string
 	buildTimeout          time.Duration
 	buildOpen             bool
 
@@ -34,6 +35,10 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 
 			if buildNoPull && len(buildTags) > 0 {
 				return fmt.Errorf("cannot use --tag with --no-pull: no image will be pulled to tag")
+			}
+
+			if cmd.Flags().Changed("push-compression") && len(buildPushToReferences) == 0 {
+				return fmt.Errorf("cannot use --push-compression without --push-to: no image will be pushed")
 			}
 
 			return nil
@@ -62,6 +67,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 				TargetTaskKey:    buildTargetTaskKey,
 				Tags:             buildTags,
 				PushToReferences: buildPushToReferences,
+				PushCompression:  buildPushCompression,
 				Timeout:          buildTimeout,
 				OpenURL:          openURL,
 				OutputJSON:       useJsonOutput(),
@@ -82,6 +88,7 @@ func InitBuild(requireAccessToken func() error, parseInitParameters func([]strin
 	BuildCmd.Flags().StringVar(&buildTargetTaskKey, "target", "", "task key to build (required)")
 	BuildCmd.Flags().StringArrayVar(&buildTags, "tag", []string{}, "tag the built image (can be specified multiple times)")
 	BuildCmd.Flags().StringArrayVar(&buildPushToReferences, "push-to", []string{}, "push the built image to the specified OCI reference (can be specified multiple times)")
+	BuildCmd.Flags().StringVar(&buildPushCompression, "push-compression", "zstd", "compression format for newly pushed layers in the image (zstd, gzip, none)")
 	BuildCmd.Flags().DurationVar(&buildTimeout, "timeout", 30*time.Minute, "timeout for waiting for the build to complete and image to pull")
 	BuildCmd.Flags().BoolVar(&buildOpen, "open", false, "open the build URL in the default browser once the build starts")
 
