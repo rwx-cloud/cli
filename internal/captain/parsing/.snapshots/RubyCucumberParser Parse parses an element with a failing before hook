@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rwx-research/test-results-schema/main/v1.json",
+  "framework": {
+    "language": "Ruby",
+    "kind": "Cucumber"
+  },
+  "summary": {
+    "status": {
+      "kind": "failed"
+    },
+    "tests": 1,
+    "flaky": 0,
+    "otherErrors": 0,
+    "retries": 0,
+    "canceled": 0,
+    "failed": 1,
+    "pended": 0,
+    "quarantined": 0,
+    "skipped": 0,
+    "successful": 0,
+    "timedOut": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "name": "Rule Sample \u003e With a failing before hook",
+      "lineage": [
+        "Rule Sample",
+        "With a failing before hook"
+      ],
+      "location": {
+        "file": "features/rule.feature",
+        "line": 34
+      },
+      "attempt": {
+        "durationInNanoseconds": 141000,
+        "meta": {
+          "tags": [
+            {
+              "name": "@feature_tag",
+              "line": 1
+            },
+            {
+              "name": "@rule_tag",
+              "line": 4
+            },
+            {
+              "name": "@failing_before_hook",
+              "line": 33
+            }
+          ]
+        },
+        "status": {
+          "kind": "failed",
+          "message": "failed in before hook (RuntimeError)\n./features/step_definitions/steps.rb:25:in `Before'"
+        }
+      }
+    }
+  ]
+}
