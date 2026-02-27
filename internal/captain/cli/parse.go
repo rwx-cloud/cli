@@ -1,0 +1,95 @@
+package cli
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"strconv"
+
+	"github.com/rwx-cloud/cli/internal/captain/errors"
+	"github.com/rwx-cloud/cli/internal/captain/parsing"
+	v1 "github.com/rwx-cloud/cli/internal/captain/testingschema/v1"
+)
+
+// Parse parses the files supplied in `filepaths` and prints them as formatted JSON to stdout.
+func (s Service) Parse(_ context.Context, filepaths []string) error {
+	testResultsFiles := make([]string, 0)
+	for _, filepath := range filepaths {
+		files, err := s.FileSystem.Glob(filepath)
+		if err != nil {
+			return errors.NewSystemError("unable to expand filepath glob: %s", err)
+		}
+
+		testResultsFiles = append(testResultsFiles, files...)
+	}
+
+	results, err := s.parse(testResultsFiles, 1)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// Apply stripping based on environment variables
+	if os.Getenv("CAPTAIN_STRIP_DERIVED_FROM") != "" && results != nil {
+		s.Log.Warnf("removing original test result data from Captain test results due to CAPTAIN_STRIP_DERIVED_FROM")
+		stripped := v1.StripDerivedFrom(*results)
+		results = &stripped
+	}
+
+	if maxSizeStr := os.Getenv("CAPTAIN_MAX_FILE_SIZE_IN_MEGABYTES"); maxSizeStr != "" && results != nil {
+		maxSizeMB, err := strconv.ParseFloat(maxSizeStr, 64)
+		if err == nil && maxSizeMB > 0 {
+			fileSizeThresholdBytes := int64(maxSizeMB * 1024 * 1024)
+			stripped := v1.StripToSize(*results, fileSizeThresholdBytes)
+			results = &stripped
+		}
+	}
+
+	newOutput, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return errors.NewInternalError("Unable to output test results as JSON: %s", err)
+	}
+	s.Log.Infoln(string(newOutput))
+
+	return nil
+}
+
+func (s Service) parse(filepaths []string, group int) (*v1.TestResults, error) {
+	var framework *v1.Framework
+	allResults := make([]v1.TestResults, 0)
+
+	for _, testResultsFilePath := range filepaths {
+		s.Log.Debugf("Attempting to parse %q", testResultsFilePath)
+
+		fd, err := s.FileSystem.Open(testResultsFilePath)
+		if err != nil {
+			return nil, errors.NewSystemError("unable to open file: %s", err)
+		}
+		defer fd.Close()
+
+		results, err := parsing.Parse(fd, group, s.ParseConfig)
+		if err != nil {
+			if _, ok := errors.AsDuplicateTestIDError(err); ok {
+				return nil, errors.WithStack(err)
+			}
+
+			return nil, errors.NewInputError("Unable to parse %q with the available parsers", testResultsFilePath)
+		}
+
+		if framework == nil {
+			framework = &results.Framework
+		} else if !framework.Equal(results.Framework) {
+			return nil, errors.NewInputError(
+				"Multiple frameworks detected. The captain CLI only works with one framework at a time",
+			)
+		}
+
+		allResults = append(allResults, *results)
+	}
+
+	if len(allResults) == 0 {
+		return nil, nil
+	}
+
+	mergedResults := v1.Merge(allResults)
+	return &mergedResults, nil
+}

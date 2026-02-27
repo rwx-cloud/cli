@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rwx-research/test-results-schema/main/v1.json",
+  "framework": {
+    "language": "Ruby",
+    "kind": "Cucumber"
+  },
+  "summary": {
+    "status": {
+      "kind": "successful"
+    },
+    "tests": 1,
+    "flaky": 0,
+    "otherErrors": 0,
+    "retries": 0,
+    "canceled": 0,
+    "failed": 0,
+    "pended": 0,
+    "quarantined": 0,
+    "skipped": 0,
+    "successful": 1,
+    "timedOut": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "name": "Rule Sample \u003e A passing example",
+      "lineage": [
+        "Rule Sample",
+        "A passing example"
+      ],
+      "location": {
+        "file": "features/rule.feature",
+        "line": 7
+      },
+      "attempt": {
+        "durationInNanoseconds": 1189000,
+        "meta": {
+          "tags": [
+            {
+              "name": "@feature_tag",
+              "line": 1
+            },
+            {
+              "name": "@rule_tag",
+              "line": 4
+            }
+          ]
+        },
+        "status": {
+          "kind": "successful"
+        }
+      }
+    }
+  ]
+}

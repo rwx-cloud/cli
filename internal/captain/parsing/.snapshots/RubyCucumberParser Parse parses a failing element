@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rwx-research/test-results-schema/main/v1.json",
+  "framework": {
+    "language": "Ruby",
+    "kind": "Cucumber"
+  },
+  "summary": {
+    "status": {
+      "kind": "failed"
+    },
+    "tests": 1,
+    "flaky": 0,
+    "otherErrors": 0,
+    "retries": 0,
+    "canceled": 0,
+    "failed": 1,
+    "pended": 0,
+    "quarantined": 0,
+    "skipped": 0,
+    "successful": 0,
+    "timedOut": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "name": "Rule Sample \u003e A failing example",
+      "lineage": [
+        "Rule Sample",
+        "A failing example"
+      ],
+      "location": {
+        "file": "features/rule.feature",
+        "line": 13
+      },
+      "attempt": {
+        "durationInNanoseconds": 26528000,
+        "meta": {
+          "tags": [
+            {
+              "name": "@feature_tag",
+              "line": 1
+            },
+            {
+              "name": "@rule_tag",
+              "line": 4
+            },
+            {
+              "name": "@failing",
+              "line": 12
+            }
+          ]
+        },
+        "status": {
+          "kind": "failed",
+          "message": "\nexpected true\n     got false\n (RSpec::Expectations::ExpectationNotMetError)\n./features/step_definitions/steps.rb:13:in `\"some results should be there\"'\nfeatures/rule.feature:16:in `some results should be there'"
+        }
+      }
+    }
+  ]
+}

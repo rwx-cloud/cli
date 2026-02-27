@@ -1,0 +1,195 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rwx-research/test-results-schema/main/v1.json",
+  "framework": {
+    "language": "JavaScript",
+    "kind": "Playwright"
+  },
+  "summary": {
+    "status": {
+      "kind": "failed"
+    },
+    "tests": 7,
+    "flaky": 0,
+    "otherErrors": 1,
+    "retries": 0,
+    "canceled": 0,
+    "failed": 0,
+    "pended": 0,
+    "quarantined": 0,
+    "skipped": 7,
+    "successful": 0,
+    "timedOut": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "chromium",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "chromium",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "firefox",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "firefox",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "webkit",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "webkit",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "Mobile Chrome",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "Mobile Chrome",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "Mobile Safari",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "Mobile Safari",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "Microsoft Edge",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "Microsoft Edge",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    },
+    {
+      "name": "homepage has title and links to intro page",
+      "scope": "Google Chrome",
+      "lineage": [
+        "homepage has title and links to intro page"
+      ],
+      "location": {
+        "file": "error.spec.ts",
+        "line": 3,
+        "column": 1
+      },
+      "attempt": {
+        "durationInNanoseconds": null,
+        "meta": {
+          "annotations": [],
+          "project": "Google Chrome",
+          "tags": []
+        },
+        "status": {
+          "kind": "skipped"
+        }
+      }
+    }
+  ],
+  "otherErrors": [
+    {
+      "backtrace": [
+        "at Object.\u003canonymous\u003e (/Users/kylekthompson/src/captain-examples/playwright/tests/error.spec.ts:22:7)"
+      ],
+      "message": "it broke"
+    }
+  ]
+}
