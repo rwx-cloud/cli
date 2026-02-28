@@ -293,7 +293,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		headerPrinted = true
 	}
 
-	// We ignore the error here since `UploadTestResults` will already log any errors. Furthermore, any errors here will
+	// We ignore the error here since the upload step will already log any errors. Furthermore, any errors here will
 	// not affect the exit code.
 	if testResults != nil {
 		uploadResults, uploadError = s.reportTestResults(ctx, cfg, *testResults, *newlyExecutedTestResults)
