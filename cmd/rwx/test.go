@@ -90,6 +90,7 @@ func init() {
 	testRunCmd.SetUsageTemplate(testShortUsageTemplate)
 	testCmd.AddCommand(testRunCmd)
 
+	configureTestPartitionCmd(testCmd, &testArgs)
 	configureTestResultsCmd(testCmd, &testArgs)
 }
 
