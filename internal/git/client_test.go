@@ -444,3 +444,23 @@ func TestGeneratePatchFile(t *testing.T) {
 		})
 	})
 }
+
+func TestRepoNameFromOriginUrl(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"SSH URL", "git@github.com:rwx-cloud/cli.git", "cli"},
+		{"HTTPS URL", "https://github.com/rwx-cloud/cli.git", "cli"},
+		{"SSH URL without .git suffix", "git@github.com:rwx-cloud/cli", "cli"},
+		{"HTTPS URL without .git suffix", "https://github.com/rwx-cloud/cli", "cli"},
+		{"empty string", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, git.RepoNameFromOriginUrl(tt.input))
+		})
+	}
+}

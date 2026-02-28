@@ -160,6 +160,112 @@ func TestService_GetRunStatus(t *testing.T) {
 		require.Contains(t, err.Error(), "unable to get run status")
 	})
 
+	t.Run("resolves run by branch and repository name", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			require.Equal(t, "", cfg.RunID)
+			require.Equal(t, "main", cfg.BranchName)
+			require.Equal(t, "cli", cfg.RepositoryName)
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "succeeded"},
+				RunID:   "resolved-run-id",
+				RunURL:  "https://cloud.rwx.com/mint/org/runs/resolved-run-id",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			BranchName:     "main",
+			RepositoryName: "cli",
+			Wait:           false,
+			Json:           false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "resolved-run-id", result.RunID)
+		require.Equal(t, "https://cloud.rwx.com/mint/org/runs/resolved-run-id", result.RunURL)
+		require.Equal(t, "succeeded", result.ResultStatus)
+		require.True(t, result.Completed)
+	})
+
+	t.Run("returns ErrNotFound when API returns 404 for branch lookup", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			return api.RunStatusResult{}, api.ErrNotFound
+		}
+
+		_, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			BranchName:     "no-runs-here",
+			RepositoryName: "cli",
+			Wait:           false,
+			Json:           false,
+		})
+
+		require.Error(t, err)
+		require.ErrorIs(t, err, api.ErrNotFound)
+	})
+
+	t.Run("returns empty run ID when no run found for branch", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			return api.RunStatusResult{
+				Status:  nil,
+				RunID:   "",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			BranchName:     "no-runs-here",
+			RepositoryName: "cli",
+			Wait:           false,
+			Json:           false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "", result.RunID)
+	})
+
+	t.Run("polls with branch lookup until run completes when Wait is true", func(t *testing.T) {
+		setup := setupTest(t)
+
+		callCount := 0
+		backoffMs := 0
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			require.Equal(t, "main", cfg.BranchName)
+			require.Equal(t, "cli", cfg.RepositoryName)
+			callCount++
+			if callCount < 2 {
+				return api.RunStatusResult{
+					Status:  &api.RunStatus{Result: "no_result"},
+					RunID:   "resolved-run-id",
+					Polling: api.PollingResult{Completed: false, BackoffMs: &backoffMs},
+				}, nil
+			}
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "succeeded"},
+				RunID:   "resolved-run-id",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			BranchName:     "main",
+			RepositoryName: "cli",
+			Wait:           true,
+			Json:           false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+		require.Equal(t, "resolved-run-id", result.RunID)
+		require.Equal(t, "succeeded", result.ResultStatus)
+		require.True(t, result.Completed)
+	})
+
 	t.Run("returns current status without waiting when Wait is false", func(t *testing.T) {
 		setup := setupTest(t)
 
