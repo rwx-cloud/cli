@@ -92,6 +92,8 @@ func init() {
 	testRunCmd.SetHelpTemplate(testHelpTemplate)
 	testRunCmd.SetUsageTemplate(testShortUsageTemplate)
 	testCmd.AddCommand(testRunCmd)
+
+	configureTestResultsCmd(testCmd, &testArgs)
 }
 
 func configureTestRootFlags(cmd *cobra.Command, cliArgs *testCliArgs) {
