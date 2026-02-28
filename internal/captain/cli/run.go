@@ -39,7 +39,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		}
 
 		if len(apiConfiguration.QuarantinedTests) == 0 {
-			s.Log.Debug("No quarantined tests defined in Captain")
+			s.Log.Debug("No quarantined tests defined")
 		}
 
 		cfg.CloudOrganizationSlug = apiConfiguration.OrganizationSlug
@@ -115,7 +115,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		}
 
 		if !hasFailures {
-			if os.Getenv("CAPTAIN_RETRY_FAILED_TESTS_PASS_ON_NO_TESTS") == "true" {
+			if os.Getenv("RWX_TEST_RETRY_FAILED_TESTS_PASS_ON_NO_TESTS") == "true" || os.Getenv("CAPTAIN_RETRY_FAILED_TESTS_PASS_ON_NO_TESTS") == "true" {
 				s.Log.Infoln("No tests to retry detected")
 				newlyExecutedTestResults = v1.NewTestResults(testResults.Framework, []v1.Test{}, []v1.OtherError{})
 			} else {
@@ -124,7 +124,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		} else {
 			// Wait until run configuration was fetched. Ignore any errors.
 			if err := eg.Wait(); err != nil {
-				s.Log.Warnf("Unable to fetch run configuration from Captain: %s", err)
+				s.Log.Warnf("Unable to fetch run configuration from RWX: %s", err)
 			}
 
 			cfg.Retries++
@@ -190,7 +190,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 
 		// Wait until run configuration was fetched. Ignore any errors.
 		if err := eg.Wait(); err != nil {
-			s.Log.Warnf("Unable to fetch run configuration from Captain: %s", err)
+			s.Log.Warnf("Unable to fetch run configuration from RWX: %s", err)
 		}
 
 		// Always move artifacts to IAS after original attempt when intermediate artifacts path is configured
@@ -291,7 +291,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		headerPrinted = true
 	}
 
-	// We ignore the error here since the upload step will already log any errors. Furthermore, any errors here will
+	// We ignore the error here since `UploadTestResults` will already log any errors. Furthermore, any errors here will
 	// not affect the exit code.
 	if testResults != nil {
 		uploadResults, uploadError = s.reportTestResults(ctx, cfg, *testResults, *newlyExecutedTestResults)
@@ -330,10 +330,10 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		)
 
 		for _, uploadedPath := range uploadedPaths {
-			s.Log.Infoln(fmt.Sprintf("- Updated Captain with results from %v", uploadedPath))
+			s.Log.Infoln(fmt.Sprintf("- Updated RWX with results from %v", uploadedPath))
 		}
 		for _, erroredPath := range erroredPaths {
-			s.Log.Infoln(fmt.Sprintf("- Unable to update Captain with results from %v", erroredPath))
+			s.Log.Infoln(fmt.Sprintf("- Unable to update RWX with results from %v", erroredPath))
 		}
 	}
 
@@ -597,6 +597,9 @@ func (s Service) attemptRetries(
 
 			ias.SetCommandID(i + 1)
 			env := []string{
+				fmt.Sprintf("RWX_TEST_RETRY_ATTEMPT_NUMBER=%v", retries+1),
+				fmt.Sprintf("RWX_TEST_RETRY_INVOCATION_NUMBER=%v", i+1),
+				fmt.Sprintf("RWX_TEST_RETRY_COMMAND_ID=%v-%v", retries+1, i+1),
 				fmt.Sprintf("CAPTAIN_RETRY_ATTEMPT_NUMBER=%v", retries+1),
 				fmt.Sprintf("CAPTAIN_RETRY_INVOCATION_NUMBER=%v", i+1),
 				fmt.Sprintf("CAPTAIN_RETRY_COMMAND_ID=%v-%v", retries+1, i+1),
@@ -707,7 +710,7 @@ func (s Service) attemptRetries(
 
 			missingTestResult := fmt.Sprintf(
 				"The retry command of suite %q appears to be misconfigured. "+
-					"Captain could not identify the original (failed) test in the output of the retry command.",
+					"rwx test could not identify the original (failed) test in the output of the retry command.",
 				cfg.SuiteID,
 			)
 			if cfg.FailOnMisconfiguredRetry {
@@ -957,7 +960,7 @@ func (s Service) reportTestResults(
 	if reportingConfiguration.CloudEnabled &&
 		reportingConfiguration.Provider.ProviderName == "mint" &&
 		mintLinksPath != "" {
-		backlinkPath := filepath.Join(mintLinksPath, "View Captain results")
+		backlinkPath := filepath.Join(mintLinksPath, "View RWX results")
 		backlinkURL := fmt.Sprintf(
 			"https://%v/captain/%v/test_suite_summaries/%v/%v/%v",
 			reportingConfiguration.CloudHost,
@@ -985,7 +988,7 @@ func (s Service) reportTestResults(
 
 func (s Service) printHeader() {
 	s.Log.Infoln(strings.Repeat("-", 80))
-	s.Log.Infoln(fmt.Sprintf("%v Captain %v", strings.Repeat("-", 40-4-1), strings.Repeat("-", 40-3-1)))
+	s.Log.Infoln(fmt.Sprintf("%v RWX Test %v", strings.Repeat("-", 40-5-1), strings.Repeat("-", 40-4-1)))
 	s.Log.Infoln(strings.Repeat("-", 80))
 }
 

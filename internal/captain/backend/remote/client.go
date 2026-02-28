@@ -12,7 +12,7 @@ import (
 	"net/http/httputil"
 	"strings"
 
-	"github.com/rwx-cloud/cli/internal/captain"
+	"github.com/rwx-cloud/cli/cmd/rwx/config"
 	"github.com/rwx-cloud/cli/internal/captain/backend"
 	"github.com/rwx-cloud/cli/internal/captain/errors"
 	"github.com/rwx-cloud/cli/internal/captain/testing"
@@ -52,7 +52,7 @@ func NewClient(cfg ClientConfig) (Client, error) {
 
 			req.URL.Host = cfg.Host
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.Token))
-			req.Header.Set("User-Agent", fmt.Sprintf("captain-cli/%s", strings.TrimPrefix(captain.Version, "v")))
+			req.Header.Set("User-Agent", fmt.Sprintf("rwx-cli/%s", config.Version))
 		}
 
 		if cfg.Debug {

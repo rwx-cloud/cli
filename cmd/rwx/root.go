@@ -50,6 +50,7 @@ var (
 
 			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
 			docsTokenBackend := docstoken.NewFileBackend(fileBackend)
+
 			versionsBackend := versions.NewFileBackend(fileBackend)
 
 			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend, VersionsBackend: versionsBackend})
@@ -97,6 +98,17 @@ var (
 		},
 	}
 )
+
+func initAccessTokenBackend() (accesstoken.Backend, error) {
+	fileBackend, err := internalconfig.NewFileBackend([]string{
+		filepath.Join("~", ".config", "rwx"),
+		filepath.Join("~", ".mint"),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to initialize config backend")
+	}
+	return accesstoken.NewFileBackend(fileBackend), nil
+}
 
 func addRwxDirFlag(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&RwxDirectory, "dir", "d", "", "the directory your RWX configuration files are located in, typically `.rwx`. By default, the CLI traverses up until it finds a `.rwx` directory.")
@@ -159,6 +171,7 @@ func init() {
 	rootCmd.AddCommand(vaultsCmd)
 	rootCmd.AddCommand(docsCmd)
 	rootCmd.AddCommand(resultsCmd)
+	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(whoamiCmd)
 
 	cobra.OnInitialize(func() {

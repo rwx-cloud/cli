@@ -239,7 +239,7 @@ var _ = Describe("Run", func() {
 
 			Expect(logMessages).To(ContainElement(ContainSubstring("Found 1 test result file")))
 			Expect(logMessages).To(ContainElement(ContainSubstring(
-				fmt.Sprintf("- Updated Captain with results from %v", testResultsFilePath),
+				fmt.Sprintf("- Updated RWX with results from %v", testResultsFilePath),
 			)))
 		})
 
@@ -295,7 +295,7 @@ var _ = Describe("Run", func() {
 
 				Expect(logMessages).NotTo(ContainElement(ContainSubstring("Found 1 test result file")))
 				Expect(logMessages).NotTo(ContainElement(ContainSubstring(
-					fmt.Sprintf("- Updated Captain with results from %v", testResultsFilePath),
+					fmt.Sprintf("- Updated RWX with results from %v", testResultsFilePath),
 				)))
 			})
 		})
@@ -541,9 +541,9 @@ var _ = Describe("Run", func() {
 				}
 
 				Expect(logMessages).To(ContainElement(ContainSubstring("Found 3 test result files:")))
-				Expect(logMessages).To(ContainElement(fmt.Sprintf("- Updated Captain with results from %v", testResultsFilePath)))
-				Expect(logMessages).To(ContainElement("- Unable to update Captain with results from ./fake/path/1.json"))
-				Expect(logMessages).To(ContainElement("- Unable to update Captain with results from ./fake/path/2.json"))
+				Expect(logMessages).To(ContainElement(fmt.Sprintf("- Updated RWX with results from %v", testResultsFilePath)))
+				Expect(logMessages).To(ContainElement("- Unable to update RWX with results from ./fake/path/1.json"))
+				Expect(logMessages).To(ContainElement("- Unable to update RWX with results from ./fake/path/2.json"))
 			})
 		})
 
@@ -1243,21 +1243,33 @@ var _ = Describe("Run", func() {
 				newCommand := func(_ context.Context, cfg exec.CommandConfig) (exec.Command, error) {
 					switch cfg.Name {
 					case "pre":
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_ATTEMPT_NUMBER=")))
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_INVOCATION_NUMBER=")))
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_COMMAND_ID=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_ATTEMPT_NUMBER=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_INVOCATION_NUMBER=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_COMMAND_ID=")))
 						return mockPreRetryCommand, nil
 					case "post":
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_ATTEMPT_NUMBER=")))
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_INVOCATION_NUMBER=")))
+						Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_COMMAND_ID=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_ATTEMPT_NUMBER=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_INVOCATION_NUMBER=")))
 						Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_COMMAND_ID=")))
 						return mockPostRetryCommand, nil
 					default:
 						if strings.Contains(cfg.Name, "retry") {
+							Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_ATTEMPT_NUMBER=")))
+							Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_INVOCATION_NUMBER=")))
+							Expect(cfg.Env).To(ContainElement(ContainSubstring("RWX_TEST_RETRY_COMMAND_ID=")))
 							Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_ATTEMPT_NUMBER=")))
 							Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_INVOCATION_NUMBER=")))
 							Expect(cfg.Env).To(ContainElement(ContainSubstring("CAPTAIN_RETRY_COMMAND_ID=")))
 						} else {
+							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("RWX_TEST_RETRY_ATTEMPT_NUMBER=")))
+							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("RWX_TEST_RETRY_INVOCATION_NUMBER=")))
+							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("RWX_TEST_RETRY_COMMAND_ID=")))
 							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("CAPTAIN_RETRY_ATTEMPT_NUMBER=")))
 							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("CAPTAIN_RETRY_INVOCATION_NUMBER=")))
 							Expect(cfg.Env).NotTo(ContainElement(ContainSubstring("CAPTAIN_RETRY_COMMAND_ID=")))
@@ -1327,15 +1339,15 @@ var _ = Describe("Run", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(mkdirCalled).To(BeTrue())
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/original-attempt/__captain_working_directory/%s",
+					fmt.Sprintf("%s/original-attempt/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/retry-1/command-1/__captain_working_directory/%s",
+					fmt.Sprintf("%s/retry-1/command-1/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/retry-2/command-1/__captain_working_directory/%s",
+					fmt.Sprintf("%s/retry-2/command-1/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 			})
@@ -2332,28 +2344,28 @@ var _ = Describe("Run", func() {
 				Expect(globManyCalled).To(BeTrue())
 
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/original-attempt/__captain_working_directory/%s",
+					fmt.Sprintf("%s/original-attempt/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/retry-1/command-1/__captain_working_directory/%s",
+					fmt.Sprintf("%s/retry-1/command-1/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 				Expect(intermediateTestResults).To(ContainElement(
-					fmt.Sprintf("%s/retry-2/command-1/__captain_working_directory/%s",
+					fmt.Sprintf("%s/retry-2/command-1/__rwx_working_directory/%s",
 						runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 				)
 
 				Expect(intermediateAdditionalFiles).To(ContainElement(
-					fmt.Sprintf("%s/original-attempt/__captain_working_directory/coverage/lcov.info",
+					fmt.Sprintf("%s/original-attempt/__rwx_working_directory/coverage/lcov.info",
 						runConfig.IntermediateArtifactsPath)),
 				)
 				Expect(intermediateAdditionalFiles).To(ContainElement(
-					fmt.Sprintf("%s/original-attempt/__captain_working_directory/coverage/coverage.json",
+					fmt.Sprintf("%s/original-attempt/__rwx_working_directory/coverage/coverage.json",
 						runConfig.IntermediateArtifactsPath)),
 				)
 				Expect(intermediateAdditionalFiles).To(ContainElement(
-					fmt.Sprintf("%s/original-attempt/__captain_working_directory/reports/junit.xml",
+					fmt.Sprintf("%s/original-attempt/__rwx_working_directory/reports/junit.xml",
 						runConfig.IntermediateArtifactsPath)),
 				)
 
@@ -2363,11 +2375,11 @@ var _ = Describe("Run", func() {
 				)
 
 				Expect(intermediateAdditionalFiles).To(ContainElement(
-					fmt.Sprintf("%s/retry-1/command-1/__captain_working_directory/coverage/lcov.info",
+					fmt.Sprintf("%s/retry-1/command-1/__rwx_working_directory/coverage/lcov.info",
 						runConfig.IntermediateArtifactsPath)),
 				)
 				Expect(intermediateAdditionalFiles).To(ContainElement(
-					fmt.Sprintf("%s/retry-2/command-1/__captain_working_directory/coverage/lcov.info",
+					fmt.Sprintf("%s/retry-2/command-1/__rwx_working_directory/coverage/lcov.info",
 						runConfig.IntermediateArtifactsPath)),
 				)
 
@@ -2386,7 +2398,7 @@ var _ = Describe("Run", func() {
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(intermediateTestResults).To(ContainElement(
-						fmt.Sprintf("%s/original-attempt/__captain_working_directory/%s",
+						fmt.Sprintf("%s/original-attempt/__rwx_working_directory/%s",
 							runConfig.IntermediateArtifactsPath, testResultsFilePath)),
 					)
 
@@ -2449,7 +2461,7 @@ var _ = Describe("Run", func() {
 		It("exits non-zero and logs an error", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring(
-				"Multiple frameworks detected. The captain CLI only works with one framework at a time",
+				"Multiple frameworks detected. rwx test only works with one framework at a time",
 			))
 		})
 	})

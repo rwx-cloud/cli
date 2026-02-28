@@ -71,7 +71,7 @@ func WriteMarkdownSummary(file fs.File, testResults v1.TestResults, cfg Configur
 	if cfg.CloudEnabled {
 		if _, err := fmt.Fprintf(
 			markdown,
-			"[🔗 View in Captain Cloud](https://%v/captain/%v/test_suite_summaries/%v/%v/%v)\n\n",
+			"[🔗 View in RWX](https://%v/captain/%v/test_suite_summaries/%v/%v/%v)\n\n",
 			cfg.CloudHost,
 			cfg.CloudOrganizationSlug,
 			cfg.SuiteID,

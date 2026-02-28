@@ -106,14 +106,14 @@ var _ = ginkgo.Describe("IntermediateArtifactStorage", func() {
 
 				gomega.Expect(renamedPaths).To(gomega.HaveLen(4))
 
-				// Relative path: coverage/lcov.info -> __captain_working_directory/coverage/lcov.info
+				// Relative path: coverage/lcov.info -> __rwx_working_directory/coverage/lcov.info
 				gomega.Expect(renamedPaths[0][0]).To(gomega.Equal("coverage/lcov.info"))
-				expectedPath0 := filepath.Join(basePath, "original-attempt", "__captain_working_directory", "coverage", "lcov.info")
+				expectedPath0 := filepath.Join(basePath, "original-attempt", "__rwx_working_directory", "coverage", "lcov.info")
 				gomega.Expect(renamedPaths[0][1]).To(gomega.Equal(expectedPath0))
 
-				// Relative path: reports/junit.xml -> __captain_working_directory/reports/junit.xml
+				// Relative path: reports/junit.xml -> __rwx_working_directory/reports/junit.xml
 				gomega.Expect(renamedPaths[1][0]).To(gomega.Equal("reports/junit.xml"))
-				expectedPath1 := filepath.Join(basePath, "original-attempt", "__captain_working_directory", "reports", "junit.xml")
+				expectedPath1 := filepath.Join(basePath, "original-attempt", "__rwx_working_directory", "reports", "junit.xml")
 				gomega.Expect(renamedPaths[1][1]).To(gomega.Equal(expectedPath1))
 
 				// Absolute path outside working directory: /tmp/external/debug.log -> tmp/external/debug.log
@@ -121,10 +121,10 @@ var _ = ginkgo.Describe("IntermediateArtifactStorage", func() {
 				expectedPath2 := filepath.Join(basePath, "original-attempt", "tmp", "external", "debug.log")
 				gomega.Expect(renamedPaths[2][1]).To(gomega.Equal(expectedPath2))
 
-				// Absolute path inside working directory: /working/dir/subdir/artifact.txt -> __captain_working_directory/subdir/artifact.txt
+				// Absolute path inside working directory: /working/dir/subdir/artifact.txt -> __rwx_working_directory/subdir/artifact.txt
 				gomega.Expect(renamedPaths[3][0]).To(gomega.Equal("/working/dir/subdir/artifact.txt"))
 				expectedPath3 := filepath.Join(basePath, "original-attempt",
-					"__captain_working_directory", "subdir", "artifact.txt")
+					"__rwx_working_directory", "subdir", "artifact.txt")
 				gomega.Expect(renamedPaths[3][1]).To(gomega.Equal(expectedPath3))
 			})
 
@@ -139,13 +139,13 @@ var _ = ginkgo.Describe("IntermediateArtifactStorage", func() {
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 				gomega.Expect(createdDirs).To(gomega.HaveLen(4))
-				expectedDir0 := filepath.Join(basePath, "original-attempt", "__captain_working_directory", "coverage")
+				expectedDir0 := filepath.Join(basePath, "original-attempt", "__rwx_working_directory", "coverage")
 				gomega.Expect(createdDirs).To(gomega.ContainElement(expectedDir0))
-				expectedDir1 := filepath.Join(basePath, "original-attempt", "__captain_working_directory", "reports")
+				expectedDir1 := filepath.Join(basePath, "original-attempt", "__rwx_working_directory", "reports")
 				gomega.Expect(createdDirs).To(gomega.ContainElement(expectedDir1))
 				expectedDir2 := filepath.Join(basePath, "original-attempt", "tmp", "external")
 				gomega.Expect(createdDirs).To(gomega.ContainElement(expectedDir2))
-				expectedDir3 := filepath.Join(basePath, "original-attempt", "__captain_working_directory", "subdir")
+				expectedDir3 := filepath.Join(basePath, "original-attempt", "__rwx_working_directory", "subdir")
 				gomega.Expect(createdDirs).To(gomega.ContainElement(expectedDir3))
 			})
 
@@ -322,7 +322,7 @@ var _ = ginkgo.Describe("IntermediateArtifactStorage", func() {
 				tempDir := "/tmp/captain123"
 
 				mockFS.MockMkdirTemp = func(_ string, pattern string) (string, error) {
-					gomega.Expect(pattern).To(gomega.Equal("captain"))
+					gomega.Expect(pattern).To(gomega.Equal("rwx-test"))
 					return tempDir, nil
 				}
 
