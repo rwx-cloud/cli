@@ -1,0 +1,142 @@
+# `some-suite-id` Summary
+
+[🔗 View in RWX](https://example.com/captain/my-slug/test_suite_summaries/some-suite-id/some/branch/abcdef113131)
+
+9 tests, 1 flaky, 3 failed, 1 timed out, 1 quarantined, 1 canceled, 1 skipped, 2 retries
+
+## 🔁 Flaky
+
+<details>
+<summary><strong>flaky test</strong></summary>
+
+<dl>
+<dd>Retried 1 time</dd>
+<dd>Defined at <code>some/path/to/file.rb:15</code></dd>
+
+
+<dd>
+<details>
+<summary>Failure Details</summary><br />
+
+<pre>expected true to equal false
+
+file/path/one.rb:4
+file/path/two.rb:4
+file/path/three.rb:4</pre>
+
+</details>
+</dd>
+
+</dl>
+</details>
+
+## ❌ Failed
+
+<details>
+<summary><strong>failed test</strong></summary>
+
+<dl>
+<dd>Retried 2 times</dd>
+<dd>Defined at <code>some/path/to/file.rb</code></dd>
+<dd>Retry with <code>bundle exec rspec './spec/foo/bar.rb[4:5:6]'</code></dd>
+
+<dd>
+<details>
+<summary>Failure Details</summary><br />
+
+<pre>expected true to equal false
+
+file/path/one.rb:4
+file/path/two.rb:4
+file/path/three.rb:4</pre>
+
+</details>
+</dd>
+
+</dl>
+</details>
+<details>
+<summary><strong>failed test backtrace only</strong></summary>
+
+<dl>
+
+<dd>Defined at <code>some/path/to/file.rb</code></dd>
+<dd>Retry with <code>bundle exec rspec './spec/foo/bar.rb[7:8:9]'</code></dd>
+
+<dd>
+<details>
+<summary>Failure Details</summary><br />
+
+<pre>file/path/one.rb:4
+file/path/two.rb:4
+file/path/three.rb:4</pre>
+
+</details>
+</dd>
+
+</dl>
+</details>
+<details>
+<summary><strong>failed test message only w/ ansi</strong></summary>
+
+<dl>
+
+
+<dd>Retry with <code>bundle exec rspec './spec/foo/bar.rb:15'</code></dd>
+
+<dd>
+<details>
+<summary>Failure Details</summary><br />
+
+<pre>Failure/Error: expect(thanos).to eq("inevitable")
+
+  expected: "inevitable"
+       got: "evitable"
+
+  (compared using ==)</pre>
+
+</details>
+</dd>
+
+</dl>
+</details>
+
+## ⏳ Timed Out
+
+<details>
+<summary><strong>timed out test</strong></summary>
+
+<dl>
+
+
+<dd>Retry with <code>bundle exec rspec './spec/foo/bar.rb:12'</code></dd>
+
+</dl>
+</details>
+
+## 🏥 Quarantined
+
+<details>
+<summary><strong>quarantined test</strong></summary>
+
+<dl>
+
+
+
+
+</dl>
+</details>
+
+## 🚫 Canceled
+
+<details>
+<summary><strong>canceled test</strong></summary>
+
+<dl>
+
+
+<dd>Retry with <code>bundle exec rspec './spec/foo/bar.rb:14'</code></dd>
+
+</dl>
+</details>
+

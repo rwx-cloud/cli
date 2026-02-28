@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	captainerrors "github.com/rwx-cloud/cli/internal/captain/errors"
 	"github.com/rwx-cloud/cli/internal/cli"
 )
 
@@ -16,6 +17,11 @@ func main() {
 	err := rootCmd.Execute()
 	if err == nil {
 		return
+	}
+
+	// Captain's ExecutionError carries custom exit codes from subprocess execution
+	if e, ok := captainerrors.AsExecutionError(err); ok {
+		os.Exit(e.Code)
 	}
 
 	if !errors.Is(err, HandledError) {
