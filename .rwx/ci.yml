@@ -103,10 +103,24 @@ tasks:
         -- \
         -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
         -parallel 4 \
-        ./internal/... ./cmd/... ./test/...
+        $(go list ./internal/... ./cmd/... ./test/... | grep -v /captain/)
     outputs:
       test-results:
         - path: tmp/go-test.json
+
+  # TODO: Once internal/captain/ no longer uses Ginkgo, remove this task
+  # and add captain packages back to unit-tests above.
+  - key: captain-tests
+    use: [go-deps, gotestsum]
+    run: |
+      gotestsum \
+        --jsonfile tmp/go-test-captain.json \
+        -- \
+        -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
+        ./internal/captain/...
+    outputs:
+      test-results:
+        - path: tmp/go-test-captain.json
 
   - key: rwx-cli
     use: [go-deps, lsp-server]
