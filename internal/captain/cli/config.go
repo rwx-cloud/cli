@@ -35,7 +35,6 @@ type RunConfig struct {
 	RetryCommandTemplate        string
 	SuiteID                     string
 	SubstitutionsByFramework    map[v1.Framework]targetedretries.Substitution
-	UpdateStoredResults         bool
 	UploadResults               bool
 	PartitionCommandTemplate    string
 	PartitionConfig             PartitionConfig
@@ -229,7 +228,6 @@ type QuarantineConfig struct {
 	Quiet               bool
 	Reporters           map[string]Reporter
 	SuiteID             string
-	UpdateStoredResults bool
 }
 
 type MergeConfig struct {

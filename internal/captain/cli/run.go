@@ -12,12 +12,10 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/rwx-cloud/cli/internal/captain/backend"
-	"github.com/rwx-cloud/cli/internal/captain/backend/local"
 	"github.com/rwx-cloud/cli/internal/captain/backend/remote"
 	"github.com/rwx-cloud/cli/internal/captain/errors"
 	"github.com/rwx-cloud/cli/internal/captain/exec"
 	"github.com/rwx-cloud/cli/internal/captain/mint"
-	"github.com/rwx-cloud/cli/internal/captain/providers"
 	"github.com/rwx-cloud/cli/internal/captain/reporting"
 	"github.com/rwx-cloud/cli/internal/captain/targetedretries"
 	"github.com/rwx-cloud/cli/internal/captain/templating"
@@ -293,7 +291,7 @@ func (s Service) RunSuite(ctx context.Context, cfg RunConfig) (finalErr error) {
 		headerPrinted = true
 	}
 
-	// We ignore the error here since `UploadTestResults` will already log any errors. Furthermore, any errors here will
+	// We ignore the error here since the upload step will already log any errors. Furthermore, any errors here will
 	// not affect the exit code.
 	if testResults != nil {
 		uploadResults, uploadError = s.reportTestResults(ctx, cfg, *testResults, *newlyExecutedTestResults)
@@ -935,13 +933,6 @@ func (s Service) reportTestResults(
 		reportingConfiguration.Provider = remoteClient.Provider
 	}
 
-	if _, ok := s.API.(local.Client); ok {
-		reportingConfiguration.CloudEnabled = false
-		reportingConfiguration.CloudHost = ""
-		reportingConfiguration.CloudOrganizationSlug = ""
-		reportingConfiguration.Provider = providers.Provider{}
-	}
-
 	for outputPath, writeReport := range cfg.Reporters {
 		file, err := s.FileSystem.Create(outputPath)
 		if err == nil {
@@ -978,10 +969,6 @@ func (s Service) reportTestResults(
 		if err := os.WriteFile(backlinkPath, []byte(backlinkURL), 0o600); err != nil {
 			s.Log.Warnf("Could not populate backlink in Mint")
 		}
-	}
-
-	if _, ok := s.API.(local.Client); ok && !cfg.UpdateStoredResults {
-		return nil, nil
 	}
 
 	if _, ok := s.API.(remote.Client); ok && !cfg.UploadResults {

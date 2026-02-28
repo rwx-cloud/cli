@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/rwx-cloud/cli/internal/captain/backend"
-	"github.com/rwx-cloud/cli/internal/captain/backend/local"
 	"github.com/rwx-cloud/cli/internal/captain/backend/remote"
 	"github.com/rwx-cloud/cli/internal/captain/cli"
 	"github.com/rwx-cloud/cli/internal/captain/errors"
@@ -242,47 +241,6 @@ var _ = Describe("Run", func() {
 			Expect(logMessages).To(ContainElement(ContainSubstring(
 				fmt.Sprintf("- Updated Captain with results from %v", testResultsFilePath),
 			)))
-		})
-
-		Context("With updating disabled and a local client", func() {
-			BeforeEach(func() {
-				runConfig = cli.RunConfig{
-					Command:             arg,
-					TestResultsFileGlob: testResultsFilePath,
-					SuiteID:             "test",
-					UpdateStoredResults: false,
-				}
-				service.API = local.Client{}
-			})
-
-			It("runs the supplied command", func() {
-				Expect(commandStarted).To(BeTrue())
-			})
-
-			It("waits until the supplied command stopped running", func() {
-				Expect(commandFinished).To(BeTrue())
-			})
-
-			It("reads the test results file", func() {
-				Expect(filesOpened).To(ContainElement(testResultsFilePath))
-			})
-
-			It("does not upload the test results file", func() {
-				Expect(testResultsFileUploaded).To(BeFalse())
-			})
-
-			It("does not log the uploaded files", func() {
-				logMessages := make([]string, 0)
-
-				for _, log := range recordedLogs.All() {
-					logMessages = append(logMessages, log.Message)
-				}
-
-				Expect(logMessages).NotTo(ContainElement(ContainSubstring("Found 1 test result file")))
-				Expect(logMessages).NotTo(ContainElement(ContainSubstring(
-					fmt.Sprintf("- Updated Captain with results from %v", testResultsFilePath),
-				)))
-			})
 		})
 
 		Context("With uploading disabled and a remote client", func() {

@@ -4,7 +4,6 @@ package cli
 type ConfigFile struct {
 	Cloud struct {
 		APIHost  string `yaml:"api-host" env:"CAPTAIN_HOST"`
-		Disabled bool
 		Insecure bool
 	}
 	Flags  map[string]any
