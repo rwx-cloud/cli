@@ -33,7 +33,7 @@ func (s Service) NewIntermediateArtifactStorage(path string) (*IntermediateArtif
 	}
 
 	if path == "" {
-		path, err := s.FileSystem.MkdirTemp("", "captain")
+		path, err := s.FileSystem.MkdirTemp("", "rwx-test")
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -59,7 +59,7 @@ func (s Service) NewIntermediateArtifactStorage(path string) (*IntermediateArtif
 					"directory.",
 				path,
 			),
-			"Please make sure that the intermediate artifacts path points to new path or an existing directory. Captain "+
+			"Please make sure that the intermediate artifacts path points to new path or an existing directory. rwx test "+
 				"will create a directory in case the path doesn't exist yet.",
 		)
 	}
@@ -84,12 +84,12 @@ func (ias *IntermediateArtifactStorage) moveTestResults(artifacts []string) erro
 				// Path is outside working directory, use full absolute path
 				targetDir = filepath.Join(attemptPath, strings.TrimPrefix(dir, "/"))
 			} else {
-				// Path is inside working directory, use __captain_working_directory prefix
-				targetDir = filepath.Join(attemptPath, "__captain_working_directory", relDir)
+				// Path is inside working directory, use __rwx_working_directory prefix
+				targetDir = filepath.Join(attemptPath, "__rwx_working_directory", relDir)
 			}
 		} else {
-			// Relative paths go under __captain_working_directory
-			targetDir = filepath.Join(attemptPath, "__captain_working_directory", dir)
+			// Relative paths go under __rwx_working_directory
+			targetDir = filepath.Join(attemptPath, "__rwx_working_directory", dir)
 		}
 
 		if err := ias.fs.MkdirAll(targetDir, 0o750); err != nil {
@@ -128,10 +128,10 @@ func (ias *IntermediateArtifactStorage) MoveAdditionalArtifacts(artifactPatterns
 			if err != nil || !fs.IsLocal(relDir) {
 				targetDir = filepath.Join(attemptPath, strings.TrimPrefix(dir, "/"))
 			} else {
-				targetDir = filepath.Join(attemptPath, "__captain_working_directory", relDir)
+				targetDir = filepath.Join(attemptPath, "__rwx_working_directory", relDir)
 			}
 		} else {
-			targetDir = filepath.Join(attemptPath, "__captain_working_directory", dir)
+			targetDir = filepath.Join(attemptPath, "__rwx_working_directory", dir)
 		}
 
 		if err := ias.fs.MkdirAll(targetDir, 0o750); err != nil {

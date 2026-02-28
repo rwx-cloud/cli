@@ -38,6 +38,30 @@ func (c *Client) IsInsideWorkTree() bool {
 	return strings.TrimSpace(string(out)) == "true"
 }
 
+func (c *Client) GetUser() string {
+	cmd := exec.Command(c.Binary, "config", "user.name")
+	cmd.Dir = c.Dir
+
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+func (c *Client) GetHeadSha() string {
+	cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
+	cmd.Dir = c.Dir
+
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
 func (c *Client) GetBranch() string {
 	cmd := exec.Command(c.Binary, "branch", "--show-current")
 	cmd.Dir = c.Dir

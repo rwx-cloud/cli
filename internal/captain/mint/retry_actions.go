@@ -15,7 +15,7 @@ const (
 	retryActionKey         = "retry-failed-tests"
 	retryActionLabel       = "Retry failed tests"
 	retryActionDescription = "Only the tests that failed will be run again."
-	retryActionEnv         = "CAPTAIN_MINT_RETRY_FAILED_TESTS"
+	retryActionEnv         = "RWX_TEST_MINT_RETRY_FAILED_TESTS"
 )
 
 func IsMint() bool {
@@ -23,7 +23,7 @@ func IsMint() bool {
 }
 
 func DidRetryFailedTests() bool {
-	return os.Getenv(retryActionEnv) == "true"
+	return os.Getenv(retryActionEnv) == "true" || os.Getenv("CAPTAIN_MINT_RETRY_FAILED_TESTS") == "true"
 }
 
 func WriteConfigureRetryCommandTip(fs fs.FileSystem) error {

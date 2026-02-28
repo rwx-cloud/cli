@@ -56,7 +56,7 @@ func (rc RunConfig) Validate(log *zap.SugaredLogger) error {
 			"Missing retry command",
 			"You seem to have retries enabled, but there is no retry command template configured.",
 			"The retry command template can be set using the --retry-command flag. Alternatively, you can "+
-				"use the Captain configuration file to permanently set a command template for a "+
+				"use the rwx test configuration file to permanently set a command template for a "+
 				"given test suite.",
 		)
 	}
@@ -65,7 +65,7 @@ func (rc RunConfig) Validate(log *zap.SugaredLogger) error {
 		return errors.NewConfigurationError(
 			"Unsupported --max-tests-to-retry value",
 			fmt.Sprintf(
-				"Captain is unable to parse the --max-tests-to-retry option, which is currently set to %q",
+				"rwx test is unable to parse the --max-tests-to-retry option, which is currently set to %q",
 				rc.MaxTestsToRetry,
 			),
 			"It is expected that this option is either set to a positive integer or to a percentage of the total "+
@@ -171,27 +171,27 @@ func (pc PartitionConfig) Validate() error {
 		return errors.NewConfigurationError(
 			"Missing suite ID",
 			"A suite ID is required in order to use the partitioning feature.",
-			"The suite ID can be set using the --suite-id flag or setting a CAPTAIN_SUITE_ID environment variable",
+			"The suite ID can be set using the --suite-id flag or setting a RWX_TEST_SUITE_ID environment variable",
 		)
 	}
 
 	if pc.PartitionNodes.Total <= 0 {
 		return errors.NewConfigurationError(
 			"Missing total partition count",
-			"In order to use the partitioning feature, Captain needs to know the total number of partitions.\n",
+			"In order to use the partitioning feature, rwx test needs to know the total number of partitions.\n",
 			"When using the run command, the total number of partitions can be set using the --partition-total flag.\n\n"+
 				"When using the partition command, the total number of partitions can be set using the --total flag or "+
-				"alternatively the CAPTAIN_PARTITION_TOTAL environment variable.",
+				"alternatively the RWX_TEST_PARTITION_TOTAL environment variable.",
 		)
 	}
 
 	if pc.PartitionNodes.Index < 0 {
 		return errors.NewConfigurationError(
 			"Missing partition index",
-			"Captain is missing the index of the partition that you would like to generate.\n",
+			"rwx test is missing the index of the partition that you would like to generate.\n",
 			"When using the run command, partition index can be set using the --partition-index flag.\n\n"+
 				"When using the partition command, partition index can be set using the --index flag "+
-				"or alternatively the CAPTAIN_PARTITION_INDEX environment variable.",
+				"or alternatively the RWX_TEST_PARTITION_INDEX environment variable.",
 		)
 	}
 
@@ -202,7 +202,7 @@ func (pc PartitionConfig) Validate() error {
 				"You specified a partition index (%d) that is greater than or equal to the total number of partitions (%d)",
 				pc.PartitionNodes.Index, pc.PartitionNodes.Total,
 			),
-			"Please set the index to be below the total number of partitions. Note that captain is using '0' as the first "+
+			"Please set the index to be below the total number of partitions. Note that rwx test uses '0' as the first "+
 				"partition number",
 		)
 	}
@@ -214,8 +214,8 @@ func (pc PartitionConfig) Validate() error {
 			"When using the run command, please specify the path or paths to your test files using the --partition-globs flag. "+
 				"You may specify this flag multiple times if needed.\n\n"+
 				"When using the partition command, please specify the path or paths to your test files as arguments.\n\n"+
-				"\tcaptain partition [flags] <filepath>\n\n"+
-				"You can also execute 'captain partition --help' for further information.",
+				"\trwx test partition [flags] <filepath>\n\n"+
+				"You can also execute 'rwx test partition --help' for further information.",
 		)
 	}
 

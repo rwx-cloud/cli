@@ -11,6 +11,15 @@ import (
 	v1 "github.com/rwx-cloud/cli/internal/captain/testingschema/v1"
 )
 
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // Parse parses the files supplied in `filepaths` and prints them as formatted JSON to stdout.
 func (s Service) Parse(_ context.Context, filepaths []string) error {
 	testResultsFiles := make([]string, 0)
@@ -29,13 +38,13 @@ func (s Service) Parse(_ context.Context, filepaths []string) error {
 	}
 
 	// Apply stripping based on environment variables
-	if os.Getenv("CAPTAIN_STRIP_DERIVED_FROM") != "" && results != nil {
-		s.Log.Warnf("removing original test result data from Captain test results due to CAPTAIN_STRIP_DERIVED_FROM")
+	if (os.Getenv("RWX_TEST_STRIP_DERIVED_FROM") != "" || os.Getenv("CAPTAIN_STRIP_DERIVED_FROM") != "") && results != nil {
+		s.Log.Warnf("removing original test result data from test results due to RWX_TEST_STRIP_DERIVED_FROM")
 		stripped := v1.StripDerivedFrom(*results)
 		results = &stripped
 	}
 
-	if maxSizeStr := os.Getenv("CAPTAIN_MAX_FILE_SIZE_IN_MEGABYTES"); maxSizeStr != "" && results != nil {
+	if maxSizeStr := firstNonEmpty(os.Getenv("RWX_TEST_MAX_FILE_SIZE_IN_MEGABYTES"), os.Getenv("CAPTAIN_MAX_FILE_SIZE_IN_MEGABYTES")); maxSizeStr != "" && results != nil {
 		maxSizeMB, err := strconv.ParseFloat(maxSizeStr, 64)
 		if err == nil && maxSizeMB > 0 {
 			fileSizeThresholdBytes := int64(maxSizeMB * 1024 * 1024)
@@ -79,7 +88,7 @@ func (s Service) parse(filepaths []string, group int) (*v1.TestResults, error) {
 			framework = &results.Framework
 		} else if !framework.Equal(results.Framework) {
 			return nil, errors.NewInputError(
-				"Multiple frameworks detected. The captain CLI only works with one framework at a time",
+				"Multiple frameworks detected. rwx test only works with one framework at a time",
 			)
 		}
 

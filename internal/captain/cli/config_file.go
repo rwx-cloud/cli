@@ -3,7 +3,7 @@ package cli
 // configFile holds all options that can be set over the config file
 type ConfigFile struct {
 	Cloud struct {
-		APIHost  string `yaml:"api-host" env:"CAPTAIN_HOST"`
+		APIHost  string `yaml:"api-host"`
 		Disabled bool
 		Insecure bool
 	}

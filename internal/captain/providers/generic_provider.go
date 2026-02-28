@@ -14,8 +14,8 @@ type GenericEnv struct {
 	CommitMessage  string
 	BuildURL       string
 	Title          string
-	PartitionIndex int `env:"CAPTAIN_PARTITION_INDEX" envDefault:"-1"`
-	PartitionTotal int `env:"CAPTAIN_PARTITION_TOTAL" envDefault:"-1"`
+	PartitionIndex int `env:"RWX_TEST_PARTITION_INDEX" envDefault:"-1"`
+	PartitionTotal int `env:"RWX_TEST_PARTITION_TOTAL" envDefault:"-1"`
 }
 
 func (cfg GenericEnv) MakeProvider() Provider {
@@ -31,6 +31,26 @@ func (cfg GenericEnv) MakeProvider() Provider {
 			Index: cfg.PartitionIndex,
 			Total: cfg.PartitionTotal,
 		},
+	}
+}
+
+// GitMetadataProvider is the subset of git functionality needed to populate generic env defaults.
+type GitMetadataProvider interface {
+	GetUser() string
+	GetBranch() string
+	GetHeadSha() string
+}
+
+// PopulateFromGit fills empty fields from git as lowest-priority defaults.
+func (cfg *GenericEnv) PopulateFromGit(gitClient GitMetadataProvider) {
+	if cfg.Who == "" {
+		cfg.Who = gitClient.GetUser()
+	}
+	if cfg.Branch == "" {
+		cfg.Branch = gitClient.GetBranch()
+	}
+	if cfg.Sha == "" {
+		cfg.Sha = gitClient.GetHeadSha()
 	}
 }
 
