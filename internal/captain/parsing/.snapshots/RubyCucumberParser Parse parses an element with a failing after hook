@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rwx-research/test-results-schema/main/v1.json",
+  "framework": {
+    "language": "Ruby",
+    "kind": "Cucumber"
+  },
+  "summary": {
+    "status": {
+      "kind": "failed"
+    },
+    "tests": 1,
+    "flaky": 0,
+    "otherErrors": 0,
+    "retries": 0,
+    "canceled": 0,
+    "failed": 1,
+    "pended": 0,
+    "quarantined": 0,
+    "skipped": 0,
+    "successful": 0,
+    "timedOut": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "name": "Rule Sample \u003e With a failing after hook",
+      "lineage": [
+        "Rule Sample",
+        "With a failing after hook"
+      ],
+      "location": {
+        "file": "features/rule.feature",
+        "line": 41
+      },
+      "attempt": {
+        "durationInNanoseconds": 178000,
+        "meta": {
+          "tags": [
+            {
+              "name": "@feature_tag",
+              "line": 1
+            },
+            {
+              "name": "@rule_tag",
+              "line": 4
+            },
+            {
+              "name": "@failing_after_hook",
+              "line": 40
+            }
+          ]
+        },
+        "status": {
+          "kind": "failed",
+          "message": "failed in after hook (RuntimeError)\n./features/step_definitions/steps.rb:29:in `After'"
+        }
+      }
+    }
+  ]
+}
