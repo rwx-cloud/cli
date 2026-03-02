@@ -414,13 +414,65 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				return nil, fmt.Errorf("Multiple active sandboxes found for %s:%s.\nSpecify a config file to select one, or use --id to specify a run ID.", cwd, branch)
 			}
 		}
-		if !found {
-			// No existing sandbox - auto-create using provided config or default
-			cfgFile := cfg.ConfigFile
-			if cfgFile == "" {
-				cfgFile = ".rwx/sandbox.yml"
-			}
 
+		// Resolve config file once for both remote recovery and auto-create
+		cfgFile := cfg.ConfigFile
+		if cfgFile == "" {
+			cfgFile = ".rwx/sandbox.yml"
+		}
+
+		if !found {
+			// Check if a matching sandbox already exists remotely
+			listResult, listErr := s.APIClient.ListSandboxRuns()
+			if listErr == nil {
+				for _, run := range listResult.Runs {
+					if run.CliState == "" {
+						continue
+					}
+					state, decErr := DecodeCliState(run.CliState)
+					if decErr != nil {
+						continue
+					}
+					if state.CWD == cwd && state.Branch == branch && state.ConfigFile == cfgFile {
+						// Verify the remote sandbox is still alive before reusing
+						connInfo, connErr := s.APIClient.GetSandboxConnectionInfo(run.ID, "")
+						if connErr != nil || connInfo.Polling.Completed {
+							continue
+						}
+
+						runID = run.ID
+						configFile = cfgFile
+						sessionRunURL = run.RunURL
+
+						// Create a scoped token for this recovered session
+						tokenResult, tokenErr := s.APIClient.CreateSandboxToken(api.CreateSandboxTokenConfig{
+							RunID: run.ID,
+						})
+						if tokenErr != nil {
+							fmt.Fprintf(s.Stderr, "Warning: Unable to create scoped token: %v\n", tokenErr)
+						} else {
+							scopedToken = tokenResult.Token
+						}
+
+						// Store locally so future execs find it without an API call
+						storage.SetSession(cwd, branch, cfgFile, SandboxSession{
+							RunID:       run.ID,
+							ConfigFile:  cfgFile,
+							ScopedToken: scopedToken,
+							RunURL:      run.RunURL,
+						})
+						if saveErr := storage.Save(); saveErr != nil {
+							fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", saveErr)
+						}
+
+						found = true
+						break
+					}
+				}
+			}
+		}
+
+		if !found {
 			startResult, err := s.StartSandbox(StartSandboxConfig{
 				ConfigFile:     cfgFile,
 				RwxDirectory:   cfg.RwxDirectory,
