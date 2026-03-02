@@ -289,6 +289,51 @@ func TestService_GetRunStatus(t *testing.T) {
 		require.True(t, result.Completed)
 	})
 
+	t.Run("returns commit when API includes commit_sha", func(t *testing.T) {
+		setup := setupTest(t)
+
+		commitSHA := "abc123def456"
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "succeeded"},
+				RunID:   "run-123",
+				Commit:  &commitSHA,
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			RunID: "run-123",
+			Wait:  false,
+			Json:  false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "abc123def456", result.Commit)
+	})
+
+	t.Run("returns empty commit when API omits commit_sha", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "succeeded"},
+				RunID:   "run-123",
+				Commit:  nil,
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			RunID: "run-123",
+			Wait:  false,
+			Json:  false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "", result.Commit)
+	})
+
 	t.Run("returns current status without waiting when Wait is false", func(t *testing.T) {
 		setup := setupTest(t)
 

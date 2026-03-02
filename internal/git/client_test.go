@@ -445,6 +445,45 @@ func TestGeneratePatchFile(t *testing.T) {
 	})
 }
 
+func TestCommitMismatchNote(t *testing.T) {
+	t.Run("returns note with short SHAs when commits differ", func(t *testing.T) {
+		note := git.CommitMismatchNote(
+			"aaaaaaa1111111222222233333334444444",
+			"bbbbbbb5555555666666677777778888888",
+		)
+		require.Equal(t, "Note: you're currently on commit aaaaaaa but the most recent run on this branch was for commit bbbbbbb", note)
+	})
+
+	t.Run("returns empty when commits match exactly", func(t *testing.T) {
+		note := git.CommitMismatchNote(
+			"abc123def456",
+			"abc123def456",
+		)
+		require.Equal(t, "", note)
+	})
+
+	t.Run("returns empty when head is a prefix of run commit", func(t *testing.T) {
+		note := git.CommitMismatchNote(
+			"abc123d",
+			"abc123def456789",
+		)
+		require.Equal(t, "", note)
+	})
+
+	t.Run("returns empty when run commit is a prefix of head", func(t *testing.T) {
+		note := git.CommitMismatchNote(
+			"abc123def456789",
+			"abc123d",
+		)
+		require.Equal(t, "", note)
+	})
+
+	t.Run("preserves short SHAs when already short", func(t *testing.T) {
+		note := git.CommitMismatchNote("abc", "def")
+		require.Equal(t, "Note: you're currently on commit abc but the most recent run on this branch was for commit def", note)
+	})
+}
+
 func TestRepoNameFromOriginUrl(t *testing.T) {
 	tests := []struct {
 		name     string
