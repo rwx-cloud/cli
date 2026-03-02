@@ -84,7 +84,7 @@ tasks:
       printf "$aliasedVersion" > "$RWX_VALUES/aliased-version"
 
   - key: code
-    call: git/clone 2.0.3
+    call: git/clone 2.0.4
     after: verify-inputs
     with:
       preserve-git-dir: true
@@ -141,7 +141,7 @@ tasks:
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: lsp-code
-    call: git/clone 2.0.3
+    call: git/clone 2.0.4
     with:
       repository: https://github.com/rwx-cloud/language-server.git
       ref: ${{ tasks.tool-versions.values.language-server-ref }}
