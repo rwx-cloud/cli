@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	ResultsWait bool
+	ResultsWait     bool
+	ResultsFailFast bool
 
 	resultsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -47,6 +48,7 @@ var (
 				BranchName:     branchName,
 				RepositoryName: repositoryName,
 				Wait:           ResultsWait,
+				FailFast:       ResultsFailFast,
 				Json:           useJson,
 			})
 			if err != nil {
@@ -101,5 +103,6 @@ var (
 )
 
 func init() {
-	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "wait for the run to complete")
+	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "poll for the run to complete and report the result status")
+	resultsCmd.Flags().BoolVar(&ResultsFailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
 }

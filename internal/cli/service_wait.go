@@ -12,6 +12,7 @@ type GetRunStatusConfig struct {
 	BranchName     string
 	RepositoryName string
 	Wait           bool
+	FailFast       bool
 	Json           bool
 }
 
@@ -33,6 +34,7 @@ func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, erro
 			RunID:          cfg.RunID,
 			BranchName:     cfg.BranchName,
 			RepositoryName: cfg.RepositoryName,
+			FailFast:       cfg.FailFast,
 		})
 		if err != nil {
 			if stopSpinner != nil {

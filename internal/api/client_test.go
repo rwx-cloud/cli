@@ -882,7 +882,7 @@ func TestAPIClient_RunStatus(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		result, err := c.RunStatus(api.RunStatusConfig{RunID: "run-123"})
+		result, err := c.RunStatus(api.RunStatusConfig{RunID: "run-123", FailFast: true})
 		require.NoError(t, err)
 		require.NotNil(t, result.Status)
 		require.Equal(t, "", result.Status.Result)
@@ -890,6 +890,31 @@ func TestAPIClient_RunStatus(t *testing.T) {
 		require.False(t, result.Polling.Completed)
 		require.NotNil(t, result.Polling.BackoffMs)
 		require.Equal(t, 2000, *result.Polling.BackoffMs)
+	})
+
+	t.Run("sends fail_fast as false by default", func(t *testing.T) {
+		body := struct {
+			Status  *api.RunStatus    `json:"run_status"`
+			Polling api.PollingResult `json:"polling"`
+		}{
+			Status:  &api.RunStatus{Result: "succeeded"},
+			Polling: api.PollingResult{Completed: true},
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "false", req.URL.Query().Get("fail_fast"))
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		_, err := c.RunStatus(api.RunStatusConfig{RunID: "run-123"})
+		require.NoError(t, err)
 	})
 
 	t.Run("parses the response when run is completed", func(t *testing.T) {
