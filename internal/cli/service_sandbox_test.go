@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	rwxerrors "github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
@@ -41,6 +42,143 @@ func TestService_ListSandboxes(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Sandboxes)
 	})
+}
+
+func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
+	t.Run("removes expired sandboxes from storage and results", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-active",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-active",
+			},
+			"/tmp:main:.rwx/other.yml": {
+				RunID:       "run-expired",
+				ConfigFile:  ".rwx/other.yml",
+				ScopedToken: "token-expired",
+			},
+		})
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			if id == "run-active" {
+				return api.SandboxConnectionInfo{
+					Polling: api.PollingResult{Completed: false},
+				}, nil
+			}
+			return api.SandboxConnectionInfo{
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
+			Json: true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "run-active", result.Sandboxes[0].RunID)
+		require.Equal(t, "active", result.Sandboxes[0].Status)
+
+		// Verify storage was pruned
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+		_, exists := storage.Sandboxes["/tmp:main:.rwx/sandbox.yml"]
+		require.True(t, exists)
+	})
+
+	t.Run("removes 404 and 410 sandboxes from storage", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/active.yml": {
+				RunID:       "run-active",
+				ConfigFile:  ".rwx/active.yml",
+				ScopedToken: "token-active",
+			},
+			"/tmp:main:.rwx/notfound.yml": {
+				RunID:       "run-notfound",
+				ConfigFile:  ".rwx/notfound.yml",
+				ScopedToken: "token-notfound",
+			},
+			"/tmp:main:.rwx/gone.yml": {
+				RunID:       "run-gone",
+				ConfigFile:  ".rwx/gone.yml",
+				ScopedToken: "token-gone",
+			},
+		})
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			switch id {
+			case "run-active":
+				return api.SandboxConnectionInfo{
+					Polling: api.PollingResult{Completed: false},
+				}, nil
+			case "run-notfound":
+				return api.SandboxConnectionInfo{}, rwxerrors.ErrNotFound
+			case "run-gone":
+				return api.SandboxConnectionInfo{}, rwxerrors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, errors.New("unexpected")
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
+			Json: true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "run-active", result.Sandboxes[0].RunID)
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+	})
+
+	t.Run("keeps unknown-status sandboxes in storage and results", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-unknown",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-unknown",
+			},
+		})
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{}, errors.New("network error")
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
+			Json: true,
+		})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "unknown", result.Sandboxes[0].Status)
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+	})
+}
+
+func seedSandboxStorageMulti(t *testing.T, tmpHome string, sessions map[string]cli.SandboxSession) {
+	t.Helper()
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	t.Cleanup(func() { os.Setenv("HOME", originalHome) })
+
+	storageDir := filepath.Join(tmpHome, ".config", "rwx")
+	require.NoError(t, os.MkdirAll(storageDir, 0o755))
+
+	storage := cli.SandboxStorage{
+		Sandboxes: sessions,
+	}
+
+	data, err := json.Marshal(storage)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(storageDir, "sandboxes.json"), data, 0o644))
 }
 
 func TestService_ExecSandbox(t *testing.T) {
