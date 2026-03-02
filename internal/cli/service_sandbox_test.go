@@ -702,11 +702,13 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Contains(t, err.Error(), "git is not installed")
 	})
 
-	t.Run("returns helpful error when .git directory is missing", func(t *testing.T) {
+	t.Run("stops sandbox and removes session when .git directory is missing", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-no-git-dir-123"
 		address := "192.168.1.1:22"
+
+		seedSandboxStorage(t, setup.tmp, runID, "scoped-token-no-git")
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -725,9 +727,13 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 			return []byte("patch"), nil, nil
 		}
 
+		sandboxEndCalled := false
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
 			if cmd == "test -d .git" {
 				return 1, nil // .git directory does not exist
+			}
+			if cmd == "__rwx_sandbox_end__" {
+				sandboxEndCalled = true
 			}
 			return 0, nil
 		}
@@ -743,6 +749,13 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no .git directory")
 		require.Contains(t, err.Error(), "preserve-git-dir: true")
+		require.True(t, sandboxEndCalled, "sandbox should be stopped when .git directory is missing")
+
+		// Verify session was removed from storage
+		storage, loadErr := cli.LoadSandboxStorage()
+		require.NoError(t, loadErr)
+		_, _, found := storage.FindByRunID(runID)
+		require.False(t, found, "session should be removed from storage")
 	})
 
 }
