@@ -51,6 +51,18 @@ func (c *Client) GetBranch() string {
 	return branch
 }
 
+func (c *Client) GetHead() string {
+	cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
+	cmd.Dir = c.Dir
+
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
 func (c *Client) GetCommit() (string, error) {
 	if c.GetBranch() == "" {
 		cmd := exec.Command(c.Binary, "rev-parse", "HEAD")
@@ -112,6 +124,21 @@ func (c *Client) GetCommit() (string, error) {
 
 	// Output but no boundary means no common ancestor
 	return "", fmt.Errorf("current branch has no commits in common with the '%s' remote (set RWX_GIT_REMOTE to use a different remote)", remote)
+}
+
+func CommitMismatchNote(head, runCommit string) string {
+	if strings.HasPrefix(runCommit, head) || strings.HasPrefix(head, runCommit) {
+		return ""
+	}
+	shortHead := head
+	if len(shortHead) > 7 {
+		shortHead = shortHead[:7]
+	}
+	shortCommit := runCommit
+	if len(shortCommit) > 7 {
+		shortCommit = shortCommit[:7]
+	}
+	return fmt.Sprintf("Note: you're currently on commit %s but the most recent run on this branch was for commit %s", shortHead, shortCommit)
 }
 
 func (c *Client) GetOriginUrl() string {

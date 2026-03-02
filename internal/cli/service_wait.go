@@ -19,6 +19,7 @@ type GetRunStatusConfig struct {
 type GetRunStatusResult struct {
 	RunID        string
 	RunURL       string
+	Commit       string
 	ResultStatus string
 	Completed    bool
 }
@@ -56,9 +57,14 @@ func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, erro
 			if statusResult.RunID != "" {
 				runID = statusResult.RunID
 			}
+			commit := ""
+			if statusResult.Commit != nil {
+				commit = *statusResult.Commit
+			}
 			return &GetRunStatusResult{
 				RunID:        runID,
 				RunURL:       statusResult.RunURL,
+				Commit:       commit,
 				ResultStatus: status,
 				Completed:    statusResult.Polling.Completed,
 			}, nil

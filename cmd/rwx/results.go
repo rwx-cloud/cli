@@ -78,6 +78,13 @@ var (
 				}
 				fmt.Println(string(resultJson))
 			} else {
+				if runID == "" && result.Commit != "" {
+					if head := service.GitClient.GetHead(); head != "" {
+						if note := git.CommitMismatchNote(head, result.Commit); note != "" {
+							fmt.Println(note)
+						}
+					}
+				}
 				if result.RunURL != "" {
 					fmt.Printf("Run URL: %s\n", result.RunURL)
 				}

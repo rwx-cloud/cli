@@ -10,6 +10,7 @@ import (
 
 type Git struct {
 	MockGetBranch         string
+	MockGetHead           string
 	MockGetCommit         string
 	MockGetCommitError    error
 	MockGetOriginUrl      string
@@ -21,6 +22,10 @@ type Git struct {
 
 func (c *Git) GetBranch() string {
 	return c.MockGetBranch
+}
+
+func (c *Git) GetHead() string {
+	return c.MockGetHead
 }
 
 func (c *Git) GetCommit() (string, error) {
