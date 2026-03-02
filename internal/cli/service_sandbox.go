@@ -458,6 +458,20 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	// Sync local changes to sandbox if enabled
 	if cfg.Sync {
 		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
+			if errors.Is(err, errors.ErrSandboxNoGitDir) {
+				// Stop the sandbox so the user gets a fresh one on retry
+				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
+					fmt.Fprintf(s.Stderr, "Warning: failed to stop sandbox: %v\n", endErr)
+				}
+				if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
+					storage.DeleteSessionByRunID(runID)
+					if saveErr := storage.Save(); saveErr != nil {
+						fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", saveErr)
+					}
+				} else {
+					fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", loadErr)
+				}
+			}
 			return nil, errors.Wrap(err, "failed to sync changes to sandbox")
 		}
 	}
@@ -948,7 +962,7 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	exitCode, _ := s.SSHClient.ExecuteCommand("test -d .git")
 	if exitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return fmt.Errorf("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
+		return errors.ErrSandboxNoGitDir
 	}
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
