@@ -262,7 +262,9 @@ type ArtifactDownloadRequestResult struct {
 }
 
 type RunStatusConfig struct {
-	RunID string
+	RunID          string
+	BranchName     string
+	RepositoryName string
 }
 
 type RunStatus struct {
@@ -272,6 +274,7 @@ type RunStatus struct {
 type RunStatusResult struct {
 	Status  *RunStatus    `json:"run_status,omitempty"`
 	RunID   string        `json:"run_id,omitempty"`
+	RunURL  string        `json:"run_url,omitempty"`
 	Polling PollingResult `json:"polling"`
 }
 

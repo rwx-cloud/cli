@@ -713,7 +713,16 @@ func (c Client) TaskIDStatus(cfg TaskIDStatusConfig) (TaskStatusResult, error) {
 }
 
 func (c Client) RunStatus(cfg RunStatusConfig) (RunStatusResult, error) {
-	endpoint := fmt.Sprintf("/mint/api/runs/%s?fail_fast=true", url.PathEscape(cfg.RunID))
+	var endpoint string
+	if cfg.RunID != "" {
+		endpoint = fmt.Sprintf("/mint/api/runs/%s?fail_fast=true", url.PathEscape(cfg.RunID))
+	} else {
+		params := url.Values{}
+		params.Set("fail_fast", "true")
+		params.Set("branch_name", cfg.BranchName)
+		params.Set("repository_name", cfg.RepositoryName)
+		endpoint = "/mint/api/runs/latest?" + params.Encode()
+	}
 	result := RunStatusResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)

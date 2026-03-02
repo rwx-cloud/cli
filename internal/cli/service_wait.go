@@ -8,13 +8,16 @@ import (
 )
 
 type GetRunStatusConfig struct {
-	RunID string
-	Wait  bool
-	Json  bool
+	RunID          string
+	BranchName     string
+	RepositoryName string
+	Wait           bool
+	Json           bool
 }
 
 type GetRunStatusResult struct {
 	RunID        string
+	RunURL       string
 	ResultStatus string
 	Completed    bool
 }
@@ -26,7 +29,11 @@ func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, erro
 	}
 
 	for {
-		statusResult, err := s.APIClient.RunStatus(api.RunStatusConfig{RunID: cfg.RunID})
+		statusResult, err := s.APIClient.RunStatus(api.RunStatusConfig{
+			RunID:          cfg.RunID,
+			BranchName:     cfg.BranchName,
+			RepositoryName: cfg.RepositoryName,
+		})
 		if err != nil {
 			if stopSpinner != nil {
 				stopSpinner()
@@ -43,8 +50,13 @@ func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, erro
 			if stopSpinner != nil {
 				stopSpinner()
 			}
+			runID := cfg.RunID
+			if statusResult.RunID != "" {
+				runID = statusResult.RunID
+			}
 			return &GetRunStatusResult{
-				RunID:        cfg.RunID,
+				RunID:        runID,
+				RunURL:       statusResult.RunURL,
 				ResultStatus: status,
 				Completed:    statusResult.Polling.Completed,
 			}, nil
