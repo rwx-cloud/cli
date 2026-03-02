@@ -265,6 +265,7 @@ type RunStatusConfig struct {
 	RunID          string
 	BranchName     string
 	RepositoryName string
+	FailFast       bool
 }
 
 type RunStatus struct {

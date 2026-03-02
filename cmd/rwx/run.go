@@ -25,6 +25,7 @@ var (
 	Open           bool
 	Debug          bool
 	Wait           bool
+	FailFast       bool
 	Title          string
 
 	runCmd = &cobra.Command{
@@ -121,9 +122,10 @@ var (
 
 			if Wait && !Debug {
 				waitResult, err := service.GetRunStatus(cli.GetRunStatusConfig{
-					RunID: runResult.RunID,
-					Wait:  true,
-					Json:  useJson,
+					RunID:    runResult.RunID,
+					Wait:     true,
+					FailFast: FailFast,
+					Json:     useJson,
 				})
 				if err != nil {
 					return err
@@ -190,6 +192,7 @@ func init() {
 	addRwxDirFlag(runCmd)
 	runCmd.Flags().BoolVar(&Open, "open", false, "open the run in a browser")
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
-	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete or reach its first failure and report the result status")
+	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete and report the result status")
+	runCmd.Flags().BoolVar(&FailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 }

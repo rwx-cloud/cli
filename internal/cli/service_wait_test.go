@@ -33,6 +33,29 @@ func TestService_GetRunStatus(t *testing.T) {
 		require.True(t, result.Completed)
 	})
 
+	t.Run("passes fail_fast to the API client", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockRunStatus = func(cfg api.RunStatusConfig) (api.RunStatusResult, error) {
+			require.True(t, cfg.FailFast)
+			return api.RunStatusResult{
+				Status:  &api.RunStatus{Result: "failed"},
+				RunID:   "run-123",
+				Polling: api.PollingResult{Completed: true},
+			}, nil
+		}
+
+		result, err := setup.service.GetRunStatus(cli.GetRunStatusConfig{
+			RunID:    "run-123",
+			Wait:     true,
+			FailFast: true,
+			Json:     false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "failed", result.ResultStatus)
+	})
+
 	t.Run("polls until run completes with failure", func(t *testing.T) {
 		setup := setupTest(t)
 
