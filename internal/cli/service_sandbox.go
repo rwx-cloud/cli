@@ -265,6 +265,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		Title:          title,
 		InitParameters: cfg.InitParameters,
 		Patchable:      false,
+		CliState:       EncodeCliState(cwd, branch, cfg.ConfigFile),
 	})
 
 	if err != nil {
@@ -508,63 +509,92 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 		return nil, errors.Wrap(err, "unable to load sandbox sessions")
 	}
 
+	listResult, err := s.APIClient.ListSandboxRuns()
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to list sandbox runs")
+	}
+
+	// Build set of active run IDs from API response
+	activeRuns := make(map[string]api.ListRunsRun, len(listResult.Runs))
+	for _, run := range listResult.Runs {
+		activeRuns[run.ID] = run
+	}
+
+	// Merge remotely-discovered runs into local storage
+	storageChanged := false
+	for _, run := range listResult.Runs {
+		if run.CliState == "" {
+			continue
+		}
+		state, err := DecodeCliState(run.CliState)
+		if err != nil {
+			continue
+		}
+		// Only create a local session if none exists for this key
+		if _, exists := storage.GetSession(state.CWD, state.Branch, state.ConfigFile); exists {
+			continue
+		}
+		storage.SetSession(state.CWD, state.Branch, state.ConfigFile, SandboxSession{
+			RunID:      run.ID,
+			ConfigFile: state.ConfigFile,
+			RunURL:     run.RunURL,
+		})
+		storageChanged = true
+	}
+
+	// Walk local sessions: keep active, prune expired
 	sandboxes := make([]SandboxInfo, 0, len(storage.Sandboxes))
 	var expiredKeys []string
 
 	for key, session := range storage.AllSessions() {
 		cwd, branch, _ := ParseSessionKey(key)
 
-		status := "active"
-		connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
-		if err != nil {
-			if errors.Is(err, errors.ErrNotFound) || errors.Is(err, errors.ErrGone) {
-				status = "expired"
-			} else {
-				status = "unknown"
-			}
-		} else if connInfo.Polling.Completed {
-			status = "expired"
-		}
-
-		if status == "expired" {
+		if _, active := activeRuns[session.RunID]; active {
+			sandboxes = append(sandboxes, SandboxInfo{
+				RunID:      session.RunID,
+				Status:     "active",
+				ConfigFile: session.ConfigFile,
+				CWD:        cwd,
+				Branch:     branch,
+			})
+		} else {
 			expiredKeys = append(expiredKeys, key)
-			continue
 		}
-
-		sandboxes = append(sandboxes, SandboxInfo{
-			RunID:      session.RunID,
-			Status:     status,
-			ConfigFile: session.ConfigFile,
-			CWD:        cwd,
-			Branch:     branch,
-		})
 	}
 
 	if len(expiredKeys) > 0 {
 		for _, key := range expiredKeys {
 			delete(storage.Sandboxes, key)
 		}
+		storageChanged = true
+	}
+
+	if storageChanged {
 		if err := storage.Save(); err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: failed to save sandbox storage: %v\n", err)
 		}
 	}
 
 	if !cfg.Json {
-		if len(sandboxes) == 0 {
-			fmt.Fprintln(s.Stdout, "No sandbox sessions found.")
-		} else {
-			fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", "RUN", "STATUS", "CONFIG", "CWD", "BRANCH")
-			for _, sb := range sandboxes {
-				cwdDisplay := sb.CWD
-				if len(cwdDisplay) > 40 {
-					cwdDisplay = "..." + cwdDisplay[len(cwdDisplay)-37:]
-				}
-				fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", sb.RunID, sb.Status, sb.ConfigFile, cwdDisplay, sb.Branch)
-			}
-		}
+		s.printSandboxList(sandboxes)
 	}
 
 	return &ListSandboxesResult{Sandboxes: sandboxes}, nil
+}
+
+func (s Service) printSandboxList(sandboxes []SandboxInfo) {
+	if len(sandboxes) == 0 {
+		fmt.Fprintln(s.Stdout, "No sandbox sessions found.")
+	} else {
+		fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", "RUN", "STATUS", "CONFIG", "CWD", "BRANCH")
+		for _, sb := range sandboxes {
+			cwdDisplay := sb.CWD
+			if len(cwdDisplay) > 40 {
+				cwdDisplay = "..." + cwdDisplay[len(cwdDisplay)-37:]
+			}
+			fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", sb.RunID, sb.Status, sb.ConfigFile, cwdDisplay, sb.Branch)
+		}
+	}
 }
 
 func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) {

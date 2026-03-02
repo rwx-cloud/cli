@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,30 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 )
+
+type CliState struct {
+	CWD        string `json:"cwd"`
+	Branch     string `json:"branch"`
+	ConfigFile string `json:"configFile"`
+}
+
+func EncodeCliState(cwd, branch, configFile string) string {
+	state := CliState{CWD: cwd, Branch: branch, ConfigFile: configFile}
+	data, _ := json.Marshal(state)
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+func DecodeCliState(encoded string) (*CliState, error) {
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to decode cli_state")
+	}
+	var state CliState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, errors.Wrap(err, "unable to parse cli_state")
+	}
+	return &state, nil
+}
 
 type SandboxSession struct {
 	RunID       string `json:"runId"`

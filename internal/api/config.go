@@ -32,6 +32,7 @@ type InitiateRunConfig struct {
 	UseCache                 bool                      `json:"use_cache"`
 	Git                      GitMetadata               `json:"git"`
 	Patch                    PatchMetadata             `json:"patch"`
+	CliState                 string                    `json:"cli_state,omitempty"`
 }
 
 type InitializationParameter struct {
@@ -282,6 +283,17 @@ type RunStatusResult struct {
 
 type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
+}
+
+type ListRunsRun struct {
+	ID       string `json:"id"`
+	RunURL   string `json:"run_url"`
+	Title    string `json:"title"`
+	CliState string `json:"cli_state"`
+}
+
+type ListRunsResult struct {
+	Runs []ListRunsRun `json:"runs"`
 }
 
 type CreateSandboxTokenConfig struct {

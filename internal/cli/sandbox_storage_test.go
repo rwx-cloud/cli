@@ -369,6 +369,48 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 	})
 }
 
+func TestEncodeDecodeCliState(t *testing.T) {
+	t.Run("round-trips correctly", func(t *testing.T) {
+		encoded := cli.EncodeCliState("/home/user/project", "main", ".rwx/sandbox.yml")
+		state, err := cli.DecodeCliState(encoded)
+		require.NoError(t, err)
+		require.Equal(t, "/home/user/project", state.CWD)
+		require.Equal(t, "main", state.Branch)
+		require.Equal(t, ".rwx/sandbox.yml", state.ConfigFile)
+	})
+
+	t.Run("handles empty fields", func(t *testing.T) {
+		encoded := cli.EncodeCliState("", "", "")
+		state, err := cli.DecodeCliState(encoded)
+		require.NoError(t, err)
+		require.Equal(t, "", state.CWD)
+		require.Equal(t, "", state.Branch)
+		require.Equal(t, "", state.ConfigFile)
+	})
+
+	t.Run("handles special characters", func(t *testing.T) {
+		encoded := cli.EncodeCliState("/path/with spaces/and:colons", "feature/test-branch", "config.yml")
+		state, err := cli.DecodeCliState(encoded)
+		require.NoError(t, err)
+		require.Equal(t, "/path/with spaces/and:colons", state.CWD)
+		require.Equal(t, "feature/test-branch", state.Branch)
+		require.Equal(t, "config.yml", state.ConfigFile)
+	})
+
+	t.Run("returns error for invalid base64", func(t *testing.T) {
+		_, err := cli.DecodeCliState("not-valid-base64!!!")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to decode cli_state")
+	})
+
+	t.Run("returns error for invalid JSON", func(t *testing.T) {
+		// Valid base64 but not valid JSON
+		encoded := "bm90LWpzb24==" // "not-json"
+		_, err := cli.DecodeCliState(encoded)
+		require.Error(t, err)
+	})
+}
+
 func TestSandboxTitle(t *testing.T) {
 	t.Run("creates title from project name and branch", func(t *testing.T) {
 		title := cli.SandboxTitle("/home/user/my-project", "main", ".rwx/sandbox.yml")

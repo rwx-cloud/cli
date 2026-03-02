@@ -21,6 +21,7 @@ type InitiateRunConfig struct {
 	GitBranch      string
 	GitSha         string
 	Patchable      bool
+	CliState       string
 }
 
 func (c InitiateRunConfig) Validate() error {
@@ -232,6 +233,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		TargetedTaskKeys:         cfg.TargetedTasks,
 		Title:                    cfg.Title,
 		UseCache:                 !cfg.NoCache,
+		CliState:                 cfg.CliState,
 		Git: api.GitMetadata{
 			Branch:    branch,
 			Sha:       sha,
