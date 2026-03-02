@@ -509,6 +509,7 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 	}
 
 	sandboxes := make([]SandboxInfo, 0, len(storage.Sandboxes))
+	var expiredKeys []string
 
 	for key, session := range storage.AllSessions() {
 		cwd, branch, _ := ParseSessionKey(key)
@@ -516,9 +517,18 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 		status := "active"
 		connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
 		if err != nil {
-			status = "unknown"
+			if errors.Is(err, errors.ErrNotFound) || errors.Is(err, errors.ErrGone) {
+				status = "expired"
+			} else {
+				status = "unknown"
+			}
 		} else if connInfo.Polling.Completed {
 			status = "expired"
+		}
+
+		if status == "expired" {
+			expiredKeys = append(expiredKeys, key)
+			continue
 		}
 
 		sandboxes = append(sandboxes, SandboxInfo{
@@ -528,6 +538,15 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 			CWD:        cwd,
 			Branch:     branch,
 		})
+	}
+
+	if len(expiredKeys) > 0 {
+		for _, key := range expiredKeys {
+			delete(storage.Sandboxes, key)
+		}
+		if err := storage.Save(); err != nil {
+			fmt.Fprintf(s.Stderr, "Warning: failed to save sandbox storage: %v\n", err)
+		}
 	}
 
 	if !cfg.Json {
