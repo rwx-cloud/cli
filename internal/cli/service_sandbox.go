@@ -279,6 +279,22 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		finishSpinner(fmt.Sprintf("Started sandbox: %s\n%s", runResult.RunID, runResult.RunURL))
 	}
 
+	// Persist session immediately so sandbox list can find this run even if the
+	// process crashes before we finish setup (e.g. during scoped token creation).
+	storage, err := LoadSandboxStorage()
+	if err != nil {
+		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
+	} else {
+		storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+			RunID:      runResult.RunID,
+			ConfigFile: cfg.ConfigFile,
+			RunURL:     runResult.RunURL,
+		})
+		if err := storage.Save(); err != nil {
+			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
+		}
+	}
+
 	// Request a scoped token for this run
 	var scopedToken string
 	tokenResult, err := s.APIClient.CreateSandboxToken(api.CreateSandboxTokenConfig{
@@ -290,18 +306,8 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		scopedToken = tokenResult.Token
 	}
 
-	// Build result now so we can return it even if waiting fails
-	result := &StartSandboxResult{
-		RunID:      runResult.RunID,
-		RunURL:     runResult.RunURL,
-		ConfigFile: cfg.ConfigFile,
-	}
-
-	// Store session (do this before waiting so it's saved even if waiting fails)
-	storage, err := LoadSandboxStorage()
-	if err != nil {
-		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
-	} else {
+	// Update session with scoped token now that we have it
+	if storage != nil {
 		storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
 			RunID:       runResult.RunID,
 			ConfigFile:  cfg.ConfigFile,
@@ -311,6 +317,13 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		if err := storage.Save(); err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
 		}
+	}
+
+	// Build result now so we can return it even if waiting fails
+	result := &StartSandboxResult{
+		RunID:      runResult.RunID,
+		RunURL:     runResult.RunURL,
+		ConfigFile: cfg.ConfigFile,
 	}
 
 	// Only wait for sandbox to be ready if --wait flag is set
