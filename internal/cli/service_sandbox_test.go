@@ -2,15 +2,16 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
@@ -67,6 +68,14 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 					{ID: "run-active", RunURL: "https://cloud.rwx.com/runs/run-active"},
 				},
 			}, nil
+		}
+
+		// Fallback check confirms the expired run is gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			if runID == "run-expired" {
+				return api.SandboxConnectionInfo{}, errors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, nil
 		}
 
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
@@ -206,6 +215,14 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 			}, nil
 		}
 
+		// Fallback check confirms expired run is gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			if runID == "run-expired" {
+				return api.SandboxConnectionInfo{}, errors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, nil
+		}
+
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
 			Json: true,
 		})
@@ -223,7 +240,7 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 		require.True(t, exists)
 	})
 
-	t.Run("removes all local sandboxes not in API response", func(t *testing.T) {
+	t.Run("removes all local sandboxes not in API response when confirmed expired", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
 			"/tmp:main:.rwx/active.yml": {
@@ -252,6 +269,17 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 			}, nil
 		}
 
+		// Fallback checks confirm both missing runs are gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			switch runID {
+			case "run-notfound":
+				return api.SandboxConnectionInfo{}, errors.ErrNotFound
+			case "run-gone":
+				return api.SandboxConnectionInfo{}, errors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, nil
+		}
+
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
 			Json: true,
 		})
@@ -263,6 +291,70 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, storage.Sandboxes, 1)
+	})
+
+	t.Run("keeps initializing sandbox not yet in bulk API response", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-initializing",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-init",
+			},
+		})
+
+		// Bulk API does not return the initializing run
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListRunsResult, error) {
+			return &api.ListRunsResult{Runs: []api.ListRunsRun{}}, nil
+		}
+
+		// Fallback check shows the run is still alive
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Polling: api.PollingResult{Completed: false},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "run-initializing", result.Sandboxes[0].RunID)
+		require.Equal(t, "active", result.Sandboxes[0].Status)
+
+		// Verify it was NOT pruned from storage
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+	})
+
+	t.Run("prunes sandbox when fallback connection info returns an error", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-cancelled",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-cancel",
+			},
+		})
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListRunsResult, error) {
+			return &api.ListRunsResult{Runs: []api.ListRunsRun{}}, nil
+		}
+
+		// Fallback returns an error (e.g. 400 "run has been cancelled")
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{}, fmt.Errorf("run has been cancelled")
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Empty(t, result.Sandboxes)
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Empty(t, storage.Sandboxes)
 	})
 }
 

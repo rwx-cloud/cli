@@ -610,7 +610,26 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 				Branch:     branch,
 			})
 		} else {
-			expiredKeys = append(expiredKeys, key)
+			// Not in the bulk list — could be initializing or genuinely expired.
+			// Verify individually: only keep as active if the API positively
+			// confirms the run is still alive (200 OK, not completed).
+			status := "expired"
+			connInfo, connErr := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
+			if connErr == nil && !connInfo.Polling.Completed {
+				status = "active"
+			}
+
+			if status == "expired" {
+				expiredKeys = append(expiredKeys, key)
+			} else {
+				sandboxes = append(sandboxes, SandboxInfo{
+					RunID:      session.RunID,
+					Status:     status,
+					ConfigFile: session.ConfigFile,
+					CWD:        cwd,
+					Branch:     branch,
+				})
+			}
 		}
 	}
 
