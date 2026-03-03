@@ -285,15 +285,15 @@ type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
 }
 
-type ListRunsRun struct {
+type SandboxRunSummary struct {
 	ID       string `json:"id"`
 	RunURL   string `json:"run_url"`
 	Title    string `json:"title"`
 	CliState string `json:"cli_state"`
 }
 
-type ListRunsResult struct {
-	Runs []ListRunsRun `json:"runs"`
+type ListSandboxRunsResult struct {
+	Runs []SandboxRunSummary `json:"runs"`
 }
 
 type CreateSandboxTokenConfig struct {

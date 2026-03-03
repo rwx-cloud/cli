@@ -580,7 +580,7 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 	}
 
 	// Build set of active run IDs from API response
-	activeRuns := make(map[string]api.ListRunsRun, len(listResult.Runs))
+	activeRuns := make(map[string]api.SandboxRunSummary, len(listResult.Runs))
 	for _, run := range listResult.Runs {
 		activeRuns[run.ID] = run
 	}

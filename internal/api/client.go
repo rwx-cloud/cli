@@ -1026,7 +1026,7 @@ func (c Client) CancelRun(runID, scopedToken string) error {
 	return nil
 }
 
-func (c Client) ListSandboxRuns() (*ListRunsResult, error) {
+func (c Client) ListSandboxRuns() (*ListSandboxRunsResult, error) {
 	endpoint := "/mint/api/runs?result_status=sandboxed&my_runs=true"
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -1041,7 +1041,7 @@ func (c Client) ListSandboxRuns() (*ListRunsResult, error) {
 	}
 	defer resp.Body.Close()
 
-	result := ListRunsResult{}
+	result := ListSandboxRunsResult{}
 	if err = decodeResponseJSON(resp, &result); err != nil {
 		return nil, err
 	}
