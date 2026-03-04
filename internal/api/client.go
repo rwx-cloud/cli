@@ -1026,6 +1026,29 @@ func (c Client) CancelRun(runID, scopedToken string) error {
 	return nil
 }
 
+func (c Client) ListSandboxRuns() (*ListSandboxRunsResult, error) {
+	endpoint := "/mint/api/runs?result_status=sandboxed&my_runs=true"
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	result := ListSandboxRunsResult{}
+	if err = decodeResponseJSON(resp, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 func (c Client) GetSandboxInitTemplate() (SandboxInitTemplateResult, error) {
 	endpoint := "/mint/api/sandbox_init_template"
 	result := SandboxInitTemplateResult{}

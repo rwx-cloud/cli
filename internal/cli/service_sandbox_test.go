@@ -2,16 +2,16 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
-	rwxerrors "github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
@@ -32,8 +32,10 @@ func TestService_ListSandboxes(t *testing.T) {
 	t.Run("returns list without error", func(t *testing.T) {
 		setup := setupTest(t)
 
-		// Note: This test may return sandboxes from the user's actual storage file
-		// since sandbox storage uses ~/.config/rwx/sandboxes.json
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
 			Json: true,
 		})
@@ -41,6 +43,150 @@ func TestService_ListSandboxes(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Sandboxes)
+	})
+}
+
+func TestService_ListSandboxes_BulkAPI(t *testing.T) {
+	t.Run("uses bulk API to determine active sandboxes", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-active",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-active",
+			},
+			"/tmp:main:.rwx/other.yml": {
+				RunID:       "run-expired",
+				ConfigFile:  ".rwx/other.yml",
+				ScopedToken: "token-expired",
+			},
+		})
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-active", RunURL: "https://cloud.rwx.com/runs/run-active"},
+				},
+			}, nil
+		}
+
+		// Fallback check confirms the expired run is gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			if runID == "run-expired" {
+				return api.SandboxConnectionInfo{}, errors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "run-active", result.Sandboxes[0].RunID)
+		require.Equal(t, "active", result.Sandboxes[0].Status)
+
+		// Verify expired was pruned from storage
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+		_, exists := storage.Sandboxes["/tmp:main:.rwx/sandbox.yml"]
+		require.True(t, exists)
+	})
+
+	t.Run("merges remote-only runs into local storage", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-local",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-local",
+			},
+		})
+
+		remoteCliState := cli.EncodeCliState("/remote/project", "develop", ".rwx/sandbox.yml")
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-local", RunURL: "https://cloud.rwx.com/runs/run-local"},
+					{ID: "run-remote", RunURL: "https://cloud.rwx.com/runs/run-remote", CliState: remoteCliState},
+				},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 2)
+
+		runIDs := make([]string, len(result.Sandboxes))
+		for i, sb := range result.Sandboxes {
+			runIDs[i] = sb.RunID
+		}
+		require.ElementsMatch(t, []string{"run-local", "run-remote"}, runIDs)
+
+		// Verify remote run was saved to storage
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 2)
+		session, found := storage.GetSession("/remote/project", "develop", ".rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-remote", session.RunID)
+		require.Equal(t, "https://cloud.rwx.com/runs/run-remote", session.RunURL)
+	})
+
+	t.Run("skips remote runs without cli_state", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{})
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-no-state", RunURL: "https://cloud.rwx.com/runs/run-no-state"},
+				},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Empty(t, result.Sandboxes)
+	})
+
+	t.Run("does not overwrite existing local session with remote run", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-local",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "my-scoped-token",
+			},
+		})
+
+		// Remote has a run with cli_state pointing to the same key but different run ID
+		remoteCliState := cli.EncodeCliState("/tmp", "main", ".rwx/sandbox.yml")
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-local", RunURL: "https://cloud.rwx.com/runs/run-local"},
+					{ID: "run-remote-new", RunURL: "https://cloud.rwx.com/runs/run-remote-new", CliState: remoteCliState},
+				},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+		require.NoError(t, err)
+
+		// Local session key is occupied by run-local, so run-remote-new should NOT overwrite it
+		require.Len(t, result.Sandboxes, 1)
+		require.Equal(t, "run-local", result.Sandboxes[0].RunID)
+
+		// Verify the scoped token was preserved
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		session, found := storage.GetSession("/tmp", "main", ".rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-local", session.RunID)
+		require.Equal(t, "my-scoped-token", session.ScopedToken)
 	})
 }
 
@@ -60,15 +206,21 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 			},
 		})
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
-			if id == "run-active" {
-				return api.SandboxConnectionInfo{
-					Polling: api.PollingResult{Completed: false},
-				}, nil
-			}
-			return api.SandboxConnectionInfo{
-				Polling: api.PollingResult{Completed: true},
+		// Bulk API only returns the active run
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-active", RunURL: "https://cloud.rwx.com/runs/run-active"},
+				},
 			}, nil
+		}
+
+		// Fallback check confirms expired run is gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			if runID == "run-expired" {
+				return api.SandboxConnectionInfo{}, errors.ErrGone
+			}
+			return api.SandboxConnectionInfo{}, nil
 		}
 
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
@@ -88,7 +240,7 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 		require.True(t, exists)
 	})
 
-	t.Run("removes 404 and 410 sandboxes from storage", func(t *testing.T) {
+	t.Run("removes all local sandboxes not in API response when confirmed expired", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
 			"/tmp:main:.rwx/active.yml": {
@@ -108,18 +260,24 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 			},
 		})
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
-			switch id {
-			case "run-active":
-				return api.SandboxConnectionInfo{
-					Polling: api.PollingResult{Completed: false},
-				}, nil
+		// Only run-active is returned by the API
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-active", RunURL: "https://cloud.rwx.com/runs/run-active"},
+				},
+			}, nil
+		}
+
+		// Fallback checks confirm both missing runs are gone
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			switch runID {
 			case "run-notfound":
-				return api.SandboxConnectionInfo{}, rwxerrors.ErrNotFound
+				return api.SandboxConnectionInfo{}, errors.ErrNotFound
 			case "run-gone":
-				return api.SandboxConnectionInfo{}, rwxerrors.ErrGone
+				return api.SandboxConnectionInfo{}, errors.ErrGone
 			}
-			return api.SandboxConnectionInfo{}, errors.New("unexpected")
+			return api.SandboxConnectionInfo{}, nil
 		}
 
 		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
@@ -135,31 +293,68 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 		require.Len(t, storage.Sandboxes, 1)
 	})
 
-	t.Run("keeps unknown-status sandboxes in storage and results", func(t *testing.T) {
+	t.Run("keeps initializing sandbox not yet in bulk API response", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
 			"/tmp:main:.rwx/sandbox.yml": {
-				RunID:       "run-unknown",
+				RunID:       "run-initializing",
 				ConfigFile:  ".rwx/sandbox.yml",
-				ScopedToken: "token-unknown",
+				ScopedToken: "token-init",
 			},
 		})
 
-		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
-			return api.SandboxConnectionInfo{}, errors.New("network error")
+		// Bulk API does not return the initializing run
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
 		}
 
-		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{
-			Json: true,
-		})
+		// Fallback check shows the run is still alive
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Polling: api.PollingResult{Completed: false},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
 
 		require.NoError(t, err)
 		require.Len(t, result.Sandboxes, 1)
-		require.Equal(t, "unknown", result.Sandboxes[0].Status)
+		require.Equal(t, "run-initializing", result.Sandboxes[0].RunID)
+		require.Equal(t, "active", result.Sandboxes[0].Status)
 
+		// Verify it was NOT pruned from storage
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, storage.Sandboxes, 1)
+	})
+
+	t.Run("prunes sandbox when fallback connection info returns an error", func(t *testing.T) {
+		setup := setupTest(t)
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"/tmp:main:.rwx/sandbox.yml": {
+				RunID:       "run-cancelled",
+				ConfigFile:  ".rwx/sandbox.yml",
+				ScopedToken: "token-cancel",
+			},
+		})
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
+		// Fallback returns an error (e.g. 400 "run has been cancelled")
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(runID, scopedToken string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{}, fmt.Errorf("run has been cancelled")
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+
+		require.NoError(t, err)
+		require.Empty(t, result.Sandboxes)
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Empty(t, storage.Sandboxes)
 	})
 }
 
@@ -1300,6 +1495,157 @@ func TestService_StartSandbox(t *testing.T) {
 		require.Len(t, receivedInitParams, 1)
 		require.Equal(t, "foo", receivedInitParams[0].Key)
 		require.Equal(t, "bar", receivedInitParams[0].Value)
+	})
+}
+
+func TestService_ExecSandbox_RecoverFromAPI(t *testing.T) {
+	t.Run("reuses remote sandbox when no local session exists", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Set HOME so sandbox storage is writable in the test temp dir
+		originalHome := os.Getenv("HOME")
+		os.Setenv("HOME", setup.tmp)
+		t.Cleanup(func() { os.Setenv("HOME", originalHome) })
+
+		address := "192.168.1.1:22"
+		cwd := setup.tmp
+		// GetCurrentGitBranch uses a real git client, so in a non-repo temp dir it returns "detached"
+		branch := "detached"
+		configFile := ".rwx/sandbox.yml"
+
+		// Encode cli_state matching cwd+branch+configFile
+		encodedState := cli.EncodeCliState(cwd, branch, configFile)
+
+		// No local session — ListSandboxRuns returns a matching run
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{
+						ID:       "run-recovered",
+						RunURL:   "https://cloud.rwx.com/runs/run-recovered",
+						CliState: encodedState,
+					},
+				},
+			}, nil
+		}
+
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			require.Equal(t, "run-recovered", cfg.RunID)
+			return &api.CreateSandboxTokenResult{Token: "recovered-token"}, nil
+		}
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			require.Equal(t, "run-recovered", id)
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: configFile,
+			Command:    []string{"echo", "hello"},
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "run-recovered", result.RunID)
+		require.Equal(t, "https://cloud.rwx.com/runs/run-recovered", result.RunURL)
+
+		// Verify the session was stored locally
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		session, found := storage.GetSession(cwd, branch, configFile)
+		require.True(t, found)
+		require.Equal(t, "run-recovered", session.RunID)
+		require.Equal(t, "recovered-token", session.ScopedToken)
+	})
+
+	t.Run("falls through to auto-create when no remote match", func(t *testing.T) {
+		setup := setupTest(t)
+
+		// Set HOME so sandbox storage is writable in the test temp dir
+		originalHome := os.Getenv("HOME")
+		os.Setenv("HOME", setup.tmp)
+		t.Cleanup(func() { os.Setenv("HOME", originalHome) })
+
+		// Create .rwx directory and sandbox config file
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		require.NoError(t, os.MkdirAll(rwxDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte("tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"), 0o644))
+
+		address := "192.168.1.1:22"
+
+		// ListSandboxRuns returns no matching runs
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
+		// Mock the full auto-create path
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{Image: "ubuntu:24.04", Config: "rwx/base 1.0.0", Arch: "x86_64"}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		var initiatedRun bool
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			initiatedRun = true
+			return &api.InitiateRunResult{
+				RunID:  "run-new",
+				RunURL: "https://cloud.rwx.com/mint/runs/run-new",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "new-token"}, nil
+		}
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			Command: []string{"echo", "hello"},
+			Json:    true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "run-new", result.RunID)
+		require.True(t, initiatedRun, "should have initiated a new run")
 	})
 }
 
