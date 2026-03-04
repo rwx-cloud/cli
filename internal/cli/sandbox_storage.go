@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gofrs/flock"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 )
@@ -53,6 +54,31 @@ func sandboxStoragePath() (string, error) {
 		return "", errors.Wrap(err, "unable to get home directory")
 	}
 	return filepath.Join(homeDir, ".config", "rwx", "sandboxes.json"), nil
+}
+
+// LockSandboxStorage acquires an exclusive file lock to serialize concurrent
+// CLI processes that resolve and create sandbox sessions.
+func LockSandboxStorage() (*flock.Flock, error) {
+	path, err := sandboxStoragePath()
+	if err != nil {
+		return nil, err
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(filepath.Dir(lockPath), os.ModePerm); err != nil {
+		return nil, err
+	}
+	fl := flock.New(lockPath)
+	if err := fl.Lock(); err != nil {
+		return nil, err
+	}
+	return fl, nil
+}
+
+// UnlockSandboxStorage releases the file lock acquired by LockSandboxStorage.
+func UnlockSandboxStorage(fl *flock.Flock) {
+	if fl != nil {
+		_ = fl.Unlock()
+	}
 }
 
 func LoadSandboxStorage() (*SandboxStorage, error) {
