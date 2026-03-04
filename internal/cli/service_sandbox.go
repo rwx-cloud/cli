@@ -15,6 +15,11 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const (
+	sandboxDirectiveLockRequested = "__rwx_sandbox_lock_requested__"
+	sandboxDirectiveLockReleased  = "__rwx_sandbox_lock_released__"
+)
+
 // Config types
 
 type StartSandboxConfig struct {
@@ -520,6 +525,15 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		return nil, fmt.Errorf("Failed to connect to sandbox '%s': %v\nThe sandbox may have timed out. Run 'rwx sandbox reset %s' to restart.", runID, err, configFile)
 	}
 	defer s.SSHClient.Close()
+
+	// Acquire the distributed lock so concurrent exec calls on the same
+	// sandbox are serialized by the agent. Blocks until the lock is granted.
+	if _, lockErr := s.SSHClient.ExecuteCommand(sandboxDirectiveLockRequested); lockErr != nil {
+		return nil, errors.Wrap(lockErr, "failed to acquire sandbox lock")
+	}
+	defer func() {
+		_, _ = s.SSHClient.ExecuteCommand(sandboxDirectiveLockReleased)
+	}()
 
 	// Sync local changes to sandbox if enabled
 	if cfg.Sync {
