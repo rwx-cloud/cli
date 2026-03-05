@@ -584,6 +584,14 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		_, _ = s.SSHClient.ExecuteCommand(sandboxDirectiveLockReleased)
 	}()
 
+	// Clean up any dirty state from a previous interrupted exec.
+	// This makes exec self-healing — no manual reset needed after crashes.
+	if cfg.Sync {
+		if cleanErr := s.cleanSandboxState(); cleanErr != nil {
+			fmt.Fprintf(s.Stderr, "Warning: failed to clean sandbox state: %v\n", cleanErr)
+		}
+	}
+
 	// Sync local changes to sandbox if enabled
 	if cfg.Sync {
 		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
@@ -1009,6 +1017,21 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	}
 
 	return files, nil
+}
+
+func (s Service) cleanSandboxState() error {
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+	exitCode, err := s.SSHClient.ExecuteCommand(
+		"/usr/bin/git checkout . >/dev/null 2>&1; /usr/bin/git clean -fd >/dev/null 2>&1",
+	)
+	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+	if err != nil {
+		return errors.Wrap(err, "failed to clean sandbox state")
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("failed to clean sandbox state (exit code %d)", exitCode)
+	}
+	return nil
 }
 
 // revertSandbox resets the sandbox working tree to a clean HEAD state.
