@@ -2146,6 +2146,130 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 	})
 
+	t.Run("pre-exec cleanup runs between lock and sync", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lock-clean"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+
+		// Verify cleanup commands appear after lock but before the user command
+		cleanCmd := "/usr/bin/git checkout . >/dev/null 2>&1; /usr/bin/git clean -fd >/dev/null 2>&1"
+		lockIdx := -1
+		cleanStartIdx := -1
+		cleanIdx := -1
+		cleanEndIdx := -1
+		execIdx := -1
+		for i, cmd := range commandOrder {
+			switch cmd {
+			case "__rwx_sandbox_lock_requested__":
+				lockIdx = i
+			case "__rwx_sandbox_sync_start__":
+				if cleanStartIdx == -1 {
+					cleanStartIdx = i
+				}
+			case cleanCmd:
+				cleanIdx = i
+			case "__rwx_sandbox_sync_end__":
+				if cleanEndIdx == -1 {
+					cleanEndIdx = i
+				}
+			case "echo hello":
+				execIdx = i
+			}
+		}
+
+		require.Greater(t, cleanStartIdx, lockIdx, "cleanup sync_start should follow lock")
+		require.Greater(t, cleanIdx, cleanStartIdx, "cleanup command should follow sync_start")
+		require.Greater(t, cleanEndIdx, cleanIdx, "cleanup sync_end should follow cleanup command")
+		require.Greater(t, execIdx, cleanEndIdx, "exec should follow cleanup")
+	})
+
+	t.Run("pre-exec cleanup is skipped when Sync is false", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-no-clean"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		cleanCmd := "/usr/bin/git checkout . >/dev/null 2>&1; /usr/bin/git clean -fd >/dev/null 2>&1"
+		cleanRan := false
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			if cmd == cleanCmd {
+				cleanRan = true
+			}
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.False(t, cleanRan, "cleanup should not run when Sync is false")
+	})
+
 	t.Run("lock_released is sent when user command exits non-zero", func(t *testing.T) {
 		setup := setupTest(t)
 
