@@ -16,6 +16,8 @@ type Git struct {
 	MockGetOriginUrl      string
 	MockGeneratePatchFile git.PatchFile
 	MockGeneratePatch     func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
+	MockApplyPatch        func(patch []byte) *exec.Cmd
+	MockApplyPatchReject  func(patch []byte) *exec.Cmd
 	MockIsInstalled       bool
 	MockIsInsideWorkTree  bool
 }
@@ -69,7 +71,16 @@ func (c *Git) GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMeta
 }
 
 func (c *Git) ApplyPatch(patch []byte) *exec.Cmd {
-	// Return a no-op command for testing
+	if c.MockApplyPatch != nil {
+		return c.MockApplyPatch(patch)
+	}
+	return exec.Command("true")
+}
+
+func (c *Git) ApplyPatchReject(patch []byte) *exec.Cmd {
+	if c.MockApplyPatchReject != nil {
+		return c.MockApplyPatchReject(patch)
+	}
 	return exec.Command("true")
 }
 

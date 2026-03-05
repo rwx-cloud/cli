@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1379,6 +1380,255 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
 		require.Contains(t, setup.mockStderr.String(), "Warning: failed to pull changes from sandbox")
+	})
+}
+
+func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
+	t.Run("retries with --reject on apply failure and reports .rej files", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reject-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff refs/rwx-sync") {
+				return 0, sandboxPatch, nil
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		// First apply fails
+		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
+			return exec.Command("false")
+		}
+
+		// --reject also fails (partial apply), and create a .rej file to simulate
+		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
+			// Create a .rej file to simulate partial apply
+			_ = os.WriteFile(filepath.Join(setup.tmp, "file.txt.rej"), []byte("rejected hunk"), 0644)
+			return exec.Command("false")
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
+		// Files should still be returned even though apply partially failed
+		require.Contains(t, result.PulledFiles, "file.txt")
+		// Warning should mention .rej files
+		require.Contains(t, setup.mockStderr.String(), "file.txt (see file.txt.rej)")
+		require.Contains(t, setup.mockStderr.String(), "Resolve the conflicts")
+	})
+
+	t.Run("cleans up saved patch when --reject succeeds fully", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reject-ok-123"
+		address := "192.168.1.1:22"
+
+		// Create .rwx directory so the patch can be saved
+		rwxDir := filepath.Join(setup.tmp, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(rwxDir, 0755))
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff refs/rwx-sync") {
+				return 0, sandboxPatch, nil
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		// First apply fails
+		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
+			return exec.Command("false")
+		}
+
+		// --reject succeeds (all hunks applied on retry)
+		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
+			return exec.Command("true")
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Contains(t, result.PulledFiles, "file.txt")
+		// Saved patch should be cleaned up since --reject succeeded
+		_, statErr := os.Stat(filepath.Join(rwxDir, "patch-rejected.diff"))
+		require.True(t, os.IsNotExist(statErr), "patch file should be cleaned up when --reject succeeds")
+		// No warning should be printed
+		require.NotContains(t, setup.mockStderr.String(), "conflicts")
+	})
+
+	t.Run("saves rejected patch to .rwx/sandboxes", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-save-patch-123"
+		address := "192.168.1.1:22"
+
+		// Create .rwx directory
+		rwxDir := filepath.Join(setup.tmp, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(rwxDir, 0755))
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff refs/rwx-sync") {
+				return 0, sandboxPatch, nil
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		// Both apply attempts fail
+		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
+			return exec.Command("false")
+		}
+		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
+			return exec.Command("false")
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
+
+		// Verify the patch was saved
+		savedPatch, readErr := os.ReadFile(filepath.Join(rwxDir, "patch-rejected.diff"))
+		require.NoError(t, readErr)
+		require.Equal(t, sandboxPatch, string(savedPatch))
+
+		// Warning should mention the saved patch path
+		require.Contains(t, setup.mockStderr.String(), "patch-rejected.diff")
+	})
+
+	t.Run("warns about .rej files during sync", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-rej-warn-123"
+		address := "192.168.1.1:22"
+
+		// Create a .rej file from a "previous" failed pull
+		require.NoError(t, os.MkdirAll(filepath.Join(setup.tmp, "src"), 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(setup.tmp, "src", "main.go.rej"), []byte("old reject"), 0644))
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		// No local changes (sync still runs the .rej check)
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Contains(t, setup.mockStderr.String(), "unresolved .rej file(s)")
+		require.Contains(t, setup.mockStderr.String(), "src/main.go.rej")
+		require.Contains(t, setup.mockStderr.String(), "Resolve and delete them when possible")
 	})
 }
 
