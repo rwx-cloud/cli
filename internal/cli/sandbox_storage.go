@@ -49,35 +49,72 @@ type SandboxStorage struct {
 }
 
 func sandboxStoragePath() (string, error) {
-	homeDir, err := os.UserHomeDir()
+	rwxDir, err := findRwxDirectoryPath("")
 	if err != nil {
-		return "", errors.Wrap(err, "unable to get home directory")
+		return "", err
 	}
-	return filepath.Join(homeDir, ".config", "rwx", "sandboxes.json"), nil
+
+	if rwxDir == "" {
+		rwxDir, err = createRwxDirectory()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return filepath.Join(rwxDir, "sandboxes", "sandboxes.json"), nil
+}
+
+func createRwxDirectory() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", errors.Wrap(err, "unable to determine the working directory")
+	}
+
+	// Prefer the git repository root so the .rwx directory sits alongside .git
+	client := &git.Client{Binary: "git", Dir: cwd}
+	if topLevel := client.GetTopLevel(); topLevel != "" {
+		cwd = topLevel
+	}
+
+	rwxDir := filepath.Join(cwd, ".rwx")
+	if err := os.MkdirAll(rwxDir, 0o755); err != nil {
+		return "", errors.Wrapf(err, "unable to create %q", rwxDir)
+	}
+
+	return rwxDir, nil
+}
+
+type SandboxStorageLock struct {
+	flock *flock.Flock
 }
 
 // LockSandboxStorage acquires an exclusive file lock to serialize concurrent
 // CLI processes that resolve and create sandbox sessions.
-func LockSandboxStorage() (*flock.Flock, error) {
-	path, err := sandboxStoragePath()
+func LockSandboxStorage() (*SandboxStorageLock, error) {
+	storagePath, err := sandboxStoragePath()
 	if err != nil {
 		return nil, err
 	}
-	lockPath := path + ".lock"
+
+	lockPath := storagePath + ".lock"
 	if err := os.MkdirAll(filepath.Dir(lockPath), os.ModePerm); err != nil {
 		return nil, err
 	}
-	fl := flock.New(lockPath)
-	if err := fl.Lock(); err != nil {
+
+	lock := &SandboxStorageLock{flock: flock.New(lockPath)}
+	if err := lock.flock.Lock(); err != nil {
 		return nil, err
 	}
-	return fl, nil
+
+	return lock, nil
 }
 
-// UnlockSandboxStorage releases the file lock acquired by LockSandboxStorage.
-func UnlockSandboxStorage(fl *flock.Flock) {
-	if fl != nil {
-		_ = fl.Unlock()
+func UnlockSandboxStorage(lock *SandboxStorageLock) {
+	if lock == nil {
+		return
+	}
+	if lock.flock != nil {
+		_ = lock.flock.Unlock()
 	}
 }
 
@@ -117,9 +154,12 @@ func (s *SandboxStorage) Save() error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return errors.Wrapf(err, "unable to create directory for %q", path)
 	}
+
+	ensureSandboxesDirGitignore(dir)
 
 	fd, err := os.Create(path)
 	if err != nil {
@@ -134,6 +174,13 @@ func (s *SandboxStorage) Save() error {
 	}
 
 	return nil
+}
+
+func ensureSandboxesDirGitignore(dir string) {
+	gitignorePath := filepath.Join(dir, ".gitignore")
+	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+		_ = os.WriteFile(gitignorePath, []byte("*\n"), 0644)
+	}
 }
 
 func SessionKey(cwd, branch, configFile string) string {

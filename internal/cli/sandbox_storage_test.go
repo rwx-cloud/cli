@@ -271,15 +271,23 @@ func TestSandboxStorage_AllSessions(t *testing.T) {
 	})
 }
 
+// setupTestStorageDir creates a temp dir with a .rwx directory, sets HOME to it,
+// and chdirs into it.
 func setupTestStorageDir(t *testing.T) string {
 	tmpDir, err := os.MkdirTemp(os.TempDir(), "sandbox-storage-test")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(tmpDir) })
 
-	// Override HOME so LoadSandboxStorage uses our temp dir
 	originalHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
 	t.Cleanup(func() { os.Setenv("HOME", originalHome) })
+
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(originalWd) })
+
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".rwx"), 0o755))
 
 	return tmpDir
 }
@@ -294,10 +302,9 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		require.Empty(t, storage.Sandboxes)
 	})
 
-	t.Run("saves and loads storage", func(t *testing.T) {
+	t.Run("saves and loads from local rwx path", func(t *testing.T) {
 		tmpDir := setupTestStorageDir(t)
 
-		// Create and save storage
 		storage := &cli.SandboxStorage{
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
@@ -309,12 +316,10 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		err := storage.Save()
 		require.NoError(t, err)
 
-		// Verify file was created
-		storagePath := filepath.Join(tmpDir, ".config", "rwx", "sandboxes.json")
-		_, err = os.Stat(storagePath)
+		localPath := filepath.Join(tmpDir, ".rwx", "sandboxes", "sandboxes.json")
+		_, err = os.Stat(localPath)
 		require.NoError(t, err)
 
-		// Load and verify
 		loaded, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, loaded.Sandboxes, 1)
@@ -322,6 +327,21 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		session, found := loaded.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
 		require.True(t, found)
 		require.Equal(t, "run-123", session.RunID)
+	})
+
+	t.Run("creates .gitignore in sandboxes dir", func(t *testing.T) {
+		tmpDir := setupTestStorageDir(t)
+
+		storage := &cli.SandboxStorage{
+			Sandboxes: make(map[string]cli.SandboxSession),
+		}
+		err := storage.Save()
+		require.NoError(t, err)
+
+		gitignorePath := filepath.Join(tmpDir, ".rwx", "sandboxes", ".gitignore")
+		contents, err := os.ReadFile(gitignorePath)
+		require.NoError(t, err)
+		require.Equal(t, "*\n", string(contents))
 	})
 
 	t.Run("creates directory structure if it does not exist", func(t *testing.T) {
@@ -334,9 +354,8 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		err := storage.Save()
 		require.NoError(t, err)
 
-		// Verify directory was created
-		configDir := filepath.Join(tmpDir, ".config", "rwx")
-		info, err := os.Stat(configDir)
+		sandboxesDir := filepath.Join(tmpDir, ".rwx", "sandboxes")
+		info, err := os.Stat(sandboxesDir)
 		require.NoError(t, err)
 		require.True(t, info.IsDir())
 	})
@@ -344,10 +363,9 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 	t.Run("handles nil Sandboxes map in stored file", func(t *testing.T) {
 		tmpDir := setupTestStorageDir(t)
 
-		// Write a file with null sandboxes
-		configDir := filepath.Join(tmpDir, ".config", "rwx")
-		require.NoError(t, os.MkdirAll(configDir, 0o755))
-		storagePath := filepath.Join(configDir, "sandboxes.json")
+		sandboxesDir := filepath.Join(tmpDir, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(sandboxesDir, 0o755))
+		storagePath := filepath.Join(sandboxesDir, "sandboxes.json")
 		require.NoError(t, os.WriteFile(storagePath, []byte(`{"sandboxes": null}`), 0o644))
 
 		storage, err := cli.LoadSandboxStorage()
@@ -358,9 +376,9 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
 		tmpDir := setupTestStorageDir(t)
 
-		configDir := filepath.Join(tmpDir, ".config", "rwx")
-		require.NoError(t, os.MkdirAll(configDir, 0o755))
-		storagePath := filepath.Join(configDir, "sandboxes.json")
+		sandboxesDir := filepath.Join(tmpDir, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(sandboxesDir, 0o755))
+		storagePath := filepath.Join(sandboxesDir, "sandboxes.json")
 		require.NoError(t, os.WriteFile(storagePath, []byte(`{invalid json`), 0o644))
 
 		_, err := cli.LoadSandboxStorage()
