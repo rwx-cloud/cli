@@ -90,6 +90,39 @@ func TestReadRwxDirectoryEntries_SkipsDownloads(t *testing.T) {
 	})
 }
 
+func TestReadRwxDirectoryEntries_SkipsSandboxes(t *testing.T) {
+	t.Run("excludes sandboxes directory from size calculation", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		rwxDir := ".rwx"
+		err := os.MkdirAll(rwxDir, 0755)
+		require.NoError(t, err)
+
+		// Write a small config file
+		smallContent := make([]byte, 1*1024*1024) // 1 MiB
+		err = os.WriteFile(filepath.Join(rwxDir, "config.yml"), smallContent, 0644)
+		require.NoError(t, err)
+
+		// Write a large file inside sandboxes that would push total over 5MiB
+		sandboxesDir := filepath.Join(rwxDir, "sandboxes")
+		err = os.MkdirAll(sandboxesDir, 0755)
+		require.NoError(t, err)
+
+		largeSandbox := make([]byte, 6*1024*1024) // 6 MiB
+		err = os.WriteFile(filepath.Join(sandboxesDir, "sandboxes.json"), largeSandbox, 0644)
+		require.NoError(t, err)
+
+		// Should succeed because sandboxes directory is excluded
+		entries, err := cli.RwxDirectoryEntries(rwxDir)
+		require.NoError(t, err)
+
+		// Verify no entries from sandboxes directory are included
+		for _, entry := range entries {
+			require.NotContains(t, entry.Path, "sandboxes/")
+		}
+	})
+}
+
 func TestFindRunDefinitionFile(t *testing.T) {
 	t.Run("when file exists in pwd", func(t *testing.T) {
 		t.Chdir(t.TempDir())

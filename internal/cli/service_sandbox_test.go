@@ -360,11 +360,8 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 
 func seedSandboxStorageMulti(t *testing.T, tmpHome string, sessions map[string]cli.SandboxSession) {
 	t.Helper()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", originalHome) })
 
-	storageDir := filepath.Join(tmpHome, ".config", "rwx")
+	storageDir := filepath.Join(tmpHome, ".rwx", "sandboxes")
 	require.NoError(t, os.MkdirAll(storageDir, 0o755))
 
 	storage := cli.SandboxStorage{
@@ -1870,11 +1867,8 @@ func TestService_StopSandbox(t *testing.T) {
 // seedSandboxStorage writes a sandbox session into storage within the test's temp HOME directory.
 func seedSandboxStorage(t *testing.T, tmpHome, runID, scopedToken string) {
 	t.Helper()
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	t.Cleanup(func() { os.Setenv("HOME", originalHome) })
 
-	storageDir := filepath.Join(tmpHome, ".config", "rwx")
+	storageDir := filepath.Join(tmpHome, ".rwx", "sandboxes")
 	require.NoError(t, os.MkdirAll(storageDir, 0o755))
 
 	storage := cli.SandboxStorage{

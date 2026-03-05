@@ -40,6 +40,7 @@ func setupTest(t *testing.T) *testSetup {
 
 	err = os.Chdir(setup.tmp)
 	require.NoError(t, err)
+	require.NoError(t, os.Mkdir(filepath.Join(setup.tmp, ".rwx"), 0o755))
 	setup.mockAPI = new(mocks.API)
 	setup.mockSSH = new(mocks.SSH)
 	setup.mockGit = &mocks.Git{

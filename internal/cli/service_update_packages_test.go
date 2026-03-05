@@ -352,7 +352,7 @@ tasks:
 				}, nil
 			}
 
-			mintDir := filepath.Join(s.tmp, ".mint")
+			mintDir := filepath.Join(s.tmp, ".rwx")
 			err := os.MkdirAll(mintDir, 0o755)
 			require.NoError(t, err)
 

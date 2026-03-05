@@ -204,9 +204,9 @@ func readRwxDirectoryEntries(paths []string, relativeTo string) ([]RwxDirectoryE
 				return suberr
 			}
 
-			skipDirs := []string{".rwx/test-suites", ".mint/test-suites", ".rwx/downloads", ".mint/downloads"}
+			skipDirs := []string{".rwx/test-suites", ".mint/test-suites", ".rwx/downloads", ".mint/downloads", ".rwx/sandboxes", ".mint/sandboxes"}
 			if relativeTo != "" {
-				skipDirs = append(skipDirs, "test-suites", "downloads")
+				skipDirs = append(skipDirs, "test-suites", "downloads", "sandboxes")
 			}
 			if entry.IsDir() {
 				if slices.Contains(skipDirs, entry.Path) {
