@@ -408,3 +408,12 @@ func (c *Client) ApplyPatch(patch []byte) *exec.Cmd {
 	cmd.Stdin = bytes.NewReader(patch)
 	return cmd
 }
+
+// ApplyPatchReject returns an exec.Cmd that applies a patch with --reject,
+// which applies hunks that succeed and writes .rej files for hunks that fail.
+func (c *Client) ApplyPatchReject(patch []byte) *exec.Cmd {
+	cmd := exec.Command(c.Binary, "apply", "--reject", "--allow-empty", "-")
+	cmd.Dir = c.Dir
+	cmd.Stdin = bytes.NewReader(patch)
+	return cmd
+}

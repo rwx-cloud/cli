@@ -631,7 +631,8 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	pulled, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
 	if pullErr != nil {
 		fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
-	} else {
+	}
+	if pulled != nil {
 		pulledFiles = pulled
 	}
 
@@ -1003,7 +1004,37 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	if len(strings.TrimSpace(patch)) > 0 {
 		cmd := s.GitClient.ApplyPatch([]byte(patch))
 		if err := cmd.Run(); err != nil {
-			return nil, errors.Wrap(err, "failed to apply patch locally")
+			// Save the full patch so it can be inspected or applied manually
+			patchSavePath := saveRejectedPatch([]byte(patch))
+
+			// Retry with --reject: applies hunks that succeed, writes .rej files for the rest
+			rejectCmd := s.GitClient.ApplyPatchReject([]byte(patch))
+			rejectOutput, rejectErr := rejectCmd.CombinedOutput()
+
+			if rejectErr != nil {
+				// Find which files got .rej files by checking the patch file list
+				rejFiles := findRejFiles(cwd, sandboxPatchFiles)
+
+				msg := "failed to apply patch locally"
+				if len(rejFiles) > 0 {
+					msg = fmt.Sprintf("patch partially applied. %d file(s) have conflicts:\n", len(rejFiles))
+					for _, f := range rejFiles {
+						msg += fmt.Sprintf("  %s (see %s.rej)\n", f, f)
+					}
+					msg += "Resolve the conflicts in each .rej file, then delete the .rej files."
+				} else if len(rejectOutput) > 0 {
+					msg = fmt.Sprintf("failed to apply patch locally: %s", strings.TrimSpace(string(rejectOutput)))
+				}
+				if patchSavePath != "" {
+					msg += fmt.Sprintf("\nFull patch saved to %s", patchSavePath)
+				}
+				return sandboxPatchFiles, fmt.Errorf("%s", msg)
+			}
+
+			// --reject succeeded fully (all hunks applied despite initial failure)
+			if patchSavePath != "" {
+				_ = os.Remove(patchSavePath)
+			}
 		}
 	}
 
@@ -1066,6 +1097,56 @@ func parsePatchFiles(patch string) []string {
 		}
 	}
 	return files
+}
+
+// saveRejectedPatch writes the patch to .rwx/sandboxes/patch-rejected.diff for manual inspection.
+func saveRejectedPatch(patch []byte) string {
+	rwxDir, err := findRwxDirectoryPath("")
+	if err != nil || rwxDir == "" {
+		return ""
+	}
+
+	dir := filepath.Join(rwxDir, "sandboxes")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return ""
+	}
+
+	path := filepath.Join(dir, "patch-rejected.diff")
+	if err := os.WriteFile(path, patch, 0644); err != nil {
+		return ""
+	}
+
+	return path
+}
+
+// findRejFiles checks which files from the patch have corresponding .rej files.
+func findRejFiles(cwd string, patchFiles []string) []string {
+	var rejFiles []string
+	for _, f := range patchFiles {
+		rejPath := filepath.Join(cwd, f+".rej")
+		if _, err := os.Stat(rejPath); err == nil {
+			rejFiles = append(rejFiles, f)
+		}
+	}
+	return rejFiles
+}
+
+// findAllRejFiles walks the working directory looking for .rej files.
+func findAllRejFiles(cwd string) []string {
+	var rejFiles []string
+	_ = filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "vendor") {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".rej") {
+			rejFiles = append(rejFiles, path)
+		}
+		return nil
+	})
+	return rejFiles
 }
 
 // sandboxRunURL returns the run URL from the session if available.
@@ -1173,6 +1254,21 @@ func SandboxTitle(cwd, branch, configFile string) string {
 }
 
 func (s Service) syncChangesToSandbox(jsonMode bool) error {
+	// Warn if .rej files from a previous failed pull are still present
+	if cwd, err := os.Getwd(); err == nil {
+		if rejFiles := findAllRejFiles(cwd); len(rejFiles) > 0 {
+			fmt.Fprintf(s.Stderr, "Warning: %d unresolved .rej file(s) from a previous pull:\n", len(rejFiles))
+			for _, f := range rejFiles {
+				rel, _ := filepath.Rel(cwd, f)
+				if rel == "" {
+					rel = f
+				}
+				fmt.Fprintf(s.Stderr, "  %s\n", rel)
+			}
+			fmt.Fprintln(s.Stderr, "These will be synced to the sandbox and may cause issues. Resolve and delete them when possible.")
+		}
+	}
+
 	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate patch")
