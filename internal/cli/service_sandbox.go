@@ -15,6 +15,11 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const (
+	sandboxDirectiveLockRequested = "__rwx_sandbox_lock_requested__"
+	sandboxDirectiveLockReleased  = "__rwx_sandbox_lock_released__"
+)
+
 // Config types
 
 type StartSandboxConfig struct {
@@ -222,13 +227,25 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 					scopedToken = tokenResult.Token
 				}
 
-				storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
-					RunID:       cfg.RunID,
-					ConfigFile:  cfg.ConfigFile,
-					ScopedToken: scopedToken,
-				})
-				if err := storage.Save(); err != nil {
-					fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
+				lockFile, lockErr := LockSandboxStorage()
+				if lockErr != nil {
+					fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
+				} else {
+					// Reload under lock to avoid overwriting concurrent writes
+					storage, err = LoadSandboxStorage()
+					if err != nil {
+						fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
+					} else {
+						storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+							RunID:       cfg.RunID,
+							ConfigFile:  cfg.ConfigFile,
+							ScopedToken: scopedToken,
+						})
+						if err := storage.Save(); err != nil {
+							fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
+						}
+					}
+					UnlockSandboxStorage(lockFile)
 				}
 			}
 		}
@@ -281,6 +298,11 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Persist session immediately so sandbox list can find this run even if the
 	// process crashes before we finish setup (e.g. during scoped token creation).
+	lockFile, lockErr := LockSandboxStorage()
+	if lockErr != nil {
+		fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
+	}
+
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
@@ -295,6 +317,8 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		}
 	}
 
+	UnlockSandboxStorage(lockFile)
+
 	// Request a scoped token for this run
 	var scopedToken string
 	tokenResult, err := s.APIClient.CreateSandboxToken(api.CreateSandboxTokenConfig{
@@ -308,15 +332,28 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Update session with scoped token now that we have it
 	if storage != nil {
-		storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
-			RunID:       runResult.RunID,
-			ConfigFile:  cfg.ConfigFile,
-			ScopedToken: scopedToken,
-			RunURL:      runResult.RunURL,
-		})
-		if err := storage.Save(); err != nil {
-			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
+		lockFile, lockErr = LockSandboxStorage()
+		if lockErr != nil {
+			fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 		}
+
+		// Reload under lock to avoid overwriting concurrent writes
+		storage, err = LoadSandboxStorage()
+		if err != nil {
+			fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
+		} else {
+			storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+				RunID:       runResult.RunID,
+				ConfigFile:  cfg.ConfigFile,
+				ScopedToken: scopedToken,
+				RunURL:      runResult.RunURL,
+			})
+			if err := storage.Save(); err != nil {
+				fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
+			}
+		}
+
+		UnlockSandboxStorage(lockFile)
 	}
 
 	// Build result now so we can return it even if waiting fails
@@ -369,6 +406,15 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 			}
 		}
 	} else {
+		// Serialize sandbox resolution across concurrent CLI processes.
+		// The lock is released as soon as a run ID is determined so that
+		// the actual SSH exec can proceed concurrently (serialized by the
+		// agent-side lock instead).
+		lockFile, lockErr := LockSandboxStorage()
+		if lockErr != nil {
+			return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
+		}
+
 		// Try to find existing session
 		storage, err := LoadSandboxStorage()
 		if err != nil {
@@ -424,6 +470,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				sessionRunURL = activeSessions[0].RunURL
 				found = true
 			} else if len(activeSessions) > 1 {
+				UnlockSandboxStorage(lockFile)
 				return nil, fmt.Errorf("Multiple active sandboxes found for %s:%s.\nSpecify a config file to select one, or use --id to specify a run ID.", cwd, branch)
 			}
 		}
@@ -486,6 +533,9 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		}
 
 		if !found {
+			// Release before StartSandbox which acquires its own lock
+			UnlockSandboxStorage(lockFile)
+
 			startResult, err := s.StartSandbox(StartSandboxConfig{
 				ConfigFile:     cfgFile,
 				RwxDirectory:   cfg.RwxDirectory,
@@ -505,6 +555,10 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 					scopedToken = newSession.ScopedToken
 				}
 			}
+		} else {
+			// Resolution complete — release the file lock so concurrent execs
+			// can proceed. The agent-side lock serializes from here.
+			UnlockSandboxStorage(lockFile)
 		}
 	}
 
@@ -521,6 +575,15 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	}
 	defer s.SSHClient.Close()
 
+	// Acquire the distributed lock so concurrent exec calls on the same
+	// sandbox are serialized by the agent. Blocks until the lock is granted.
+	if _, lockErr := s.SSHClient.ExecuteCommand(sandboxDirectiveLockRequested); lockErr != nil {
+		return nil, errors.Wrap(lockErr, "failed to acquire sandbox lock")
+	}
+	defer func() {
+		_, _ = s.SSHClient.ExecuteCommand(sandboxDirectiveLockReleased)
+	}()
+
 	// Sync local changes to sandbox if enabled
 	if cfg.Sync {
 		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
@@ -529,13 +592,18 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
 					fmt.Fprintf(s.Stderr, "Warning: failed to stop sandbox: %v\n", endErr)
 				}
-				if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
-					storage.DeleteSessionByRunID(runID)
-					if saveErr := storage.Save(); saveErr != nil {
-						fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", saveErr)
+				if lockFile, lockErr := LockSandboxStorage(); lockErr == nil {
+					if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
+						storage.DeleteSessionByRunID(runID)
+						if saveErr := storage.Save(); saveErr != nil {
+							fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", saveErr)
+						}
+					} else {
+						fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", loadErr)
 					}
+					UnlockSandboxStorage(lockFile)
 				} else {
-					fmt.Fprintf(s.Stderr, "Warning: failed to remove sandbox session: %v\n", loadErr)
+					fmt.Fprintf(s.Stderr, "Warning: failed to lock sandbox storage: %v\n", lockErr)
 				}
 			}
 			return nil, errors.Wrap(err, "failed to sync changes to sandbox")
@@ -569,6 +637,12 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 }
 
 func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, error) {
+	lockFile, lockErr := LockSandboxStorage()
+	if lockErr != nil {
+		return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
+	}
+	defer UnlockSandboxStorage(lockFile)
+
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load sandbox sessions")
@@ -682,6 +756,12 @@ func (s Service) printSandboxList(sandboxes []SandboxInfo) {
 }
 
 func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) {
+	lockFile, lockErr := LockSandboxStorage()
+	if lockErr != nil {
+		return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
+	}
+	defer UnlockSandboxStorage(lockFile)
+
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load sandbox sessions")
@@ -774,7 +854,13 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 
 	var oldRunID string
 
-	// Check for existing sandbox with same config file
+	// Check for existing sandbox with same config file.
+	// Lock around the load+delete+save to cooperate with concurrent writers.
+	lockFile, lockErr := LockSandboxStorage()
+	if lockErr != nil {
+		fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
+	}
+
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
@@ -803,6 +889,9 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 			}
 		}
 	}
+
+	// Release before StartSandbox which acquires its own lock
+	UnlockSandboxStorage(lockFile)
 
 	// Start new sandbox
 	startResult, err := s.StartSandbox(StartSandboxConfig{

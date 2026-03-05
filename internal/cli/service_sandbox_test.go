@@ -932,7 +932,8 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, runID, result.RunID)
 		require.Equal(t, 0, result.ExitCode)
-		require.Contains(t, commandOrder[0], "__rwx_sandbox_sync_start__")
+		require.Equal(t, "__rwx_sandbox_lock_requested__", commandOrder[0])
+		require.Contains(t, commandOrder, "__rwx_sandbox_sync_start__")
 		require.Contains(t, commandOrder, "echo hello")
 		// git apply uses stdin method
 		require.GreaterOrEqual(t, len(stdinCommandOrder), 1)
@@ -2006,5 +2007,197 @@ func TestService_StartSandbox_RunURL(t *testing.T) {
 		require.NoError(t, err)
 		// Should use the server-provided URL (which includes org slug), not a constructed one
 		require.Equal(t, "https://cloud.rwx.com/mint/my-org/runs/run-server-url", result.RunURL)
+	})
+}
+
+func TestService_ExecSandbox_Lock(t *testing.T) {
+	t.Run("lock_requested precedes sync and exec, lock_released is last", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lock-order"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+		require.Greater(t, len(commandOrder), 2)
+		require.Equal(t, "__rwx_sandbox_lock_requested__", commandOrder[0])
+		require.Equal(t, "__rwx_sandbox_lock_released__", commandOrder[len(commandOrder)-1])
+	})
+
+	t.Run("lock_released is sent when sync fails", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lock-sync-fail"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("invalid patch"), nil, nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 1, "error: patch failed", nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "git apply failed")
+		require.Equal(t, "__rwx_sandbox_lock_requested__", commandOrder[0])
+		require.Equal(t, "__rwx_sandbox_lock_released__", commandOrder[len(commandOrder)-1])
+	})
+
+	t.Run("lock_released is not sent when lock_requested fails", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lock-fail"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			if cmd == "__rwx_sandbox_lock_requested__" {
+				return -1, fmt.Errorf("SSH connection died")
+			}
+			return 0, nil
+		}
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to acquire sandbox lock")
+		for _, cmd := range commandOrder {
+			require.NotEqual(t, "__rwx_sandbox_lock_released__", cmd)
+		}
+	})
+
+	t.Run("lock_released is sent when user command exits non-zero", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-lock-nonzero"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			if cmd == "false" {
+				return 1, nil
+			}
+			return 0, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"false"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 1, result.ExitCode)
+		require.Equal(t, "__rwx_sandbox_lock_requested__", commandOrder[0])
+		require.Equal(t, "__rwx_sandbox_lock_released__", commandOrder[len(commandOrder)-1])
 	})
 }
