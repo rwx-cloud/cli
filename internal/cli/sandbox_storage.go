@@ -143,6 +143,20 @@ func SessionKey(cwd, branch, configFile string) string {
 	return fmt.Sprintf("%s:%s:%s", cwd, branch, configFile)
 }
 
+// IsDetachedBranch returns true if the branch string represents a detached HEAD.
+func IsDetachedBranch(branch string) bool {
+	return branch == "detached" || strings.HasPrefix(branch, "detached@")
+}
+
+// DetachedShortSHA extracts the short SHA from a "detached@<sha>" branch string.
+// Returns empty string if the branch is not in detached format or has no SHA.
+func DetachedShortSHA(branch string) string {
+	if strings.HasPrefix(branch, "detached@") {
+		return branch[len("detached@"):]
+	}
+	return ""
+}
+
 func (s *SandboxStorage) GetSession(cwd, branch, configFile string) (*SandboxSession, bool) {
 	key := SessionKey(cwd, branch, configFile)
 	session, found := s.Sandboxes[key]
@@ -154,10 +168,10 @@ func (s *SandboxStorage) GetSession(cwd, branch, configFile string) (*SandboxSes
 
 // GetSessionsForCwdBranch returns all sessions matching cwd and branch (any config file)
 func (s *SandboxStorage) GetSessionsForCwdBranch(cwd, branch string) []SandboxSession {
-	prefix := cwd + ":" + branch + ":"
 	if branch == "" {
-		prefix = cwd + ":detached:"
+		branch = "detached"
 	}
+	prefix := cwd + ":" + branch + ":"
 	var sessions []SandboxSession
 	for key, session := range s.Sandboxes {
 		if strings.HasPrefix(key, prefix) {
@@ -204,7 +218,12 @@ func GetCurrentGitBranch(cwd string) string {
 	client := &git.Client{Binary: "git", Dir: cwd}
 	branch := client.GetBranch()
 	if branch == "" {
-		return "detached"
+		// Detached HEAD — use the short SHA so session keys are unique per commit
+		shortSHA := client.GetShortHead()
+		if shortSHA == "" {
+			return "detached"
+		}
+		return "detached@" + shortSHA
 	}
 	return branch
 }

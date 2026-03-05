@@ -1135,11 +1135,15 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 // project directory name, branch, and config file (if non-default).
 func SandboxTitle(cwd, branch, configFile string) string {
 	project := filepath.Base(cwd)
-	if branch == "" {
-		branch = "detached"
+
+	displayBranch := branch
+	if sha := DetachedShortSHA(branch); sha != "" {
+		displayBranch = fmt.Sprintf("detached %s", sha)
+	} else if branch == "" || branch == "detached" {
+		displayBranch = "detached"
 	}
 
-	title := fmt.Sprintf("Sandbox: %s (%s)", project, branch)
+	title := fmt.Sprintf("Sandbox: %s (%s)", project, displayBranch)
 
 	// Include config file if it's not the default
 	if configFile != "" && configFile != ".rwx/sandbox.yml" {
