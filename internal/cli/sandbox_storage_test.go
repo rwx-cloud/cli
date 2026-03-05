@@ -20,6 +20,11 @@ func TestSessionKey(t *testing.T) {
 		require.Equal(t, "/home/user/project:detached:.rwx/sandbox.yml", key)
 	})
 
+	t.Run("preserves detached@sha format as-is", func(t *testing.T) {
+		key := cli.SessionKey("/home/user/project", "detached@abc1234", ".rwx/sandbox.yml")
+		require.Equal(t, "/home/user/project:detached@abc1234:.rwx/sandbox.yml", key)
+	})
+
 	t.Run("handles paths with colons", func(t *testing.T) {
 		key := cli.SessionKey("/home/user/project:with:colons", "feature/test", "config.yml")
 		require.Equal(t, "/home/user/project:with:colons:feature/test:config.yml", key)
@@ -38,6 +43,13 @@ func TestParseSessionKey(t *testing.T) {
 		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:detached:.rwx/sandbox.yml")
 		require.Equal(t, "/home/user/project", cwd)
 		require.Equal(t, "detached", branch)
+		require.Equal(t, ".rwx/sandbox.yml", configFile)
+	})
+
+	t.Run("parses key with detached@sha branch", func(t *testing.T) {
+		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:detached@abc1234:.rwx/sandbox.yml")
+		require.Equal(t, "/home/user/project", cwd)
+		require.Equal(t, "detached@abc1234", branch)
 		require.Equal(t, ".rwx/sandbox.yml", configFile)
 	})
 
@@ -440,6 +452,11 @@ func TestSandboxTitle(t *testing.T) {
 		require.Equal(t, "Sandbox: my-project (detached)", title)
 	})
 
+	t.Run("displays detached with short SHA", func(t *testing.T) {
+		title := cli.SandboxTitle("/home/user/my-project", "detached@abc1234", ".rwx/sandbox.yml")
+		require.Equal(t, "Sandbox: my-project (detached abc1234)", title)
+	})
+
 	t.Run("includes non-default config file", func(t *testing.T) {
 		title := cli.SandboxTitle("/home/user/my-project", "feature/test", ".rwx/custom.yml")
 		require.Equal(t, "Sandbox: my-project (feature/test) [.rwx/custom.yml]", title)
@@ -453,5 +470,56 @@ func TestSandboxTitle(t *testing.T) {
 	t.Run("handles empty config file", func(t *testing.T) {
 		title := cli.SandboxTitle("/home/user/my-project", "main", "")
 		require.Equal(t, "Sandbox: my-project (main)", title)
+	})
+}
+
+func TestIsDetachedBranch(t *testing.T) {
+	t.Run("returns true for bare 'detached'", func(t *testing.T) {
+		require.True(t, cli.IsDetachedBranch("detached"))
+	})
+
+	t.Run("returns true for 'detached@<sha>'", func(t *testing.T) {
+		require.True(t, cli.IsDetachedBranch("detached@abc1234"))
+	})
+
+	t.Run("returns false for regular branch", func(t *testing.T) {
+		require.False(t, cli.IsDetachedBranch("main"))
+	})
+
+	t.Run("returns false for empty string", func(t *testing.T) {
+		require.False(t, cli.IsDetachedBranch(""))
+	})
+}
+
+func TestDetachedShortSHA(t *testing.T) {
+	t.Run("extracts SHA from detached@<sha>", func(t *testing.T) {
+		require.Equal(t, "abc1234", cli.DetachedShortSHA("detached@abc1234"))
+	})
+
+	t.Run("returns empty for bare 'detached'", func(t *testing.T) {
+		require.Equal(t, "", cli.DetachedShortSHA("detached"))
+	})
+
+	t.Run("returns empty for regular branch", func(t *testing.T) {
+		require.Equal(t, "", cli.DetachedShortSHA("main"))
+	})
+}
+
+func TestGetSessionsForCwdBranch_DetachedSHA(t *testing.T) {
+	t.Run("different detached SHAs get separate sessions", func(t *testing.T) {
+		storage := &cli.SandboxStorage{
+			Sandboxes: make(map[string]cli.SandboxSession),
+		}
+
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("/project", "detached@def5678", "config.yml", cli.SandboxSession{RunID: "run-2"})
+
+		sessions1 := storage.GetSessionsForCwdBranch("/project", "detached@abc1234")
+		require.Len(t, sessions1, 1)
+		require.Equal(t, "run-1", sessions1[0].RunID)
+
+		sessions2 := storage.GetSessionsForCwdBranch("/project", "detached@def5678")
+		require.Len(t, sessions2, 1)
+		require.Equal(t, "run-2", sessions2[0].RunID)
 	})
 }

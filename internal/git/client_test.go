@@ -126,7 +126,7 @@ func TestGetCommit(t *testing.T) {
 		require.EqualError(t, err, "current branch has no commits in common with the 'origin' remote (set RWX_GIT_REMOTE to use a different remote)")
 	})
 
-	t.Run("returns HEAD when in detached HEAD state", func(t *testing.T) {
+	t.Run("detached HEAD state", func(t *testing.T) {
 		t.Run("at origin", func(t *testing.T) {
 			repo, expected := repoFixture(t, "testdata/GetCommit-detached-head")
 

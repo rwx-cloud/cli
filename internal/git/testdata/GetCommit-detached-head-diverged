@@ -9,7 +9,9 @@ popd > /dev/null
 
 git clone origin repo > /dev/null 2>&1
 pushd repo > /dev/null
+MERGE_BASE=$(git rev-parse HEAD)
 git commit --allow-empty -m "Diverge" > /dev/null
 git checkout $(git rev-parse HEAD) > /dev/null 2>&1
 
-git rev-parse HEAD
+# GetCommit should return the merge-base with origin, not the local-only HEAD
+echo "$MERGE_BASE"
