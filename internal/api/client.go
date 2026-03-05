@@ -1027,7 +1027,7 @@ func (c Client) CancelRun(runID, scopedToken string) error {
 }
 
 func (c Client) ListSandboxRuns() (*ListSandboxRunsResult, error) {
-	endpoint := "/mint/api/runs?result_status=sandboxed&my_runs=true"
+	endpoint := "/mint/api/runs?result_status=sandboxed&execution_status=in_progress&my_runs=true"
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
