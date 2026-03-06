@@ -2569,3 +2569,112 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		require.Equal(t, "__rwx_sandbox_lock_released__", commandOrder[len(commandOrder)-1])
 	})
 }
+
+func TestService_ExecSandbox_DefinitionDrift(t *testing.T) {
+	driftExecSetup := func(t *testing.T, setup *testSetup, runID string) {
+		t.Helper()
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        "192.168.1.1:22",
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error { return nil }
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) { return 0, nil }
+	}
+
+	t.Run("warns when config file has changed since sandbox was started", func(t *testing.T) {
+		setup := setupTest(t)
+		runID := "run-drift"
+		configFile := ".rwx/sandbox.yml"
+		configPath := filepath.Join(setup.tmp, configFile)
+
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: original\n"), 0o644))
+		originalHash := cli.HashConfigFile(configPath)
+
+		// Seed storage with original hash
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"test-key": {
+				RunID:      runID,
+				ConfigFile: configFile,
+				ConfigHash: originalHash,
+			},
+		})
+
+		// Modify the config file
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: modified\n"), 0o644))
+
+		driftExecSetup(t, setup, runID)
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: configFile,
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.Contains(t, setup.mockStderr.String(), "has changed since this sandbox was started")
+		require.Contains(t, setup.mockStderr.String(), "rwx sandbox reset")
+	})
+
+	t.Run("does not warn when config file has not changed", func(t *testing.T) {
+		setup := setupTest(t)
+		runID := "run-no-drift"
+		configFile := ".rwx/sandbox.yml"
+		configPath := filepath.Join(setup.tmp, configFile)
+
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: stable\n"), 0o644))
+		stableHash := cli.HashConfigFile(configPath)
+
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"test-key": {
+				RunID:      runID,
+				ConfigFile: configFile,
+				ConfigHash: stableHash,
+			},
+		})
+
+		driftExecSetup(t, setup, runID)
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: configFile,
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.NotContains(t, setup.mockStderr.String(), "has changed since this sandbox was started")
+	})
+
+	t.Run("does not warn when no stored hash exists", func(t *testing.T) {
+		setup := setupTest(t)
+		runID := "run-no-hash"
+		configFile := ".rwx/sandbox.yml"
+		configPath := filepath.Join(setup.tmp, configFile)
+
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n"), 0o644))
+
+		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
+			"test-key": {
+				RunID:      runID,
+				ConfigFile: configFile,
+			},
+		})
+
+		driftExecSetup(t, setup, runID)
+
+		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: configFile,
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.NotContains(t, setup.mockStderr.String(), "has changed since this sandbox was started")
+	})
+}
