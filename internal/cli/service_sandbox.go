@@ -240,6 +240,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 							RunID:       cfg.RunID,
 							ConfigFile:  cfg.ConfigFile,
 							ScopedToken: scopedToken,
+							ConfigHash:  HashConfigFile(cfg.ConfigFile),
 						})
 						if err := storage.Save(); err != nil {
 							fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -311,6 +312,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 			RunID:      runResult.RunID,
 			ConfigFile: cfg.ConfigFile,
 			RunURL:     runResult.RunURL,
+			ConfigHash: HashConfigFile(cfg.ConfigFile),
 		})
 		if err := storage.Save(); err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -347,6 +349,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 				ConfigFile:  cfg.ConfigFile,
 				ScopedToken: scopedToken,
 				RunURL:      runResult.RunURL,
+				ConfigHash:  HashConfigFile(cfg.ConfigFile),
 			})
 			if err := storage.Save(); err != nil {
 				fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -386,6 +389,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	var configFile string
 	var scopedToken string
 	var sessionRunURL string
+	var storedConfigHash string
 
 	// Sandbox selection priority:
 	// 1. --id flag
@@ -403,6 +407,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 			if existingSession, _, found := storage.FindByRunID(cfg.RunID); found {
 				scopedToken = existingSession.ScopedToken
 				sessionRunURL = existingSession.RunURL
+				storedConfigHash = existingSession.ConfigHash
 			}
 		}
 	} else {
@@ -444,6 +449,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 					configFile = session.ConfigFile
 					scopedToken = session.ScopedToken
 					sessionRunURL = session.RunURL
+					storedConfigHash = session.ConfigHash
 				}
 			}
 		} else {
@@ -468,6 +474,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				configFile = activeSessions[0].ConfigFile
 				scopedToken = activeSessions[0].ScopedToken
 				sessionRunURL = activeSessions[0].RunURL
+				storedConfigHash = activeSessions[0].ConfigHash
 				found = true
 			} else if len(activeSessions) > 1 {
 				UnlockSandboxStorage(lockFile)
@@ -520,6 +527,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 							ConfigFile:  cfgFile,
 							ScopedToken: scopedToken,
 							RunURL:      run.RunURL,
+							ConfigHash:  HashConfigFile(cfgFile),
 						})
 						if saveErr := storage.Save(); saveErr != nil {
 							fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", saveErr)
@@ -559,6 +567,14 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 			// Resolution complete — release the file lock so concurrent execs
 			// can proceed. The agent-side lock serializes from here.
 			UnlockSandboxStorage(lockFile)
+		}
+	}
+
+	// Warn if the sandbox definition has changed since this sandbox was started
+	if storedConfigHash != "" && configFile != "" {
+		currentHash := HashConfigFile(configFile)
+		if currentHash != "" && currentHash != storedConfigHash {
+			fmt.Fprintf(s.Stderr, "Warning: %s has changed since this sandbox was started.\nThe running sandbox does not reflect these changes.\nRun 'rwx sandbox reset' to apply the new definition.\n\n", configFile)
 		}
 	}
 

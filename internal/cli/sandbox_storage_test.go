@@ -505,6 +505,32 @@ func TestDetachedShortSHA(t *testing.T) {
 	})
 }
 
+func TestHashConfigFile(t *testing.T) {
+	t.Run("returns consistent hash for same content", func(t *testing.T) {
+		tmpFile := filepath.Join(t.TempDir(), "sandbox.yml")
+		require.NoError(t, os.WriteFile(tmpFile, []byte("tasks:\n  - key: test\n"), 0o644))
+
+		hash1 := cli.HashConfigFile(tmpFile)
+		hash2 := cli.HashConfigFile(tmpFile)
+		require.NotEmpty(t, hash1)
+		require.Equal(t, hash1, hash2)
+	})
+
+	t.Run("returns different hash for different content", func(t *testing.T) {
+		dir := t.TempDir()
+		file1 := filepath.Join(dir, "a.yml")
+		file2 := filepath.Join(dir, "b.yml")
+		require.NoError(t, os.WriteFile(file1, []byte("version: 1"), 0o644))
+		require.NoError(t, os.WriteFile(file2, []byte("version: 2"), 0o644))
+
+		require.NotEqual(t, cli.HashConfigFile(file1), cli.HashConfigFile(file2))
+	})
+
+	t.Run("returns empty string for nonexistent file", func(t *testing.T) {
+		require.Equal(t, "", cli.HashConfigFile("/nonexistent/file.yml"))
+	})
+}
+
 func TestGetSessionsForCwdBranch_DetachedSHA(t *testing.T) {
 	t.Run("different detached SHAs get separate sessions", func(t *testing.T) {
 		storage := &cli.SandboxStorage{

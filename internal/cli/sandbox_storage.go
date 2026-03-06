@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -42,6 +44,18 @@ type SandboxSession struct {
 	ConfigFile  string `json:"configFile"`
 	ScopedToken string `json:"scopedToken,omitempty"`
 	RunURL      string `json:"runUrl,omitempty"`
+	ConfigHash  string `json:"configHash,omitempty"`
+}
+
+// HashConfigFile returns a hex-encoded SHA-256 hash of the file at the given path.
+// Returns an empty string if the file cannot be read.
+func HashConfigFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 type SandboxStorage struct {
