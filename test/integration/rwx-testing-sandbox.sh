@@ -109,4 +109,71 @@ if [ -f revert-test.txt ]; then
   exit 1
 fi
 
+# Test: local file modification during sandbox exec produces .rej without git apply errors
+# This covers the scenario where an agent edits a file locally while the sandbox
+# command also modifies it — the pull should split safe vs conflicting patches.
+echo "original safe content" > safe-file.txt
+echo "original conflict content" > conflict-file.txt
+
+# Background exec: sandbox modifies both files after a delay
+../rwx sandbox exec -- sh -c 'sleep 3; echo "sandbox safe addition" >> safe-file.txt; echo "sandbox conflict addition" >> conflict-file.txt' 2>exec-conflict-stderr.txt &
+exec_pid=$!
+
+# Wait for push to complete, then modify only the conflict file locally
+sleep 1
+echo "local addition during exec" >> conflict-file.txt
+
+wait $exec_pid
+
+# Non-conflicting file should be pulled back correctly
+if ! grep -q "sandbox safe addition" safe-file.txt; then
+  echo "safe-file.txt sandbox changes were not pulled back"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Local changes to the conflicting file must be preserved
+if ! grep -q "local addition during exec" conflict-file.txt; then
+  echo "conflict-file.txt local changes were lost"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Sandbox changes to the conflicting file must NOT be applied directly
+if grep -q "sandbox conflict addition" conflict-file.txt; then
+  echo "conflict-file.txt sandbox changes were applied on top of local changes (should be in conflicts.patch)"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# conflicts.patch should exist with the sandbox diff for the conflicting file
+if ! grep -q "conflict-file.txt" .rwx/sandboxes/conflicts.patch 2>/dev/null; then
+  echo "conflicts.patch not found or doesn't contain conflict-file.txt diff"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Warning should use the new actionable format
+if ! grep -q "modified locally while the sandbox command ran" exec-conflict-stderr.txt; then
+  echo "Expected actionable warning about locally modified files, got:"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Warning should reference the conflicts.patch file
+if ! grep -q "conflicts.patch" exec-conflict-stderr.txt; then
+  echo "Expected warning to reference conflicts.patch, got:"
+  cat exec-conflict-stderr.txt
+  ../rwx sandbox stop
+  exit 1
+fi
+
+# Clean up
+rm -f .rwx/sandboxes/conflicts.patch safe-file.txt conflict-file.txt exec-conflict-stderr.txt
+
 ../rwx sandbox stop

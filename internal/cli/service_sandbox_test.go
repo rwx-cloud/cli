@@ -1381,11 +1381,15 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 }
 
 func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
-	t.Run("retries with --reject on apply failure and reports .rej files", func(t *testing.T) {
+	t.Run("writes conflicts.patch for conflicting files and reports with actionable warning", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-reject-123"
 		address := "192.168.1.1:22"
+
+		// Create a local file with known content. It will be included in the push
+		// patch (via GeneratePatch) and then modified during exec to trigger a conflict.
+		require.NoError(t, os.WriteFile(filepath.Join(setup.tmp, "file.txt"), []byte("original"), 0644))
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -1410,50 +1414,56 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			// Simulate local file modification during exec
+			if strings.Contains(cmd, "echo") {
+				_ = os.WriteFile(filepath.Join(setup.tmp, "file.txt"), []byte("modified during exec"), 0644)
+			}
 			return 0, nil
 		}
 
+		// Return a patch including file.txt so it enters pushHashes
 		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
-			return nil, nil, nil
+			return []byte("diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+original\n"), nil, nil
 		}
 
-		// First apply fails
-		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
-			return exec.Command("false")
-		}
-
-		// --reject also fails (partial apply), and create a .rej file to simulate
-		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
-			// Create a .rej file to simulate partial apply
-			_ = os.WriteFile(filepath.Join(setup.tmp, "file.txt.rej"), []byte("rejected hunk"), 0644)
-			return exec.Command("false")
+		// Push apply succeeds on the sandbox
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 0, "", nil
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
 			ConfigFile: ".rwx/sandbox.yml",
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
+			Sync:       true,
 			Json:       true,
 		})
 
 		require.NoError(t, err)
 		require.Equal(t, runID, result.RunID)
-		// Files should still be returned even though apply partially failed
 		require.Contains(t, result.PulledFiles, "file.txt")
-		// Warning should mention .rej files
-		require.Contains(t, setup.mockStderr.String(), "file.txt (see file.txt.rej)")
-		require.Contains(t, setup.mockStderr.String(), "Resolve the conflicts")
+
+		// conflicts.patch should be written with the sandbox diff
+		conflictsPath := filepath.Join(setup.tmp, ".rwx", "sandboxes", "conflicts.patch")
+		patchContent, patchErr := os.ReadFile(conflictsPath)
+		require.NoError(t, patchErr)
+		require.Contains(t, string(patchContent), "diff --git a/file.txt b/file.txt")
+
+		// Warning should use the actionable format
+		require.Contains(t, setup.mockStderr.String(), "modified locally while the sandbox command ran")
+		require.Contains(t, setup.mockStderr.String(), "conflicts.patch")
 	})
 
-	t.Run("cleans up saved patch when --reject succeeds fully", func(t *testing.T) {
+	t.Run("applies safe files and skips conflicting files", func(t *testing.T) {
 		setup := setupTest(t)
 
-		runID := "run-reject-ok-123"
+		runID := "run-split-123"
 		address := "192.168.1.1:22"
 
-		// Create .rwx directory so the patch can be saved
-		rwxDir := filepath.Join(setup.tmp, ".rwx", "sandboxes")
-		require.NoError(t, os.MkdirAll(rwxDir, 0755))
+		// Create conflict.txt with known content — it will be in the push patch
+		// and modified during exec to trigger a conflict.
+		require.NoError(t, os.WriteFile(filepath.Join(setup.tmp, "conflict.txt"), []byte("original"), 0644))
+		// safe.txt does NOT exist locally — not in push patch, classified as safe
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -1468,7 +1478,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			return nil
 		}
 
-		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+		sandboxPatch := "diff --git a/conflict.txt b/conflict.txt\nindex abc..def 100644\n--- a/conflict.txt\n+++ b/conflict.txt\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/safe.txt b/safe.txt\nnew file mode 100644\nindex 000..abc\n--- /dev/null\n+++ b/safe.txt\n@@ -0,0 +1 @@\n+safe content\n"
 
 		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
 			if strings.Contains(cmd, "git diff refs/rwx-sync") {
@@ -1478,20 +1488,27 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			// Simulate local modification of conflict.txt during exec
+			if strings.Contains(cmd, "echo") {
+				_ = os.WriteFile(filepath.Join(setup.tmp, "conflict.txt"), []byte("modified during exec"), 0644)
+			}
 			return 0, nil
 		}
 
+		// Return a patch including conflict.txt so it enters pushHashes
 		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
-			return nil, nil, nil
+			return []byte("diff --git a/conflict.txt b/conflict.txt\n--- a/conflict.txt\n+++ b/conflict.txt\n@@ -1 +1 @@\n-old\n+original\n"), nil, nil
 		}
 
-		// First apply fails
+		// Push apply succeeds on the sandbox
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 0, "", nil
+		}
+
+		// ApplyPatch should only receive the safe file's patch
+		var appliedPatch []byte
 		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
-			return exec.Command("false")
-		}
-
-		// --reject succeeds (all hunks applied on retry)
-		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
+			appliedPatch = patch
 			return exec.Command("true")
 		}
 
@@ -1499,28 +1516,41 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			ConfigFile: ".rwx/sandbox.yml",
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
+			Sync:       true,
 			Json:       true,
 		})
 
 		require.NoError(t, err)
-		require.Contains(t, result.PulledFiles, "file.txt")
-		// Saved patch should be cleaned up since --reject succeeded
-		_, statErr := os.Stat(filepath.Join(rwxDir, "patch-rejected.diff"))
-		require.True(t, os.IsNotExist(statErr), "patch file should be cleaned up when --reject succeeds")
-		// No warning should be printed
-		require.NotContains(t, setup.mockStderr.String(), "conflicts")
+		require.Contains(t, result.PulledFiles, "conflict.txt")
+		require.Contains(t, result.PulledFiles, "safe.txt")
+
+		// Only the safe patch should have been applied
+		require.Contains(t, string(appliedPatch), "safe.txt")
+		require.NotContains(t, string(appliedPatch), "conflict.txt")
+
+		// conflicts.patch should contain only the conflicting file's diff
+		conflictsPath := filepath.Join(setup.tmp, ".rwx", "sandboxes", "conflicts.patch")
+		patchContent, patchErr := os.ReadFile(conflictsPath)
+		require.NoError(t, patchErr)
+		require.Contains(t, string(patchContent), "conflict.txt")
+		require.NotContains(t, string(patchContent), "safe.txt")
+
+		// Warning should mention the conflicting file and the patch path
+		require.Contains(t, setup.mockStderr.String(), "conflict.txt")
+		require.Contains(t, setup.mockStderr.String(), "conflicts.patch")
 	})
 
-	t.Run("saves rejected patch to .rwx/sandboxes", func(t *testing.T) {
+	t.Run("saves full patch when safe patch unexpectedly fails", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-save-patch-123"
 		address := "192.168.1.1:22"
 
-		// Create .rwx directory
+		// Create .rwx directory so the patch can be saved
 		rwxDir := filepath.Join(setup.tmp, ".rwx", "sandboxes")
 		require.NoError(t, os.MkdirAll(rwxDir, 0755))
 
+		// safe.txt does NOT exist locally — classified as safe
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
 				Sandboxable:    true,
@@ -1551,11 +1581,8 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			return nil, nil, nil
 		}
 
-		// Both apply attempts fail
+		// Safe patch apply fails unexpectedly
 		setup.mockGit.MockApplyPatch = func(patch []byte) *exec.Cmd {
-			return exec.Command("false")
-		}
-		setup.mockGit.MockApplyPatchReject = func(patch []byte) *exec.Cmd {
 			return exec.Command("false")
 		}
 
@@ -1569,7 +1596,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, runID, result.RunID)
 
-		// Verify the patch was saved
+		// Verify the full patch was saved
 		savedPatch, readErr := os.ReadFile(filepath.Join(rwxDir, "patch-rejected.diff"))
 		require.NoError(t, readErr)
 		require.Equal(t, sandboxPatch, string(savedPatch))
@@ -1578,15 +1605,16 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		require.Contains(t, setup.mockStderr.String(), "patch-rejected.diff")
 	})
 
-	t.Run("warns about .rej files during sync", func(t *testing.T) {
+	t.Run("warns about unresolved conflicts.patch during sync", func(t *testing.T) {
 		setup := setupTest(t)
 
 		runID := "run-rej-warn-123"
 		address := "192.168.1.1:22"
 
-		// Create a .rej file from a "previous" failed pull
-		require.NoError(t, os.MkdirAll(filepath.Join(setup.tmp, "src"), 0755))
-		require.NoError(t, os.WriteFile(filepath.Join(setup.tmp, "src", "main.go.rej"), []byte("old reject"), 0644))
+		// Create a conflicts.patch from a "previous" failed pull
+		sandboxesDir := filepath.Join(setup.tmp, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(sandboxesDir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(sandboxesDir, "conflicts.patch"), []byte("old conflict diff"), 0644))
 
 		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
 			return api.SandboxConnectionInfo{
@@ -1609,7 +1637,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			return 0, nil
 		}
 
-		// No local changes (sync still runs the .rej check)
+		// No local changes (sync still runs the conflicts check)
 		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
 			return nil, nil, nil
 		}
@@ -1623,9 +1651,8 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		require.Contains(t, setup.mockStderr.String(), "unresolved .rej file(s)")
-		require.Contains(t, setup.mockStderr.String(), "src/main.go.rej")
-		require.Contains(t, setup.mockStderr.String(), "Resolve and delete them when possible")
+		require.Contains(t, setup.mockStderr.String(), "unresolved sandbox conflicts from a previous exec")
+		require.Contains(t, setup.mockStderr.String(), "conflicts.patch")
 	})
 }
 
