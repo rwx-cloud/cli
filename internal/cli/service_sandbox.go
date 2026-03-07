@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -609,8 +611,11 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	}
 
 	// Sync local changes to sandbox if enabled
+	var pushHashes map[string]string
 	if cfg.Sync {
-		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
+		var err error
+		pushHashes, err = s.syncChangesToSandbox(cfg.Json)
+		if err != nil {
 			if errors.Is(err, errors.ErrSandboxNoGitDir) {
 				// Stop the sandbox so the user gets a fresh one on retry
 				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
@@ -644,7 +649,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Pull changes from sandbox back to local
 	var pulledFiles []string
-	pulled, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
+	pulled, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json, pushHashes)
 	if pullErr != nil {
 		fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
 	}
@@ -939,7 +944,9 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 
 // pullChangesFromSandbox pulls changes from the sandbox back to the local working directory.
 // It assumes the SSH connection is already established.
-func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, error) {
+// pushHashes contains SHA-256 hashes of locally-modified files at push time, used to detect
+// files that were modified locally during exec (and thus conflict with sandbox changes).
+func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool, pushHashes map[string]string) ([]string, error) {
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 
@@ -1016,54 +1023,75 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		return []string{}, nil
 	}
 
-	// Apply sandbox patch locally (git apply is atomic — on failure nothing is modified)
-	if len(strings.TrimSpace(patch)) > 0 {
-		cmd := s.GitClient.ApplyPatch([]byte(patch))
-		if err := cmd.Run(); err != nil {
-			// Save the full patch so it can be inspected or applied manually
-			patchSavePath := saveRejectedPatch([]byte(patch))
+	// Split the sandbox patch into per-file diffs and classify each file
+	// as safe (unchanged locally since push) or conflicting (modified during exec).
+	fileDiffs := splitPatchByFile(patch)
+	currentHashes := computeFileHashes(cwd, sandboxPatchFiles)
 
-			// Retry with --reject: applies hunks that succeed, writes .rej files for the rest
-			rejectCmd := s.GitClient.ApplyPatchReject([]byte(patch))
-			rejectOutput, rejectErr := rejectCmd.CombinedOutput()
-
-			if rejectErr != nil {
-				// Find which files got .rej files by checking the patch file list
-				rejFiles := findRejFiles(cwd, sandboxPatchFiles)
-
-				msg := "failed to apply patch locally"
-				if len(rejFiles) > 0 {
-					msg = fmt.Sprintf("patch partially applied. %d file(s) have conflicts:\n", len(rejFiles))
-					for _, f := range rejFiles {
-						msg += fmt.Sprintf("  %s (see %s.rej)\n", f, f)
-					}
-					msg += "Resolve the conflicts in each .rej file, then delete the .rej files."
-				} else if len(rejectOutput) > 0 {
-					msg = fmt.Sprintf("failed to apply patch locally: %s", strings.TrimSpace(string(rejectOutput)))
-				}
-				if patchSavePath != "" {
-					msg += fmt.Sprintf("\nFull patch saved to %s", patchSavePath)
-				}
-				return sandboxPatchFiles, fmt.Errorf("%s", msg)
+	var safeFiles []string
+	var conflictingFiles []string
+	for _, f := range sandboxPatchFiles {
+		if pushHash, ok := pushHashes[f]; ok {
+			if currentHashes[f] == pushHash {
+				safeFiles = append(safeFiles, f)
+			} else {
+				conflictingFiles = append(conflictingFiles, f)
 			}
-
-			// --reject succeeded fully (all hunks applied despite initial failure)
-			if patchSavePath != "" {
-				_ = os.Remove(patchSavePath)
-			}
+		} else {
+			// File was not in push patch — it was clean at push time. Without a
+			// baseline hash we cannot detect local modifications during exec, so
+			// default to safe (apply sandbox changes).
+			safeFiles = append(safeFiles, f)
 		}
 	}
 
-	files := sandboxPatchFiles
+	// Apply safe patch (non-conflicting files only)
+	if len(safeFiles) > 0 {
+		var safePatch strings.Builder
+		for _, f := range safeFiles {
+			safePatch.WriteString(fileDiffs[f])
+		}
+		cmd := s.GitClient.ApplyPatch([]byte(safePatch.String()))
+		if err := cmd.Run(); err != nil {
+			// Unexpected: safe files should always apply cleanly.
+			patchSavePath := saveRejectedPatch([]byte(patch))
+			msg := "failed to apply non-conflicting sandbox changes"
+			if patchSavePath != "" {
+				msg += fmt.Sprintf("\nFull patch saved to %s", patchSavePath)
+			}
+			return sandboxPatchFiles, fmt.Errorf("%s", msg)
+		}
+	}
+
+	// Save conflicting diffs to a single patch file (never attempt to apply)
+	if len(conflictingFiles) > 0 {
+		var conflictPatch strings.Builder
+		for _, f := range conflictingFiles {
+			conflictPatch.WriteString(fileDiffs[f])
+		}
+		conflictPatchPath := saveConflictsPatch([]byte(conflictPatch.String()))
+
+		msg := fmt.Sprintf("%d file(s) were modified locally while the sandbox command ran.\n", len(conflictingFiles))
+		msg += "Sandbox changes for these files were not applied:\n"
+		for _, f := range conflictingFiles {
+			msg += fmt.Sprintf("  %s\n", f)
+		}
+		if conflictPatchPath != "" {
+			msg += fmt.Sprintf("Review the sandbox diff and apply or discard: %s", conflictPatchPath)
+		}
+		fmt.Fprintln(s.Stderr, msg)
+	}
 
 	if !jsonMode {
-		fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(files))
-		for _, f := range files {
-			fmt.Fprintf(s.Stdout, "  %s\n", f)
+		if len(safeFiles) > 0 {
+			fmt.Fprintf(s.Stdout, "Pulled %d file(s) from sandbox:\n", len(safeFiles))
+			for _, f := range safeFiles {
+				fmt.Fprintf(s.Stdout, "  %s\n", f)
+			}
 		}
 	}
 
-	return files, nil
+	return sandboxPatchFiles, nil
 }
 
 func (s Service) cleanSandboxState() error {
@@ -1097,6 +1125,53 @@ func (s Service) revertSandbox() error {
 		return fmt.Errorf("failed to revert sandbox (exit code %d)", exitCode)
 	}
 	return nil
+}
+
+// computeFileHashes returns SHA-256 hashes of each file's current content.
+// Missing files are omitted from the result.
+func computeFileHashes(cwd string, files []string) map[string]string {
+	hashes := make(map[string]string, len(files))
+	for _, f := range files {
+		data, err := os.ReadFile(filepath.Join(cwd, f))
+		if err != nil {
+			continue
+		}
+		h := sha256.Sum256(data)
+		hashes[f] = hex.EncodeToString(h[:])
+	}
+	return hashes
+}
+
+// splitPatchByFile splits a unified diff into per-file diffs keyed by file path.
+func splitPatchByFile(patch string) map[string]string {
+	result := make(map[string]string)
+	lines := strings.Split(patch, "\n")
+
+	var currentFile string
+	var currentStart int
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, "diff --git ") {
+			if currentFile != "" {
+				result[currentFile] = strings.Join(lines[currentStart:i], "\n") + "\n"
+			}
+			parts := strings.Fields(line)
+			if len(parts) >= 4 {
+				currentFile = strings.TrimPrefix(parts[3], "b/")
+			}
+			currentStart = i
+		}
+	}
+	if currentFile != "" {
+		// Trim trailing empty element from Split so the trailing "\n" logic
+		// matches intermediate files exactly.
+		end := lines[currentStart:]
+		if len(end) > 0 && end[len(end)-1] == "" {
+			end = end[:len(end)-1]
+		}
+		result[currentFile] = strings.Join(end, "\n") + "\n"
+	}
+	return result
 }
 
 // parsePatchFiles extracts file paths from a git patch
@@ -1135,34 +1210,38 @@ func saveRejectedPatch(patch []byte) string {
 	return path
 }
 
-// findRejFiles checks which files from the patch have corresponding .rej files.
-func findRejFiles(cwd string, patchFiles []string) []string {
-	var rejFiles []string
-	for _, f := range patchFiles {
-		rejPath := filepath.Join(cwd, f+".rej")
-		if _, err := os.Stat(rejPath); err == nil {
-			rejFiles = append(rejFiles, f)
-		}
+// saveConflictsPatch writes conflicting file diffs to .rwx/sandboxes/conflicts.patch.
+// Returns the path on success, empty string on failure.
+func saveConflictsPatch(patch []byte) string {
+	rwxDir, err := findRwxDirectoryPath("")
+	if err != nil || rwxDir == "" {
+		return ""
 	}
-	return rejFiles
+
+	dir := filepath.Join(rwxDir, "sandboxes")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return ""
+	}
+
+	path := filepath.Join(dir, "conflicts.patch")
+	if err := os.WriteFile(path, patch, 0644); err != nil {
+		return ""
+	}
+
+	return path
 }
 
-// findAllRejFiles walks the working directory looking for .rej files.
-func findAllRejFiles(cwd string) []string {
-	var rejFiles []string
-	_ = filepath.WalkDir(cwd, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == "vendor") {
-			return filepath.SkipDir
-		}
-		if !d.IsDir() && strings.HasSuffix(d.Name(), ".rej") {
-			rejFiles = append(rejFiles, path)
-		}
-		return nil
-	})
-	return rejFiles
+// conflictsPatchPath returns the path to an existing conflicts.patch file, or empty string.
+func conflictsPatchPath() string {
+	rwxDir, err := findRwxDirectoryPath("")
+	if err != nil || rwxDir == "" {
+		return ""
+	}
+	path := filepath.Join(rwxDir, "sandboxes", "conflicts.patch")
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
 }
 
 // sandboxRunURL returns the run URL from the session if available.
@@ -1273,25 +1352,16 @@ func SandboxTitle(cwd, branch, configFile string) string {
 	return title
 }
 
-func (s Service) syncChangesToSandbox(jsonMode bool) error {
-	// Warn if .rej files from a previous failed pull are still present
-	if cwd, err := os.Getwd(); err == nil {
-		if rejFiles := findAllRejFiles(cwd); len(rejFiles) > 0 {
-			fmt.Fprintf(s.Stderr, "Warning: %d unresolved .rej file(s) from a previous pull:\n", len(rejFiles))
-			for _, f := range rejFiles {
-				rel, _ := filepath.Rel(cwd, f)
-				if rel == "" {
-					rel = f
-				}
-				fmt.Fprintf(s.Stderr, "  %s\n", rel)
-			}
-			fmt.Fprintln(s.Stderr, "These will be synced to the sandbox and may cause issues. Resolve and delete them when possible.")
-		}
+func (s Service) syncChangesToSandbox(jsonMode bool) (map[string]string, error) {
+	// Warn if unresolved conflicts from a previous pull are still present
+	if path := conflictsPatchPath(); path != "" {
+		fmt.Fprintf(s.Stderr, "Warning: unresolved sandbox conflicts from a previous exec.\n")
+		fmt.Fprintf(s.Stderr, "Review the sandbox diff and apply or discard: %s\n", path)
 	}
 
 	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate patch")
+		return nil, errors.Wrap(err, "failed to generate patch")
 	}
 
 	// Warn about LFS files
@@ -1299,7 +1369,7 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		if !jsonMode {
 			fmt.Fprintf(s.Stderr, "Warning: %d LFS file(s) changed locally and cannot be synced.\n", lfsFiles.Count)
 		}
-		return nil
+		return nil, nil
 	}
 
 	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
@@ -1308,13 +1378,17 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		if err != nil {
-			return errors.Wrap(err, "failed to create sync ref with no local changes")
+			return nil, errors.Wrap(err, "failed to create sync ref with no local changes")
 		}
 		if exitCode != 0 {
-			return fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
+			return nil, fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
 		}
-		return nil
+		return nil, nil
 	}
+
+	// Hash each synced file so pull can detect local modifications made during exec
+	cwd, _ := os.Getwd()
+	pushHashes := computeFileHashes(cwd, parsePatchFiles(string(patch)))
 
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
@@ -1323,7 +1397,7 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	exitCode, _ := s.SSHClient.ExecuteCommand("test -d .git")
 	if exitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return errors.ErrSandboxNoGitDir
+		return nil, errors.ErrSandboxNoGitDir
 	}
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
@@ -1333,17 +1407,17 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 
 	if err != nil {
-		return errors.Wrap(err, "failed to apply patch on sandbox")
+		return nil, errors.Wrap(err, "failed to apply patch on sandbox")
 	}
 	if exitCode == 127 {
-		return fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
+		return nil, fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
 	}
 	if exitCode != 0 {
 		errMsg := strings.TrimSpace(applyOutput)
 		if errMsg != "" {
-			return fmt.Errorf("failed to sync changes to sandbox: git apply failed: %s", errMsg)
+			return nil, fmt.Errorf("failed to sync changes to sandbox: git apply failed: %s", errMsg)
 		}
-		return fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode)
+		return nil, fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode)
 	}
 
 	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
@@ -1355,21 +1429,21 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null; /usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
 	if snapshotErr != nil {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
+		return nil, errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
 	}
 	if snapshotExitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
+		return nil, fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
 	}
 
 	resetExitCode, resetErr := s.SSHClient.ExecuteCommand("/usr/bin/git reset HEAD~1 >/dev/null 2>&1")
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if resetErr != nil {
-		return errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
+		return nil, errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
 	}
 	if resetExitCode != 0 {
-		return fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
+		return nil, fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
 	}
 
-	return nil
+	return pushHashes, nil
 }
