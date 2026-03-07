@@ -1289,6 +1289,13 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		}
 	}
 
+	// Get the base SHA before generating the patch — this is the same commit
+	// that GeneratePatch diffs against, so we can align the sandbox to it.
+	baseSHA, err := s.GitClient.GetCommit()
+	if err != nil {
+		return errors.Wrap(err, "failed to get base commit for sync")
+	}
+
 	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate patch")
@@ -1302,9 +1309,14 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		return nil
 	}
 
-	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
+	// Even with no local changes, ensure the sandbox is aligned and refs/rwx-sync exists
 	if len(patch) == 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+		if baseSHA != "" {
+			_, _ = s.SSHClient.ExecuteCommand(
+				fmt.Sprintf("/usr/bin/git reset --hard %s >/dev/null 2>&1 && /usr/bin/git clean -fd >/dev/null 2>&1", shellescape.Quote(baseSHA)),
+			)
+		}
 		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		if err != nil {
@@ -1324,6 +1336,23 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	if exitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		return errors.ErrSandboxNoGitDir
+	}
+
+	// Align the sandbox to the same base commit that GeneratePatch diffed against.
+	// Without this, local commits between execs cause the sandbox HEAD to diverge
+	// from the patch base, leading to git apply failures.
+	if baseSHA != "" {
+		resetExitCode, resetErr := s.SSHClient.ExecuteCommand(
+			fmt.Sprintf("/usr/bin/git reset --hard %s >/dev/null 2>&1 && /usr/bin/git clean -fd >/dev/null 2>&1", shellescape.Quote(baseSHA)),
+		)
+		if resetErr != nil {
+			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+			return errors.Wrap(resetErr, "failed to reset sandbox to base commit")
+		}
+		if resetExitCode != 0 {
+			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
+			return fmt.Errorf("failed to reset sandbox to base commit (exit code %d)", resetExitCode)
+		}
 	}
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)

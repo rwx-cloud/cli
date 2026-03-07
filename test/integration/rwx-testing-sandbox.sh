@@ -77,12 +77,24 @@ if [ "$bash_c_output" != "hello world" ]; then
   exit 1
 fi
 
-# Test: uncommitted changes survive when branch has unpushed commits
-git commit --allow-empty -m "unpushed local commit"
+# Test: committed + uncommitted changes survive when branch has unpushed commits.
+# This exercises the scenario where the sandbox HEAD diverges from the patch base:
+# a prior exec creates files, those get committed locally, then new uncommitted
+# changes are made before the next exec. The sandbox must have both.
+echo "committed content" > committed-test.txt
+git add committed-test.txt
+git commit -m "unpushed local commit with real file changes"
+committed_sha=$(sha1sum committed-test.txt | awk '{print $1}')
+
 echo "uncommitted edit" > uncommitted-test.txt
 uncommitted_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
 
-../rwx sandbox exec -- echo "exercising sandbox with unpushed commits"
+sandbox_committed_sha=$(../rwx sandbox exec -- sha1sum committed-test.txt | awk 'NR==1{print $1}')
+if [ "$committed_sha" != "$sandbox_committed_sha" ]; then
+  echo "committed-test.txt not synced to sandbox (local: $committed_sha, sandbox: $sandbox_committed_sha)"
+  ../rwx sandbox stop
+  exit 1
+fi
 
 post_exec_sha=$(sha1sum uncommitted-test.txt | awk '{print $1}')
 if [ "$uncommitted_sha" != "$post_exec_sha" ]; then

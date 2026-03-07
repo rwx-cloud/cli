@@ -1090,6 +1090,140 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		require.False(t, found, "session should be removed from storage")
 	})
 
+	t.Run("resets sandbox to base SHA before applying patch", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reset-base-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGetCommit = "abc123def456"
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("diff --git a/file.txt b/file.txt\n"), nil, nil
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 0, "", nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+
+		// Find the reset command and verify it contains the base SHA
+		resetIdx := -1
+		applyIdx := -1
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "git reset --hard") && strings.Contains(cmd, "abc123def456") {
+				resetIdx = i
+			}
+		}
+		require.NotEqual(t, -1, resetIdx, "should reset sandbox to base SHA before applying patch")
+
+		// The git apply happens via ExecuteCommandWithStdinAndCombinedOutput, not ExecuteCommand,
+		// so verify the reset comes after sync start and before the snapshot commands
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "git update-ref -d refs/rwx-sync") {
+				applyIdx = i
+				break
+			}
+		}
+		require.NotEqual(t, -1, applyIdx, "snapshot command should be present")
+		require.Less(t, resetIdx, applyIdx, "reset should happen before snapshot")
+	})
+
+	t.Run("resets sandbox to base SHA even with no local changes", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-reset-empty-123"
+		address := "192.168.1.1:22"
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		setup.mockGit.MockGetCommit = "abc123def456"
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil // No local changes
+		}
+
+		var commandOrder []string
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			commandOrder = append(commandOrder, cmd)
+			return 0, nil
+		}
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			return 0, "", nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
+
+		// Even with no patch, the sandbox should be reset to the base SHA
+		foundReset := false
+		resetIdx := -1
+		syncRefIdx := -1
+		for i, cmd := range commandOrder {
+			if strings.Contains(cmd, "git reset --hard") && strings.Contains(cmd, "abc123def456") {
+				foundReset = true
+				resetIdx = i
+			}
+			if strings.Contains(cmd, "update-ref refs/rwx-sync HEAD") {
+				syncRefIdx = i
+			}
+		}
+		require.True(t, foundReset, "should reset sandbox to base SHA even with no local changes")
+		require.NotEqual(t, -1, syncRefIdx, "should create sync ref")
+		require.Less(t, resetIdx, syncRefIdx, "reset should happen before sync ref creation")
+	})
+
 }
 
 func TestService_ExecSandbox_Pull(t *testing.T) {
