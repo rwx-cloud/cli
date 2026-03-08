@@ -82,7 +82,7 @@ func TestService_ListPackages(t *testing.T) {
 	})
 
 	t.Run("wraps long descriptions in text output", func(t *testing.T) {
-		s := setupTest(t)
+		s := setupTestWithTTY(t)
 
 		longDesc := "This is a very long description that exceeds the column width limit for display"
 
@@ -109,6 +109,30 @@ func TestService_ListPackages(t *testing.T) {
 		for _, line := range strings.Split(output, "\n") {
 			require.LessOrEqual(t, len(line), 80)
 		}
+	})
+
+	t.Run("does not wrap descriptions when not a TTY", func(t *testing.T) {
+		s := setupTest(t)
+
+		longDesc := "This is a very long description that exceeds the column width limit for display"
+
+		s.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: map[string]string{
+					"nodejs/install": "1.3.0",
+				},
+				Packages: map[string]api.ApiPackageInfo{
+					"nodejs/install": {Description: longDesc},
+				},
+			}, nil
+		}
+
+		_, err := s.service.ListPackages(cli.ListPackagesConfig{Json: false})
+		require.NoError(t, err)
+
+		output := s.mockStdout.String()
+		// Full description appears on a single line (no wrapping)
+		require.Contains(t, output, longDesc)
 	})
 
 	t.Run("JSON mode outputs valid JSON", func(t *testing.T) {
@@ -208,7 +232,7 @@ func TestService_ShowPackage(t *testing.T) {
 	})
 
 	t.Run("wraps long parameter descriptions", func(t *testing.T) {
-		s := setupTest(t)
+		s := setupTestWithTTY(t)
 
 		s.mockAPI.MockGetPackageDocumentation = func(name string) (*api.PackageDocumentationResult, error) {
 			return &api.PackageDocumentationResult{
@@ -232,6 +256,30 @@ func TestService_ShowPackage(t *testing.T) {
 		for _, line := range strings.Split(output, "\n") {
 			require.LessOrEqual(t, len(line), 80)
 		}
+	})
+
+	t.Run("does not wrap parameter descriptions when not a TTY", func(t *testing.T) {
+		s := setupTest(t)
+
+		longParamDesc := "Whether or not to preserve the .git directory. Set to true if you want to perform git operations."
+
+		s.mockAPI.MockGetPackageDocumentation = func(name string) (*api.PackageDocumentationResult, error) {
+			return &api.PackageDocumentationResult{
+				Name:        "git/clone",
+				Version:     "1.2.0",
+				Description: "Clone a Git repository",
+				Parameters: []api.PackageDocumentationParameter{
+					{Name: "ref", Required: true, Description: longParamDesc},
+				},
+			}, nil
+		}
+
+		_, err := s.service.ShowPackage(cli.ShowPackageConfig{PackageName: "git/clone"})
+		require.NoError(t, err)
+
+		output := s.mockStdout.String()
+		// Full parameter description appears on a single line (no wrapping)
+		require.Contains(t, output, longParamDesc)
 	})
 
 	t.Run("--readme flag renders readme", func(t *testing.T) {
