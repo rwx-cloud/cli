@@ -32,8 +32,7 @@ var (
 	docsScheme         = "https"
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
-	telemetryCollector *telemetry.Collector
-	telemetrySender    *telemetry.Sender
+	telem              *telemetry.Telemetry
 
 	// rootCmd represents the main `rwx` command
 	rootCmd = &cobra.Command{
@@ -64,8 +63,10 @@ var (
 				return errors.Wrap(err, "unable to initialize API client")
 			}
 
-			telemetryCollector = telemetry.NewCollector()
-			telemetrySender = telemetry.NewSender(telemetryCollector, c)
+			collector := telemetry.NewCollector()
+			statsRT := telemetry.NewStatsRoundTripper(c)
+			sender := telemetry.NewSender(collector, statsRT)
+			telem = telemetry.New(collector, sender, statsRT)
 
 			dir, err := os.Getwd()
 			if err != nil {
@@ -104,9 +105,6 @@ var (
 			}
 
 			return nil
-		},
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			telemetrySender.Flush()
 		},
 	}
 )
