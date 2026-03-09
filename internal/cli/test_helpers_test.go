@@ -74,3 +74,13 @@ func setupTest(t *testing.T) *testSetup {
 
 	return setup
 }
+
+func setupTestWithTTY(t *testing.T) *testSetup {
+	s := setupTest(t)
+	s.config.StdoutIsTTY = true
+	s.config.StderrIsTTY = true
+	var err error
+	s.service, err = cli.NewService(s.config)
+	require.NoError(t, err)
+	return s
+}

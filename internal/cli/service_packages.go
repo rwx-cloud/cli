@@ -365,8 +365,8 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 				termWidth = size.Width
 			}
 			descWidth := termWidth - prefixWidth
-			if descWidth < 20 {
-				descWidth = 0 // too narrow to wrap; print as-is
+			if !s.StdoutIsTTY || descWidth < 20 {
+				descWidth = 0 // too narrow to wrap or non-TTY; print as-is
 			}
 			fmtStr := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", maxNameLen, maxVersionLen)
 			wrapIndent := strings.Repeat(" ", prefixWidth)
@@ -427,7 +427,11 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 		}
 		fmt.Fprintf(s.Stdout, "Name:         %s\n", doc.Name)
 		fmt.Fprintf(s.Stdout, "Version:      %s\n", doc.Version)
-		descLines := text.WrapText(doc.Description, termWidth-14)
+		descWrapWidth := termWidth - 14
+		if !s.StdoutIsTTY {
+			descWrapWidth = 0
+		}
+		descLines := text.WrapText(doc.Description, descWrapWidth)
 		fmt.Fprintf(s.Stdout, "Description:  %s\n", descLines[0])
 		for _, line := range descLines[1:] {
 			fmt.Fprintf(s.Stdout, "              %s\n", line)
@@ -456,8 +460,8 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 			// PARAMETER + gap + REQUIRED(8) + gap + DEFAULT + gap
 			prefixWidth := maxParamNameLen + 2 + 8 + 2 + maxDefaultLen + 2
 			descWidth := termWidth - prefixWidth
-			if descWidth < 20 {
-				descWidth = 0 // too narrow to wrap; print as-is
+			if !s.StdoutIsTTY || descWidth < 20 {
+				descWidth = 0 // too narrow to wrap or non-TTY; print as-is
 			}
 			paramFmt := fmt.Sprintf("%%-%ds  %%-8s  %%-%ds  %%s\n", maxParamNameLen, maxDefaultLen)
 			wrapIndent := strings.Repeat(" ", prefixWidth)
