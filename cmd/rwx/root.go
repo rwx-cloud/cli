@@ -15,6 +15,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/git"
 	"github.com/rwx-cloud/cli/internal/ssh"
+	"github.com/rwx-cloud/cli/internal/telemetry"
 	"github.com/rwx-cloud/cli/internal/versions"
 	"golang.org/x/term"
 
@@ -31,6 +32,8 @@ var (
 	docsScheme         = "https"
 	service            cli.Service
 	accessTokenBackend accesstoken.Backend
+	telemetryCollector *telemetry.Collector
+	telemetrySender    *telemetry.Sender
 
 	// rootCmd represents the main `rwx` command
 	rootCmd = &cobra.Command{
@@ -47,15 +50,22 @@ var (
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize config backend")
 			}
-
 			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
 			docsTokenBackend := docstoken.NewFileBackend(fileBackend)
 			versionsBackend := versions.NewFileBackend(fileBackend)
 
-			c, err := api.NewClient(api.Config{AccessToken: AccessToken, Host: rwxHost, AccessTokenBackend: accessTokenBackend, VersionsBackend: versionsBackend})
+			c, err := api.NewClient(api.Config{
+				AccessToken:        AccessToken,
+				Host:               rwxHost,
+				AccessTokenBackend: accessTokenBackend,
+				VersionsBackend:    versionsBackend,
+			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize API client")
 			}
+
+			telemetryCollector = telemetry.NewCollector()
+			telemetrySender = telemetry.NewSender(telemetryCollector, c)
 
 			dir, err := os.Getwd()
 			if err != nil {
@@ -94,6 +104,9 @@ var (
 			}
 
 			return nil
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			telemetrySender.Flush()
 		},
 	}
 )
