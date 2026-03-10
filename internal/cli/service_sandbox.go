@@ -390,6 +390,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 }
 
 func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) {
+	execStart := time.Now()
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get current directory")
@@ -620,8 +621,14 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	}
 
 	// Sync local changes to sandbox if enabled
+	var syncPushMs int64
+	var syncPushPatchBytes int
 	if cfg.Sync {
-		if _, err := s.syncChangesToSandbox(cfg.Json); err != nil {
+		syncPushStart := time.Now()
+		patchBytes, err := s.syncChangesToSandbox(cfg.Json)
+		syncPushMs = time.Since(syncPushStart).Milliseconds()
+		syncPushPatchBytes = patchBytes
+		if err != nil {
 			if errors.Is(err, errors.ErrSandboxNoGitDir) {
 				// Stop the sandbox so the user gets a fresh one on retry
 				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
@@ -690,6 +697,29 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	if revertErr := s.revertSandbox(); revertErr != nil {
 		fmt.Fprintf(s.Stderr, "Warning: failed to revert sandbox: %v\n", revertErr)
 	}
+
+	// Update session exec count and last exec time
+	execNow := time.Now().UTC()
+	if lockFile, lockErr := LockSandboxStorage(); lockErr == nil {
+		if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
+			if session, ok := storage.GetSession(cwd, branch, configFile); ok {
+				session.LastExecAt = &execNow
+				session.ExecCount++
+				storage.SetSession(cwd, branch, configFile, *session)
+				_ = storage.Save()
+			}
+		}
+		UnlockSandboxStorage(lockFile)
+	}
+
+	s.recordTelemetry("sandbox.exec", map[string]any{
+		"duration_ms":      time.Since(execStart).Milliseconds(),
+		"exit_code":        exitCode,
+		"sync_push_ms":     syncPushMs,
+		"sync_pull_ms":     syncPullMs,
+		"push_patch_bytes": syncPushPatchBytes,
+		"pull_patch_bytes": pullPatchBytes,
+	})
 
 	runURL := s.sandboxRunURL(&SandboxSession{RunURL: sessionRunURL})
 	return &ExecSandboxResult{RunID: runID, ExitCode: exitCode, RunURL: runURL, PulledFiles: pulledFiles}, nil
