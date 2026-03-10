@@ -621,7 +621,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Sync local changes to sandbox if enabled
 	if cfg.Sync {
-		if err := s.syncChangesToSandbox(cfg.Json); err != nil {
+		if _, err := s.syncChangesToSandbox(cfg.Json); err != nil {
 			if errors.Is(err, errors.ErrSandboxNoGitDir) {
 				// Stop the sandbox so the user gets a fresh one on retry
 				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
@@ -662,12 +662,28 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Pull changes from sandbox back to local
 	var pulledFiles []string
-	pulled, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
+	var syncPullSuccess bool
+	var syncPullRejCount int
+	pullStart := time.Now()
+	pulled, pullPatchBytes, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
+	syncPullMs := time.Since(pullStart).Milliseconds()
 	if pullErr != nil {
 		fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
+		syncPullRejCount = len(findRejFiles(cwd, pulled))
+	} else {
+		syncPullSuccess = true
 	}
 	if pulled != nil {
 		pulledFiles = pulled
+	}
+
+	if cfg.Sync {
+		s.recordTelemetry("sandbox.sync_pull", map[string]any{
+			"patch_bytes":    pullPatchBytes,
+			"duration_ms":    syncPullMs,
+			"success":        syncPullSuccess,
+			"rej_file_count": syncPullRejCount,
+		})
 	}
 
 	// Revert sandbox to clean HEAD so the next exec starts from a known state
@@ -957,7 +973,7 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 
 // pullChangesFromSandbox pulls changes from the sandbox back to the local working directory.
 // It assumes the SSH connection is already established.
-func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, error) {
+func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, int, error) {
 	// Mark start of sync operations (Mint filters these from logs)
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
 
@@ -966,11 +982,11 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	lsExitCode, untrackedOutput, lsErr := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git ls-files --others --exclude-standard")
 	if lsErr != nil {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return nil, errors.Wrap(lsErr, "failed to list untracked files in sandbox")
+		return nil, 0, errors.Wrap(lsErr, "failed to list untracked files in sandbox")
 	}
 	if lsExitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return nil, fmt.Errorf("failed to list untracked files in sandbox: git ls-files failed with exit code %d", lsExitCode)
+		return nil, 0, fmt.Errorf("failed to list untracked files in sandbox: git ls-files failed with exit code %d", lsExitCode)
 	}
 
 	untrackedFiles := []string{}
@@ -990,16 +1006,17 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		addExitCode, _, addErr := s.SSHClient.ExecuteCommandWithOutput(addCmd)
 		if addErr != nil {
 			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-			return nil, errors.Wrap(addErr, "failed to stage untracked files in sandbox")
+			return nil, 0, errors.Wrap(addErr, "failed to stage untracked files in sandbox")
 		}
 		if addExitCode != 0 {
 			_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-			return nil, fmt.Errorf("failed to stage untracked files in sandbox: git add failed with exit code %d", addExitCode)
+			return nil, 0, fmt.Errorf("failed to stage untracked files in sandbox: git add failed with exit code %d", addExitCode)
 		}
 	}
 
 	// Get patch from sandbox (stdout only to avoid output capture issues after sync markers)
 	exitCode, patch, err := s.SSHClient.ExecuteCommandWithOutput("/usr/bin/git diff refs/rwx-sync")
+	patchBytes := len(patch)
 
 	// Reset the intent-to-add for untracked files
 	if len(untrackedFiles) > 0 {
@@ -1019,10 +1036,10 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 	// Mark end of sync operations
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get diff from sandbox")
+		return nil, patchBytes, errors.Wrap(err, "failed to get diff from sandbox")
 	}
 	if exitCode != 0 {
-		return nil, fmt.Errorf("failed to get changes from sandbox: git diff failed with exit code %d", exitCode)
+		return nil, patchBytes, fmt.Errorf("failed to get changes from sandbox: git diff failed with exit code %d", exitCode)
 	}
 
 	sandboxPatchFiles := parsePatchFiles(patch)
@@ -1031,7 +1048,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		if !jsonMode {
 			fmt.Fprintln(s.Stdout, "No changes to pull from sandbox.")
 		}
-		return []string{}, nil
+		return []string{}, 0, nil
 	}
 
 	// Apply sandbox patch locally (git apply is atomic — on failure nothing is modified)
@@ -1062,7 +1079,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 				if patchSavePath != "" {
 					msg += fmt.Sprintf("\nFull patch saved to %s", patchSavePath)
 				}
-				return sandboxPatchFiles, fmt.Errorf("%s", msg)
+				return sandboxPatchFiles, patchBytes, errors.WrapSentinel(fmt.Errorf("%s", msg), errors.ErrPatch)
 			}
 
 			// --reject succeeded fully (all hunks applied despite initial failure)
@@ -1081,7 +1098,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, er
 		}
 	}
 
-	return files, nil
+	return files, patchBytes, nil
 }
 
 func (s Service) cleanSandboxState() error {
@@ -1301,7 +1318,7 @@ func SandboxTitle(cwd, branch, configFile string) string {
 	return title
 }
 
-func (s Service) syncChangesToSandbox(jsonMode bool) error {
+func (s Service) syncChangesToSandbox(jsonMode bool) (int, error) {
 	// Warn if .rej files from a previous failed pull are still present
 	if cwd, err := os.Getwd(); err == nil {
 		if rejFiles := findAllRejFiles(cwd); len(rejFiles) > 0 {
@@ -1317,17 +1334,33 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		}
 	}
 
+	syncStart := time.Now()
 	patch, lfsFiles, err := s.GitClient.GeneratePatch(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate patch")
+		return 0, errors.Wrap(err, "failed to generate patch")
 	}
+
+	patchBytes := len(patch)
+	lfsSkippedCount := 0
+
+	// Record telemetry for all code paths (early returns included)
+	var syncPushErr error
+	defer func() {
+		s.recordTelemetry("sandbox.sync_push", map[string]any{
+			"patch_bytes":       patchBytes,
+			"duration_ms":       time.Since(syncStart).Milliseconds(),
+			"lfs_skipped_count": lfsSkippedCount,
+			"success":           syncPushErr == nil,
+		})
+	}()
 
 	// Warn about LFS files
 	if lfsFiles != nil && lfsFiles.Count > 0 {
+		lfsSkippedCount = lfsFiles.Count
 		if !jsonMode {
 			fmt.Fprintf(s.Stderr, "Warning: %d LFS file(s) changed locally and cannot be synced.\n", lfsFiles.Count)
 		}
-		return nil
+		return patchBytes, nil
 	}
 
 	// Even with no local changes, ensure refs/rwx-sync exists so pull has a valid baseline
@@ -1336,12 +1369,14 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 		exitCode, err := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref refs/rwx-sync HEAD")
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 		if err != nil {
-			return errors.Wrap(err, "failed to create sync ref with no local changes")
+			syncPushErr = errors.Wrap(err, "failed to create sync ref with no local changes")
+			return 0, syncPushErr
 		}
 		if exitCode != 0 {
-			return fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
+			syncPushErr = fmt.Errorf("failed to create sync ref with no local changes (exit code %d)", exitCode)
+			return 0, syncPushErr
 		}
-		return nil
+		return 0, nil
 	}
 
 	// Mark start of sync operations (Mint filters these from logs)
@@ -1351,7 +1386,8 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	exitCode, _ := s.SSHClient.ExecuteCommand("test -d .git")
 	if exitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return errors.ErrSandboxNoGitDir
+		syncPushErr = errors.ErrSandboxNoGitDir
+		return 0, syncPushErr
 	}
 
 	// Apply patch on remote (use full path since sandbox session may have minimal PATH)
@@ -1361,17 +1397,21 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 
 	if err != nil {
-		return errors.Wrap(err, "failed to apply patch on sandbox")
+		syncPushErr = errors.WrapSentinel(errors.Wrap(err, "failed to apply patch on sandbox"), errors.ErrPatch)
+		return patchBytes, syncPushErr
 	}
 	if exitCode == 127 {
-		return fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
+		syncPushErr = fmt.Errorf("git is not installed in the sandbox. Add a task that installs git before the sandbox task")
+		return patchBytes, syncPushErr
 	}
 	if exitCode != 0 {
 		errMsg := strings.TrimSpace(applyOutput)
 		if errMsg != "" {
-			return fmt.Errorf("failed to sync changes to sandbox: git apply failed: %s", errMsg)
+			syncPushErr = errors.WrapSentinel(fmt.Errorf("failed to sync changes to sandbox: git apply failed: %s", errMsg), errors.ErrPatch)
+			return patchBytes, syncPushErr
 		}
-		return fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode)
+		syncPushErr = errors.WrapSentinel(fmt.Errorf("failed to sync changes to sandbox: git apply failed with exit code %d", exitCode), errors.ErrPatch)
+		return patchBytes, syncPushErr
 	}
 
 	// Snapshot the synced state as a detached ref so pull can diff against it (exec-only changes).
@@ -1383,21 +1423,25 @@ func (s Service) syncChangesToSandbox(jsonMode bool) error {
 	snapshotExitCode, snapshotErr := s.SSHClient.ExecuteCommand("/usr/bin/git update-ref -d refs/rwx-sync 2>/dev/null; /usr/bin/git add -A && /usr/bin/git -c user.name=rwx -c user.email=rwx commit --allow-empty -m rwx-sync >/dev/null 2>&1 && /usr/bin/git update-ref refs/rwx-sync HEAD")
 	if snapshotErr != nil {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
+		syncPushErr = errors.Wrap(snapshotErr, "failed to create sync snapshot ref")
+		return patchBytes, syncPushErr
 	}
 	if snapshotExitCode != 0 {
 		_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
-		return fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
+		syncPushErr = fmt.Errorf("failed to create sync snapshot ref (exit code %d)", snapshotExitCode)
+		return patchBytes, syncPushErr
 	}
 
 	resetExitCode, resetErr := s.SSHClient.ExecuteCommand("/usr/bin/git reset HEAD~1 >/dev/null 2>&1")
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_end__")
 	if resetErr != nil {
-		return errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
+		syncPushErr = errors.Wrap(resetErr, "failed to reset HEAD after sync snapshot")
+		return patchBytes, syncPushErr
 	}
 	if resetExitCode != 0 {
-		return fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
+		syncPushErr = fmt.Errorf("failed to reset HEAD after sync snapshot (exit code %d)", resetExitCode)
+		return patchBytes, syncPushErr
 	}
 
-	return nil
+	return patchBytes, nil
 }
