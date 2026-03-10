@@ -826,6 +826,18 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 		s.printSandboxList(sandboxes)
 	}
 
+	activeCount := 0
+	for _, sb := range sandboxes {
+		if sb.Status == "active" {
+			activeCount++
+		}
+	}
+	s.recordTelemetry("sandbox.list", map[string]any{
+		"total_count":  len(sandboxes),
+		"active_count": activeCount,
+		"pruned_count": len(expiredKeys),
+	})
+
 	return &ListSandboxesResult{Sandboxes: sandboxes}, nil
 }
 

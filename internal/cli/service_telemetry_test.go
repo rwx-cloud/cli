@@ -491,6 +491,58 @@ func TestTelemetry_SandboxReset(t *testing.T) {
 	})
 }
 
+func TestTelemetry_SandboxList(t *testing.T) {
+	t.Run("records sandbox.list with counts", func(t *testing.T) {
+		setup := setupTest(t)
+
+		cwd := setup.tmp
+		branch := cli.GetCurrentGitBranch(cwd)
+
+		// Seed one active and one expired session
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		storage.SetSession(cwd, branch, ".rwx/sandbox.yml", cli.SandboxSession{
+			RunID:      "run-list-active",
+			ConfigFile: ".rwx/sandbox.yml",
+		})
+		storage.SetSession(cwd, branch, ".rwx/other.yml", cli.SandboxSession{
+			RunID:      "run-list-expired",
+			ConfigFile: ".rwx/other.yml",
+		})
+		require.NoError(t, storage.Save())
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{
+				Runs: []api.SandboxRunSummary{
+					{ID: "run-list-active", RunURL: "url"},
+				},
+			}, nil
+		}
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			if id == "run-list-expired" {
+				return api.SandboxConnectionInfo{
+					Polling: api.PollingResult{Completed: true},
+				}, nil
+			}
+			return api.SandboxConnectionInfo{
+				Polling: api.PollingResult{Completed: false},
+			}, nil
+		}
+
+		result, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+		require.NoError(t, err)
+		require.Len(t, result.Sandboxes, 1)
+
+		events := setup.drainEvents()
+		listEvent := findEvent(events, "sandbox.list")
+		require.NotNil(t, listEvent)
+		require.Equal(t, 1, listEvent.Props["total_count"])
+		require.Equal(t, 1, listEvent.Props["active_count"])
+		require.Equal(t, 1, listEvent.Props["pruned_count"])
+	})
+}
+
 func TestTelemetry_RunInitiate(t *testing.T) {
 	t.Run("records run.initiate", func(t *testing.T) {
 		setup := setupTest(t)
