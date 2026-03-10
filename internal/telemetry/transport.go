@@ -24,8 +24,8 @@ func NewSender(collector *Collector, rt http.RoundTripper) *Sender {
 	}
 }
 
-// Flush sends any queued events to the telemetry endpoint in a background
-// goroutine. It does not block.
+// Flush sends any queued events to the telemetry endpoint. It blocks until
+// delivery completes (or fails), so call it just before CLI exit.
 func (s *Sender) Flush() {
 	if s == nil {
 		return
@@ -36,7 +36,7 @@ func (s *Sender) Flush() {
 		return
 	}
 
-	go s.send(events)
+	s.send(events)
 }
 
 func (s *Sender) send(events []Event) {
