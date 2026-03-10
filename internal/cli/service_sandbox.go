@@ -260,6 +260,10 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 			}
 		}
 
+		s.recordTelemetry("sandbox.start", map[string]any{
+			"reuse": true,
+		})
+
 		return &StartSandboxResult{
 			RunID:      cfg.RunID,
 			RunURL:     runURL,
@@ -304,6 +308,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 	}
 
+	now := time.Now().UTC()
 	storage, err := LoadSandboxStorage()
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
@@ -313,6 +318,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 			ConfigFile: cfg.ConfigFile,
 			RunURL:     runResult.RunURL,
 			ConfigHash: HashConfigFile(cfg.ConfigFile),
+			CreatedAt:  &now,
 		})
 		if err := storage.Save(); err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -350,6 +356,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 				ScopedToken: scopedToken,
 				RunURL:      runResult.RunURL,
 				ConfigHash:  HashConfigFile(cfg.ConfigFile),
+				CreatedAt:   &now,
 			})
 			if err := storage.Save(); err != nil {
 				fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox session: %v\n", err)
@@ -358,6 +365,10 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 		UnlockSandboxStorage(lockFile)
 	}
+
+	s.recordTelemetry("sandbox.start", map[string]any{
+		"reuse": false,
+	})
 
 	// Build result now so we can return it even if waiting fails
 	result := &StartSandboxResult{

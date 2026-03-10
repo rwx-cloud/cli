@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gofrs/flock"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -40,11 +41,14 @@ func DecodeCliState(encoded string) (*CliState, error) {
 }
 
 type SandboxSession struct {
-	RunID       string `json:"runId"`
-	ConfigFile  string `json:"configFile"`
-	ScopedToken string `json:"scopedToken,omitempty"`
-	RunURL      string `json:"runUrl,omitempty"`
-	ConfigHash  string `json:"configHash,omitempty"`
+	RunID       string     `json:"runId"`
+	ConfigFile  string     `json:"configFile"`
+	ScopedToken string     `json:"scopedToken,omitempty"`
+	RunURL      string     `json:"runUrl,omitempty"`
+	ConfigHash  string     `json:"configHash,omitempty"`
+	CreatedAt   *time.Time `json:"createdAt,omitempty"`
+	LastExecAt  *time.Time `json:"lastExecAt,omitempty"`
+	ExecCount   int        `json:"execCount,omitempty"`
 }
 
 // HashConfigFile returns a hex-encoded SHA-256 hash of the file at the given path.
