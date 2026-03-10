@@ -25,6 +25,7 @@ type GetRunStatusResult struct {
 }
 
 func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, error) {
+	waitStart := time.Now()
 	var stopSpinner func()
 	if cfg.Wait && !cfg.Json {
 		stopSpinner = Spin("Waiting for run to complete...", s.StdoutIsTTY, s.Stdout)
@@ -61,6 +62,15 @@ func (s Service) GetRunStatus(cfg GetRunStatusConfig) (*GetRunStatusResult, erro
 			if statusResult.Commit != nil {
 				commit = *statusResult.Commit
 			}
+
+			if statusResult.Polling.Completed {
+				s.recordTelemetry("run.complete", map[string]any{
+					"result_status":    status,
+					"wait_duration_ms": time.Since(waitStart).Milliseconds(),
+					"wait":             cfg.Wait,
+				})
+			}
+
 			return &GetRunStatusResult{
 				RunID:        runID,
 				RunURL:       statusResult.RunURL,
