@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/cli"
+	internalerrors "github.com/rwx-cloud/cli/internal/errors"
+	"github.com/spf13/pflag"
 )
 
 // A HandledError has already been handled in the called function,
@@ -13,7 +17,11 @@ import (
 var HandledError = cli.HandledError
 
 func main() {
+	start := time.Now()
 	err := rootCmd.Execute()
+
+	recordTelemetry(err, start)
+
 	if err == nil {
 		return
 	}
@@ -28,4 +36,57 @@ func main() {
 	}
 
 	os.Exit(1)
+}
+
+func recordTelemetry(err error, start time.Time) {
+	if telem == nil {
+		return
+	}
+
+	cmd, _, _ := rootCmd.Find(os.Args[1:])
+
+	commandName := "rwx"
+	if cmd != nil {
+		commandName = cmd.CommandPath()
+	}
+	// Normalize "rwx <sub>" to just the subcommand path (e.g. "sandbox exec")
+	commandName = strings.TrimPrefix(commandName, "rwx ")
+
+	var flagNames []string
+	if cmd != nil {
+		cmd.Flags().Visit(func(f *pflag.Flag) {
+			flagNames = append(flagNames, f.Name)
+		})
+	}
+
+	telem.Record("cli.command", map[string]any{
+		"command":       commandName,
+		"flags":         flagNames,
+		"output_format": Output,
+		"duration_ms":   time.Since(start).Milliseconds(),
+		"success":       err == nil,
+	})
+
+	if err != nil {
+		telem.Record("cli.error", map[string]any{
+			"command":    commandName,
+			"error_type": classifyError(err),
+			"handled":    errors.Is(err, HandledError),
+		})
+	}
+
+	telem.Flush()
+}
+
+func classifyError(err error) string {
+	switch {
+	case errors.Is(err, internalerrors.ErrBadRequest):
+		return "bad_request"
+	case errors.Is(err, internalerrors.ErrNotFound):
+		return "not_found"
+	case errors.Is(err, internalerrors.ErrGone):
+		return "gone"
+	default:
+		return "unknown"
+	}
 }
