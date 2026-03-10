@@ -56,6 +56,14 @@ func (s Service) outputLatestVersionMessage() {
 	fmt.Fprintln(w)
 }
 
+// recordTelemetry enqueues a telemetry event if a collector is configured.
+func (s Service) recordTelemetry(event string, props map[string]any) {
+	if s.TelemetryCollector == nil {
+		return
+	}
+	s.TelemetryCollector.Record(event, props)
+}
+
 func Map[T any, R any](input []T, transformer func(T) R) []R {
 	result := make([]R, len(input))
 	for i, item := range input {

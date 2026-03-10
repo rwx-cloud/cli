@@ -9,12 +9,14 @@ import (
 
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/mocks"
+	"github.com/rwx-cloud/cli/internal/telemetry"
 	"github.com/stretchr/testify/require"
 )
 
 type testSetup struct {
 	config     cli.Config
 	service    cli.Service
+	collector  *telemetry.Collector
 	mockAPI    *mocks.API
 	mockSSH    *mocks.SSH
 	mockGit    *mocks.Git
@@ -48,20 +50,22 @@ func setupTest(t *testing.T) *testSetup {
 		MockIsInsideWorkTree: true,
 	}
 	setup.mockDocker = new(mocks.DockerClient)
+	setup.collector = telemetry.NewCollector()
 	setup.mockStdin = &bytes.Buffer{}
 	setup.mockStdout = &strings.Builder{}
 	setup.mockStderr = &strings.Builder{}
 
 	setup.config = cli.Config{
-		APIClient:   setup.mockAPI,
-		SSHClient:   setup.mockSSH,
-		GitClient:   setup.mockGit,
-		DockerCLI:   setup.mockDocker,
-		Stdin:       setup.mockStdin,
-		Stdout:      setup.mockStdout,
-		StdoutIsTTY: false,
-		Stderr:      setup.mockStderr,
-		StderrIsTTY: false,
+		APIClient:          setup.mockAPI,
+		SSHClient:          setup.mockSSH,
+		GitClient:          setup.mockGit,
+		DockerCLI:          setup.mockDocker,
+		TelemetryCollector: setup.collector,
+		Stdin:              setup.mockStdin,
+		Stdout:             setup.mockStdout,
+		StdoutIsTTY:        false,
+		Stderr:             setup.mockStderr,
+		StderrIsTTY:        false,
 	}
 	setup.service, err = cli.NewService(setup.config)
 	require.NoError(t, err)
@@ -83,4 +87,30 @@ func setupTestWithTTY(t *testing.T) *testSetup {
 	s.service, err = cli.NewService(s.config)
 	require.NoError(t, err)
 	return s
+}
+
+// drainEvents returns all telemetry events collected so far and resets the queue.
+func (s *testSetup) drainEvents() []telemetry.Event {
+	return s.collector.Drain()
+}
+
+// findEvent returns the first telemetry event with the given name, or nil.
+func findEvent(events []telemetry.Event, name string) *telemetry.Event {
+	for _, e := range events {
+		if e.Event == name {
+			return &e
+		}
+	}
+	return nil
+}
+
+// findEvents returns all telemetry events with the given name.
+func findEvents(events []telemetry.Event, name string) []telemetry.Event {
+	var result []telemetry.Event
+	for _, e := range events {
+		if e.Event == name {
+			result = append(result, e)
+		}
+	}
+	return result
 }

@@ -94,6 +94,7 @@ var (
 				DocsTokenBackend:   docsTokenBackend,
 				AccessTokenBackend: accessTokenBackend,
 				VersionsBackend:    versionsBackend,
+				TelemetryCollector: collector,
 				Stdin:              os.Stdin,
 				Stdout:             os.Stdout,
 				StdoutIsTTY:        term.IsTerminal(int(os.Stdout.Fd())),
