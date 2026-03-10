@@ -891,6 +891,7 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 
 	stopped := make([]StoppedSandbox, 0, len(toStop))
 
+	now := time.Now().UTC()
 	for i, session := range toStop {
 		wasRunning := false
 
@@ -920,6 +921,15 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 				fmt.Fprintf(s.Stdout, "Sandbox already stopped: %s\n", session.RunID)
 			}
 		}
+
+		var lifetimeS int64
+		if session.CreatedAt != nil {
+			lifetimeS = int64(now.Sub(*session.CreatedAt).Seconds())
+		}
+		s.recordTelemetry("sandbox.stop", map[string]any{
+			"lifetime_s": lifetimeS,
+			"exec_count": session.ExecCount,
+		})
 
 		stopped = append(stopped, StoppedSandbox{
 			RunID:      session.RunID,
@@ -993,6 +1003,8 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 	if err != nil {
 		return nil, err
 	}
+
+	s.recordTelemetry("sandbox.reset", map[string]any{})
 
 	return &ResetSandboxResult{
 		OldRunID: oldRunID,
@@ -1133,6 +1145,7 @@ func (s Service) pullChangesFromSandbox(cwd string, jsonMode bool) ([]string, in
 
 func (s Service) cleanSandboxState() error {
 	_, _ = s.SSHClient.ExecuteCommand("__rwx_sandbox_sync_start__")
+
 	exitCode, err := s.SSHClient.ExecuteCommand(
 		"/usr/bin/git checkout . >/dev/null 2>&1; /usr/bin/git clean -fd >/dev/null 2>&1",
 	)
@@ -1143,6 +1156,7 @@ func (s Service) cleanSandboxState() error {
 	if exitCode != 0 {
 		return fmt.Errorf("failed to clean sandbox state (exit code %d)", exitCode)
 	}
+
 	return nil
 }
 
