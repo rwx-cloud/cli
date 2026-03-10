@@ -648,7 +648,14 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	// Execute command — shell-quote each argument so the remote shell
 	// preserves the original grouping (e.g. bash -c "cat README.md").
 	command := shellescape.QuoteCommand(cfg.Command)
+	cmdStart := time.Now()
 	exitCode, err := s.SSHClient.ExecuteCommand(command)
+	cmdDuration := time.Since(cmdStart).Milliseconds()
+	s.recordTelemetry("ssh.command", map[string]any{
+		"duration_ms": cmdDuration,
+		"exit_code":   exitCode,
+		"interactive": false,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute command in sandbox")
 	}
@@ -1255,9 +1262,19 @@ func (s Service) connectSSH(connInfo *api.SandboxConnectionInfo) error {
 		HostKeyCallback: ssh.FixedHostKey(publicHostKey),
 	}
 
+	connectStart := time.Now()
 	if err = s.SSHClient.Connect(connInfo.Address, sshConfig); err != nil {
-		return errors.Wrap(err, "unable to establish SSH connection to remote host")
+		s.recordTelemetry("ssh.connect", map[string]any{
+			"duration_ms": time.Since(connectStart).Milliseconds(),
+			"success":     false,
+		})
+		return errors.WrapSentinel(fmt.Errorf("unable to establish SSH connection to remote host: %w", err), errors.ErrSSH)
 	}
+
+	s.recordTelemetry("ssh.connect", map[string]any{
+		"duration_ms": time.Since(connectStart).Milliseconds(),
+		"success":     true,
+	})
 
 	return nil
 }
