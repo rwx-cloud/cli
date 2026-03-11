@@ -250,7 +250,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 					scopedToken = tokenResult.Token
 				}
 
-				lockFile, lockErr := LockSandboxStorage()
+				lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json)
 				if lockErr != nil {
 					fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 				} else {
@@ -333,7 +333,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 	lockFile := cfg.storageLock
 	if lockFile == nil {
 		var lockErr error
-		lockFile, lockErr = LockSandboxStorage()
+		lockFile, lockErr = s.lockSandboxStorageWithInfo(cfg.Json)
 		if lockErr != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 		}
@@ -372,7 +372,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 	// Update session with scoped token now that we have it
 	if storage != nil {
 		var lockErr error
-		lockFile, lockErr = LockSandboxStorage()
+		lockFile, lockErr = s.lockSandboxStorageWithInfo(cfg.Json)
 		if lockErr != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 		}
@@ -459,7 +459,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		// The lock is released as soon as a run ID is determined so that
 		// the actual SSH exec can proceed concurrently (serialized by the
 		// agent-side lock instead).
-		lockFile, lockErr := LockSandboxStorage()
+		lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json)
 		if lockErr != nil {
 			return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
 		}
@@ -660,7 +660,25 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Acquire the distributed lock so concurrent exec calls on the same
 	// sandbox are serialized by the agent. Blocks until the lock is granted.
-	if _, lockErr := s.SSHClient.ExecuteCommand(sandboxDirectiveLockRequested); lockErr != nil {
+	// Show a spinner if another exec is holding the lock.
+	lockDone := make(chan struct{})
+	if !cfg.Json {
+		go func() {
+			t := time.NewTimer(500 * time.Millisecond)
+			defer t.Stop()
+			select {
+			case <-lockDone:
+				return
+			case <-t.C:
+				stopSpinner := Spin("Waiting for another sandbox exec to complete...", s.StderrIsTTY, s.Stderr)
+				<-lockDone
+				stopSpinner()
+			}
+		}()
+	}
+	_, lockErr := s.SSHClient.ExecuteCommand(sandboxDirectiveLockRequested)
+	close(lockDone)
+	if lockErr != nil {
 		return nil, errors.Wrap(lockErr, "failed to acquire sandbox lock")
 	}
 	defer func() {
@@ -689,7 +707,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				if _, endErr := s.SSHClient.ExecuteCommand("__rwx_sandbox_end__"); endErr != nil {
 					fmt.Fprintf(s.Stderr, "Warning: failed to stop sandbox: %v\n", endErr)
 				}
-				if lockFile, lockErr := LockSandboxStorage(); lockErr == nil {
+				if lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json); lockErr == nil {
 					if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
 						storage.DeleteSessionByRunID(runID)
 						if saveErr := storage.Save(); saveErr != nil {
@@ -758,7 +776,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Update session exec count and last exec time
 	execNow := time.Now().UTC()
-	if lockFile, lockErr := LockSandboxStorage(); lockErr == nil {
+	if lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json); lockErr == nil {
 		if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
 			if session, ok := storage.GetSession(cwd, branch, configFile); ok {
 				session.LastExecAt = &execNow
@@ -784,7 +802,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 }
 
 func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, error) {
-	lockFile, lockErr := LockSandboxStorage()
+	lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json)
 	if lockErr != nil {
 		return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
 	}
@@ -915,7 +933,7 @@ func (s Service) printSandboxList(sandboxes []SandboxInfo) {
 }
 
 func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) {
-	lockFile, lockErr := LockSandboxStorage()
+	lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json)
 	if lockErr != nil {
 		return nil, errors.Wrap(lockErr, "unable to lock sandbox storage")
 	}
@@ -1032,7 +1050,7 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 
 	// Check for existing sandbox with same config file.
 	// Lock around the load+delete+save to cooperate with concurrent writers.
-	lockFile, lockErr := LockSandboxStorage()
+	lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json)
 	if lockErr != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
 	}
@@ -1332,6 +1350,33 @@ func (s Service) sandboxRunURL(session *SandboxSession) string {
 		return session.RunURL
 	}
 	return ""
+}
+
+// lockSandboxStorageWithInfo acquires the sandbox storage file lock, showing
+// a spinner to the user when another process already holds it.
+func (s Service) lockSandboxStorageWithInfo(jsonMode bool) (*SandboxStorageLock, error) {
+	lock, err := TryLockSandboxStorage()
+	if err == nil {
+		return lock, nil
+	}
+
+	// Lock is contended — show info while we wait for it
+	var stopSpinner func()
+	if !jsonMode {
+		stopSpinner = Spin("Waiting for another sandbox operation to complete...", s.StderrIsTTY, s.Stderr)
+	}
+
+	lock, err = LockSandboxStorage()
+
+	if stopSpinner != nil {
+		stopSpinner()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return lock, nil
 }
 
 // Helper methods
