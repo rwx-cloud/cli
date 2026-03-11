@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
@@ -47,6 +49,82 @@ func TestService_ListSandboxes(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Sandboxes)
+	})
+}
+
+func TestService_LockWaitOutput(t *testing.T) {
+	t.Run("no output when lock is uncontended", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
+		_, err := setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: false})
+		require.NoError(t, err)
+		require.Empty(t, setup.mockStderr.String(), "expected no stderr output when lock is uncontended")
+	})
+
+	t.Run("shows waiting message when lock is contended", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
+		// Hold the lock to force contention
+		lock, err := cli.LockSandboxStorage()
+		require.NoError(t, err)
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_, _ = setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: false})
+		}()
+
+		// Wait for the spinner message to appear, with a timeout
+		deadline := time.After(5 * time.Second)
+		for {
+			if strings.Contains(setup.mockStderr.String(), "Waiting for another sandbox operation") {
+				break
+			}
+			select {
+			case <-deadline:
+				t.Fatal("timed out waiting for spinner message to appear on stderr")
+			default:
+				runtime.Gosched()
+			}
+		}
+
+		cli.UnlockSandboxStorage(lock)
+		<-done
+
+		require.Contains(t, setup.mockStderr.String(), "Waiting for another sandbox operation to complete...")
+	})
+
+	t.Run("suppresses waiting message in json mode", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+
+		// Hold the lock to force contention
+		lock, err := cli.LockSandboxStorage()
+		require.NoError(t, err)
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_, _ = setup.service.ListSandboxes(cli.ListSandboxesConfig{Json: true})
+		}()
+
+		// Let the goroutine reach the blocking Lock() call, then release
+		time.Sleep(100 * time.Millisecond)
+		cli.UnlockSandboxStorage(lock)
+		<-done
+
+		require.Empty(t, setup.mockStderr.String(), "expected no stderr output in json mode")
 	})
 }
 
