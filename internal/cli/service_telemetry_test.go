@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"archive/tar"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,6 +22,22 @@ type mockAccessTokenBackend struct{}
 
 func (m *mockAccessTokenBackend) Get() (string, error)   { return "", nil }
 func (m *mockAccessTokenBackend) Set(token string) error { return nil }
+
+// createTarBytes creates a minimal tar archive containing a single file.
+func createTarBytes(t *testing.T, name, content string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: name,
+		Size: int64(len(content)),
+		Mode: 0644,
+	}))
+	_, err := tw.Write([]byte(content))
+	require.NoError(t, err)
+	require.NoError(t, tw.Close())
+	return buf.Bytes()
+}
 
 func TestTelemetry_Login(t *testing.T) {
 	t.Run("records auth.login on success", func(t *testing.T) {
@@ -207,6 +225,78 @@ func TestTelemetry_ImagePull(t *testing.T) {
 		require.NotNil(t, pullEvent)
 		require.Equal(t, true, pullEvent.Props["success"])
 		require.Contains(t, pullEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_ArtifactDownload(t *testing.T) {
+	t.Run("records artifacts.download for single artifact", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetArtifactDownloadRequest = func(taskID, artifactKey string) (api.ArtifactDownloadRequestResult, error) {
+			return api.ArtifactDownloadRequestResult{
+				Key:         "test-artifact",
+				Kind:        "file",
+				SizeInBytes: 1024,
+				Filename:    "test.tar",
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadArtifact = func(req api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return createTarBytes(t, "test.txt", "hello world"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "output")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadArtifact(cli.DownloadArtifactConfig{
+			TaskID:      "task-1",
+			ArtifactKey: "test-artifact",
+			OutputDir:   outputDir,
+			Json:        true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "artifacts.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, 1, dlEvent.Props["count"])
+		require.Equal(t, int64(1024), dlEvent.Props["total_bytes"])
+		require.Equal(t, false, dlEvent.Props["auto_extract"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
+	})
+
+	t.Run("records artifacts.download for all artifacts", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetAllArtifactDownloadRequests = func(taskID string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{Key: "art-1", Kind: "file", SizeInBytes: 512, Filename: "a.tar"},
+				{Key: "art-2", Kind: "file", SizeInBytes: 256, Filename: "b.tar"},
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadArtifact = func(req api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return createTarBytes(t, "file.txt", "data"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "output-all")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-2",
+			OutputDir: outputDir,
+			Json:      true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "artifacts.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, 2, dlEvent.Props["count"])
+		require.Equal(t, int64(768), dlEvent.Props["total_bytes"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
 	})
 }
 
