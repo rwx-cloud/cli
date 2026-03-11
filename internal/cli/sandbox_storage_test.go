@@ -531,6 +531,158 @@ func TestHashConfigFile(t *testing.T) {
 	})
 }
 
+// mockAncestryChecker implements cli.AncestryChecker for testing.
+type mockAncestryChecker struct {
+	ancestors map[string]bool // key: "candidate->head"
+}
+
+func (m *mockAncestryChecker) IsAncestor(candidateSHA, headRef string) bool {
+	return m.ancestors[candidateSHA+"->"+headRef]
+}
+
+func TestGetSessionByAncestry(t *testing.T) {
+	t.Run("returns nil when branch is not detached", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		session, found := storage.GetSessionByAncestry("/project", "main", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+
+	t.Run("returns nil when branch is bare detached without SHA", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		session, found := storage.GetSessionByAncestry("/project", "detached", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+
+	t.Run("finds session when stored SHA is ancestor of HEAD", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1", ConfigFile: "config.yml"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.True(t, found)
+		require.Equal(t, "run-1", session.RunID)
+
+		// Verify key was updated
+		_, oldFound := storage.GetSession("/project", "detached@abc1234", "config.yml")
+		require.False(t, oldFound)
+		newSession, newFound := storage.GetSession("/project", "detached@def5678", "config.yml")
+		require.True(t, newFound)
+		require.Equal(t, "run-1", newSession.RunID)
+	})
+
+	t.Run("does not match when stored SHA is not an ancestor", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+
+		// Verify original key is untouched
+		_, stillThere := storage.GetSession("/project", "detached@abc1234", "config.yml")
+		require.True(t, stillThere)
+	})
+
+	t.Run("does not match sessions with different cwd", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/other-project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+
+	t.Run("does not match sessions with different config file", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "other.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+
+	t.Run("does not match sessions stored under a named branch", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "main", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+
+	t.Run("does not match bare detached stored sessions", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
+		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		require.False(t, found)
+		require.Nil(t, session)
+	})
+}
+
+func TestGetSessionsForCwdBranchByAncestry(t *testing.T) {
+	t.Run("returns nil when branch is not detached", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "main", checker)
+		require.Nil(t, sessions)
+	})
+
+	t.Run("returns matching sessions across multiple configs", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config1.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("/project", "detached@abc1234", "config2.yml", cli.SandboxSession{RunID: "run-2"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		require.Len(t, sessions, 2)
+
+		runIDs := []string{sessions[0].RunID, sessions[1].RunID}
+		require.ElementsMatch(t, []string{"run-1", "run-2"}, runIDs)
+
+		// Verify keys were updated
+		_, oldFound := storage.GetSession("/project", "detached@abc1234", "config1.yml")
+		require.False(t, oldFound)
+		_, newFound := storage.GetSession("/project", "detached@def5678", "config1.yml")
+		require.True(t, newFound)
+	})
+
+	t.Run("does not return non-ancestor detached sessions", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("/project", "detached@unrelated", "config.yml", cli.SandboxSession{RunID: "run-2"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
+		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		require.Len(t, sessions, 1)
+		require.Equal(t, "run-1", sessions[0].RunID)
+	})
+
+	t.Run("returns empty when no matches", func(t *testing.T) {
+		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
+		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+
+		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
+		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		require.Empty(t, sessions)
+	})
+}
+
 func TestGetSessionsForCwdBranch_DetachedSHA(t *testing.T) {
 	t.Run("different detached SHAs get separate sessions", func(t *testing.T) {
 		storage := &cli.SandboxStorage{
