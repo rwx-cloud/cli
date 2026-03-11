@@ -26,6 +26,11 @@ func main() {
 		return
 	}
 
+	var exitErr *cli.ExitCodeError
+	if errors.As(err, &exitErr) {
+		os.Exit(exitErr.Code)
+	}
+
 	if !errors.Is(err, HandledError) {
 		if Debug {
 			// Enabling debug output will print stacktraces

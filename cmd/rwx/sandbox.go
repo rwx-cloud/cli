@@ -225,7 +225,9 @@ CONFIG FILE
 			}
 		}
 
-		os.Exit(result.ExitCode)
+		if result.ExitCode != 0 {
+			return &cli.ExitCodeError{Code: result.ExitCode}
+		}
 		return nil
 	},
 }

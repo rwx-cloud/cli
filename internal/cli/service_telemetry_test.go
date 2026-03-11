@@ -724,6 +724,57 @@ func TestTelemetry_SandboxExec(t *testing.T) {
 	})
 }
 
+func TestTelemetry_SandboxExecNonZeroExitCode(t *testing.T) {
+	t.Run("records sandbox.exec even with non-zero exit code", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        "192.168.1.1:22",
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			if cmd == "false" {
+				return 1, nil
+			}
+			return 0, nil
+		}
+		setup.mockSSH.MockExecuteCommandWithOutput = func(command string) (int, string, error) {
+			return 0, "", nil
+		}
+		setup.mockSSH.MockExecuteCommandWithStdinAndCombinedOutput = func(command string, stdin io.Reader) (int, string, error) {
+			return 0, "", nil
+		}
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return []byte("mock patch"), nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"false"},
+			RunID:      "run-exec-fail",
+			Json:       true,
+			Sync:       true,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 1, result.ExitCode)
+
+		events := setup.drainEvents()
+
+		execEvent := findEvent(events, "sandbox.exec")
+		require.NotNil(t, execEvent, "sandbox.exec telemetry must be recorded even for non-zero exit codes")
+		require.Equal(t, 1, execEvent.Props["exit_code"])
+	})
+}
+
 func TestTelemetry_SandboxSyncPush(t *testing.T) {
 	t.Run("records sandbox.sync_push with patch bytes", func(t *testing.T) {
 		setup := setupTest(t)
