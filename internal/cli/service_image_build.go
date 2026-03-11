@@ -44,7 +44,15 @@ type ImageBuildResult struct {
 	Push     *ImagePushResult `json:",omitempty"`
 }
 
-func (s Service) ImageBuild(config ImageBuildConfig) (*ImageBuildResult, error) {
+func (s Service) ImageBuild(config ImageBuildConfig) (buildResult *ImageBuildResult, buildErr error) {
+	start := time.Now()
+	defer func() {
+		s.recordTelemetry("image.build", map[string]any{
+			"duration_ms": time.Since(start).Milliseconds(),
+			"success":     buildErr == nil,
+		})
+	}()
+
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}

@@ -24,7 +24,15 @@ func (c LoginConfig) Validate() error {
 	return nil
 }
 
-func (s Service) Login(cfg LoginConfig) error {
+func (s Service) Login(cfg LoginConfig) (loginErr error) {
+	start := time.Now()
+	defer func() {
+		s.recordTelemetry("auth.login", map[string]any{
+			"success":     loginErr == nil,
+			"duration_ms": time.Since(start).Milliseconds(),
+		})
+	}()
+
 	err := cfg.Validate()
 	if err != nil {
 		return errors.Wrap(err, "validation failed")

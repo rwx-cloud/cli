@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/skratchdot/open-golang/open"
 
@@ -45,7 +46,18 @@ type DownloadArtifactResult struct {
 	OutputFiles []string
 }
 
-func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifactResult, error) {
+func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (_ *DownloadArtifactResult, dlErr error) {
+	start := time.Now()
+	var totalBytes int64
+	defer func() {
+		s.recordTelemetry("artifacts.download", map[string]any{
+			"count":        1,
+			"total_bytes":  totalBytes,
+			"duration_ms":  time.Since(start).Milliseconds(),
+			"auto_extract": cfg.AutoExtract,
+		})
+	}()
+
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
@@ -58,6 +70,8 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (*DownloadArtifact
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download request")
 	}
+
+	totalBytes = artifactDownloadRequest.SizeInBytes
 
 	stopSpinner := Spin(
 		"Downloading artifact...",
@@ -292,7 +306,19 @@ type DownloadAllArtifactsResult struct {
 	OutputFiles []string
 }
 
-func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (*DownloadAllArtifactsResult, error) {
+func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (_ *DownloadAllArtifactsResult, dlErr error) {
+	start := time.Now()
+	var artifactCount int
+	var totalBytes int64
+	defer func() {
+		s.recordTelemetry("artifacts.download", map[string]any{
+			"count":        artifactCount,
+			"total_bytes":  totalBytes,
+			"duration_ms":  time.Since(start).Milliseconds(),
+			"auto_extract": cfg.AutoExtract,
+		})
+	}()
+
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
@@ -304,6 +330,11 @@ func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (*Download
 			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download requests")
+	}
+
+	artifactCount = len(artifactDownloadRequests)
+	for _, req := range artifactDownloadRequests {
+		totalBytes += req.SizeInBytes
 	}
 
 	if len(artifactDownloadRequests) == 0 {

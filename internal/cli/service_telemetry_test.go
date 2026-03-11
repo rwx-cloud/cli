@@ -1,11 +1,15 @@
 package cli_test
 
 import (
+	"archive/tar"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	cliTypes "github.com/docker/cli/cli/config/types"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
@@ -13,6 +17,416 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )
+
+type mockAccessTokenBackend struct{}
+
+func (m *mockAccessTokenBackend) Get() (string, error)   { return "", nil }
+func (m *mockAccessTokenBackend) Set(token string) error { return nil }
+
+// createTarBytes creates a minimal tar archive containing a single file.
+func createTarBytes(t *testing.T, name, content string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: name,
+		Size: int64(len(content)),
+		Mode: 0644,
+	}))
+	_, err := tw.Write([]byte(content))
+	require.NoError(t, err)
+	require.NoError(t, tw.Close())
+	return buf.Bytes()
+}
+
+func TestTelemetry_Login(t *testing.T) {
+	t.Run("records auth.login on success", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockObtainAuthCode = func(cfg api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
+			return &api.ObtainAuthCodeResult{
+				AuthorizationUrl: "https://cloud.rwx.com/authorize",
+				TokenUrl:         "https://cloud.rwx.com/token",
+			}, nil
+		}
+
+		setup.mockAPI.MockAcquireToken = func(tokenUrl string) (*api.AcquireTokenResult, error) {
+			return &api.AcquireTokenResult{
+				State: "authorized",
+				Token: "test-token",
+			}, nil
+		}
+
+		backend := &mockAccessTokenBackend{}
+
+		err := setup.service.Login(cli.LoginConfig{
+			DeviceName:         "test-device",
+			AccessTokenBackend: backend,
+			OpenUrl:            func(url string) error { return nil },
+			PollInterval:       1 * time.Millisecond,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		loginEvent := findEvent(events, "auth.login")
+		require.NotNil(t, loginEvent)
+		require.Equal(t, true, loginEvent.Props["success"])
+		require.Contains(t, loginEvent.Props, "duration_ms")
+	})
+
+	t.Run("records auth.login on failure", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockObtainAuthCode = func(cfg api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
+			return &api.ObtainAuthCodeResult{
+				AuthorizationUrl: "https://cloud.rwx.com/authorize",
+				TokenUrl:         "https://cloud.rwx.com/token",
+			}, nil
+		}
+
+		setup.mockAPI.MockAcquireToken = func(tokenUrl string) (*api.AcquireTokenResult, error) {
+			return &api.AcquireTokenResult{
+				State: "expired",
+			}, nil
+		}
+
+		backend := &mockAccessTokenBackend{}
+
+		err := setup.service.Login(cli.LoginConfig{
+			DeviceName:         "test-device",
+			AccessTokenBackend: backend,
+			OpenUrl:            func(url string) error { return nil },
+			PollInterval:       1 * time.Millisecond,
+		})
+
+		require.Error(t, err)
+
+		events := setup.drainEvents()
+		loginEvent := findEvent(events, "auth.login")
+		require.NotNil(t, loginEvent)
+		require.Equal(t, false, loginEvent.Props["success"])
+	})
+}
+
+func TestTelemetry_ImagePush(t *testing.T) {
+	t.Run("records image.push", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockDocker.GetAuthConfigFunc = func(registry string) (cliTypes.AuthConfig, error) {
+			return cliTypes.AuthConfig{Username: "user", Password: "pass"}, nil
+		}
+
+		setup.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Polling: api.PollingResult{Completed: true},
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+			}, nil
+		}
+
+		setup.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			return api.StartImagePushResult{PushID: "push-1", RunURL: "https://cloud.rwx.com/runs/1"}, nil
+		}
+
+		config, err := cli.NewImagePushConfig("task-123", []string{"docker.io/test/repo:latest"}, "zstd", true, false, func(url string) error { return nil })
+		require.NoError(t, err)
+
+		_, err = setup.service.ImagePush(config)
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		pushEvent := findEvent(events, "image.push")
+		require.NotNil(t, pushEvent)
+		require.Equal(t, "zstd", pushEvent.Props["compression"])
+		require.Equal(t, true, pushEvent.Props["success"])
+		require.Contains(t, pushEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_ImageBuild(t *testing.T) {
+	t.Run("records image.build", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "https://github.com/test/repo"
+		setup.mockGit.MockGeneratePatchFile = git.PatchFile{}
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "build.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: build-task\n"), 0o644))
+
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{RunID: "run-build-1", RunURL: "https://cloud.rwx.com/runs/1"}, nil
+		}
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{}, nil
+		}
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{}, nil
+		}
+
+		setup.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				TaskID:  "task-built-1",
+				Polling: api.PollingResult{Completed: true},
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+			}, nil
+		}
+
+		setup.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{OrganizationSlug: "test-org"}, nil
+		}
+
+		setup.mockDocker.RegistryValue = "registry.rwx.com"
+		setup.mockDocker.PasswordValue = "docker-pass"
+
+		_, err := setup.service.ImageBuild(cli.ImageBuildConfig{
+			MintFilePath:  ".rwx/build.yml",
+			TargetTaskKey: "build-task",
+			NoPull:        true,
+			Timeout:       10 * time.Second,
+			OpenURL:       func(url string) error { return nil },
+			OutputJSON:    true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		buildEvent := findEvent(events, "image.build")
+		require.NotNil(t, buildEvent)
+		require.Equal(t, true, buildEvent.Props["success"])
+		require.Contains(t, buildEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_ImagePull(t *testing.T) {
+	t.Run("records image.pull", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{OrganizationSlug: "test-org"}, nil
+		}
+
+		setup.mockDocker.RegistryValue = "registry.rwx.com"
+		setup.mockDocker.PasswordValue = "docker-pass"
+
+		_, err := setup.service.ImagePull(cli.ImagePullConfig{
+			TaskID:     "task-pull-1",
+			Timeout:    10 * time.Second,
+			OutputJSON: true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		pullEvent := findEvent(events, "image.pull")
+		require.NotNil(t, pullEvent)
+		require.Equal(t, true, pullEvent.Props["success"])
+		require.Contains(t, pullEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_ArtifactDownload(t *testing.T) {
+	t.Run("records artifacts.download for single artifact", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetArtifactDownloadRequest = func(taskID, artifactKey string) (api.ArtifactDownloadRequestResult, error) {
+			return api.ArtifactDownloadRequestResult{
+				Key:         "test-artifact",
+				Kind:        "file",
+				SizeInBytes: 1024,
+				Filename:    "test.tar",
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadArtifact = func(req api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return createTarBytes(t, "test.txt", "hello world"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "output")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadArtifact(cli.DownloadArtifactConfig{
+			TaskID:      "task-1",
+			ArtifactKey: "test-artifact",
+			OutputDir:   outputDir,
+			Json:        true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "artifacts.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, 1, dlEvent.Props["count"])
+		require.Equal(t, int64(1024), dlEvent.Props["total_bytes"])
+		require.Equal(t, false, dlEvent.Props["auto_extract"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
+	})
+
+	t.Run("records artifacts.download for all artifacts", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetAllArtifactDownloadRequests = func(taskID string) ([]api.ArtifactDownloadRequestResult, error) {
+			return []api.ArtifactDownloadRequestResult{
+				{Key: "art-1", Kind: "file", SizeInBytes: 512, Filename: "a.tar"},
+				{Key: "art-2", Kind: "file", SizeInBytes: 256, Filename: "b.tar"},
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadArtifact = func(req api.ArtifactDownloadRequestResult) ([]byte, error) {
+			return createTarBytes(t, "file.txt", "data"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "output-all")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadAllArtifacts(cli.DownloadAllArtifactsConfig{
+			TaskID:    "task-2",
+			OutputDir: outputDir,
+			Json:      true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "artifacts.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, 2, dlEvent.Props["count"])
+		require.Equal(t, int64(768), dlEvent.Props["total_bytes"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_LogsDownload(t *testing.T) {
+	t.Run("records logs.download", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetLogDownloadRequest = func(taskID string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{
+				Filename: "logs.txt",
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadLogs = func(req api.LogDownloadRequestResult) ([]byte, error) {
+			return []byte("log content"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "logs-output")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:      "task-logs-1",
+			OutputDir:   outputDir,
+			Json:        true,
+			AutoExtract: true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "logs.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, true, dlEvent.Props["auto_extract"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
+	})
+}
+
+func TestTelemetry_PackagesResolve(t *testing.T) {
+	t.Run("records packages.resolve", func(t *testing.T) {
+		setup := setupTest(t)
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "run.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n    call: my-org/my-pkg\n"), 0o644))
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: map[string]string{"my-org/my-pkg": "1.0.0"},
+				LatestMinor: map[string]map[string]string{},
+				Renames:     map[string]string{},
+			}, nil
+		}
+
+		result, err := setup.service.ResolvePackages(cli.ResolvePackagesConfig{
+			RwxDirectory:        filepath.Join(setup.tmp, ".rwx"),
+			LatestVersionPicker: cli.PickLatestMajorVersion,
+			Json:                true,
+		})
+
+		require.NoError(t, err)
+		require.NotEmpty(t, result.ResolvedPackages)
+
+		events := setup.drainEvents()
+		resolveEvent := findEvent(events, "packages.resolve")
+		require.NotNil(t, resolveEvent)
+		require.Equal(t, len(result.ResolvedPackages), resolveEvent.Props["package_count"])
+	})
+}
+
+func TestTelemetry_PackagesUpdate(t *testing.T) {
+	t.Run("records packages.update", func(t *testing.T) {
+		setup := setupTest(t)
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "run.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n    call: my-org/my-pkg 1.0.0\n"), 0o644))
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: map[string]string{"my-org/my-pkg": "2.0.0"},
+				LatestMinor: map[string]map[string]string{
+					"my-org/my-pkg": {"1": "1.1.0"},
+				},
+				Renames: map[string]string{},
+			}, nil
+		}
+
+		result, err := setup.service.UpdatePackages(cli.UpdatePackagesConfig{
+			RwxDirectory:             filepath.Join(setup.tmp, ".rwx"),
+			ReplacementVersionPicker: cli.PickLatestMinorVersion,
+			Json:                     true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		updateEvent := findEvent(events, "packages.update")
+		require.NotNil(t, updateEvent)
+		require.Equal(t, len(result.UpdatedPackages), updateEvent.Props["package_count"])
+	})
+}
+
+func TestTelemetry_Lint(t *testing.T) {
+	t.Run("records lint.run", func(t *testing.T) {
+		setup := setupTest(t)
+
+		result, err := setup.service.Lint(cli.LintConfig{
+			Check: func() (*cli.LintCheckResult, error) {
+				return &cli.LintCheckResult{
+					Diagnostics: []cli.LintDiagnostic{
+						{Severity: "error"},
+						{Severity: "warning"},
+						{Severity: "warning"},
+					},
+					FileCount: 3,
+				}, nil
+			},
+			Fix: true,
+		})
+
+		require.NoError(t, err)
+		require.True(t, result.HasError)
+
+		events := setup.drainEvents()
+		lintEvent := findEvent(events, "lint.run")
+		require.NotNil(t, lintEvent)
+		require.Equal(t, 3, lintEvent.Props["file_count"])
+		require.Equal(t, 1, lintEvent.Props["error_count"])
+		require.Equal(t, 2, lintEvent.Props["warning_count"])
+		require.Equal(t, true, lintEvent.Props["fix"])
+	})
+}
 
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
