@@ -12,6 +12,23 @@ import (
 const DefaultArch = "x86_64"
 
 var HandledError = errors.New("handled error")
+
+// ExitCodeError signals that the process should exit with a specific code.
+// Commands return this instead of calling os.Exit directly so that main()
+// can flush telemetry before exiting.
+type ExitCodeError struct {
+	Code int
+}
+
+func (e *ExitCodeError) Error() string {
+	return fmt.Sprintf("exit code %d", e.Code)
+}
+
+func (e *ExitCodeError) Is(target error) bool {
+	_, ok := target.(*ExitCodeError)
+	return ok
+}
+
 var hasOutputVersionMessage atomic.Bool
 
 // Service holds the main business logic of the CLI.
