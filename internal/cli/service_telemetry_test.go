@@ -14,6 +14,81 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type mockAccessTokenBackend struct{}
+
+func (m *mockAccessTokenBackend) Get() (string, error)   { return "", nil }
+func (m *mockAccessTokenBackend) Set(token string) error { return nil }
+
+func TestTelemetry_Login(t *testing.T) {
+	t.Run("records auth.login on success", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockObtainAuthCode = func(cfg api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
+			return &api.ObtainAuthCodeResult{
+				AuthorizationUrl: "https://cloud.rwx.com/authorize",
+				TokenUrl:         "https://cloud.rwx.com/token",
+			}, nil
+		}
+
+		setup.mockAPI.MockAcquireToken = func(tokenUrl string) (*api.AcquireTokenResult, error) {
+			return &api.AcquireTokenResult{
+				State: "authorized",
+				Token: "test-token",
+			}, nil
+		}
+
+		backend := &mockAccessTokenBackend{}
+
+		err := setup.service.Login(cli.LoginConfig{
+			DeviceName:         "test-device",
+			AccessTokenBackend: backend,
+			OpenUrl:            func(url string) error { return nil },
+			PollInterval:       1 * time.Millisecond,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		loginEvent := findEvent(events, "auth.login")
+		require.NotNil(t, loginEvent)
+		require.Equal(t, true, loginEvent.Props["success"])
+		require.Contains(t, loginEvent.Props, "duration_ms")
+	})
+
+	t.Run("records auth.login on failure", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockObtainAuthCode = func(cfg api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error) {
+			return &api.ObtainAuthCodeResult{
+				AuthorizationUrl: "https://cloud.rwx.com/authorize",
+				TokenUrl:         "https://cloud.rwx.com/token",
+			}, nil
+		}
+
+		setup.mockAPI.MockAcquireToken = func(tokenUrl string) (*api.AcquireTokenResult, error) {
+			return &api.AcquireTokenResult{
+				State: "expired",
+			}, nil
+		}
+
+		backend := &mockAccessTokenBackend{}
+
+		err := setup.service.Login(cli.LoginConfig{
+			DeviceName:         "test-device",
+			AccessTokenBackend: backend,
+			OpenUrl:            func(url string) error { return nil },
+			PollInterval:       1 * time.Millisecond,
+		})
+
+		require.Error(t, err)
+
+		events := setup.drainEvents()
+		loginEvent := findEvent(events, "auth.login")
+		require.NotNil(t, loginEvent)
+		require.Equal(t, false, loginEvent.Props["success"])
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)
