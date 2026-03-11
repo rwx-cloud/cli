@@ -125,6 +125,64 @@ func TestTelemetry_ImagePush(t *testing.T) {
 	})
 }
 
+func TestTelemetry_ImageBuild(t *testing.T) {
+	t.Run("records image.build", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "https://github.com/test/repo"
+		setup.mockGit.MockGeneratePatchFile = git.PatchFile{}
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "build.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: build-task\n"), 0o644))
+
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{RunID: "run-build-1", RunURL: "https://cloud.rwx.com/runs/1"}, nil
+		}
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{}, nil
+		}
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{}, nil
+		}
+
+		setup.mockAPI.MockTaskKeyStatus = func(cfg api.TaskKeyStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				TaskID:  "task-built-1",
+				Polling: api.PollingResult{Completed: true},
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+			}, nil
+		}
+
+		setup.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{OrganizationSlug: "test-org"}, nil
+		}
+
+		setup.mockDocker.RegistryValue = "registry.rwx.com"
+		setup.mockDocker.PasswordValue = "docker-pass"
+
+		_, err := setup.service.ImageBuild(cli.ImageBuildConfig{
+			MintFilePath:  ".rwx/build.yml",
+			TargetTaskKey: "build-task",
+			NoPull:        true,
+			Timeout:       10 * time.Second,
+			OpenURL:       func(url string) error { return nil },
+			OutputJSON:    true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		buildEvent := findEvent(events, "image.build")
+		require.NotNil(t, buildEvent)
+		require.Equal(t, true, buildEvent.Props["success"])
+		require.Contains(t, buildEvent.Props, "duration_ms")
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)
