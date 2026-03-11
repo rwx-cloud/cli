@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/rwx-cloud/cli/internal/api"
@@ -1743,6 +1746,219 @@ func TestService_StartSandbox(t *testing.T) {
 		require.Len(t, receivedInitParams, 1)
 		require.Equal(t, "foo", receivedInitParams[0].Key)
 		require.Equal(t, "bar", receivedInitParams[0].Value)
+	})
+}
+
+func TestService_StartSandbox_StorageLock(t *testing.T) {
+	t.Run("uses caller-provided lock and persists session", func(t *testing.T) {
+		setup := setupTest(t)
+
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		require.NoError(t, os.MkdirAll(rwxDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte("tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"), 0o644))
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{Image: "ubuntu:24.04", Config: "rwx/base 1.0.0", Arch: "x86_64"}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return &api.InitiateRunResult{
+				RunID:  "run-lock-test",
+				RunURL: "https://cloud.rwx.com/mint/runs/run-lock-test",
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+
+		// Pre-acquire the lock and pass it to StartSandbox
+		lock, err := cli.LockSandboxStorage()
+		require.NoError(t, err)
+
+		result, err := setup.service.StartSandbox(cli.StartSandboxConfigWithLock(cli.StartSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Json:       true,
+		}, lock))
+
+		require.NoError(t, err)
+		require.Equal(t, "run-lock-test", result.RunID)
+
+		// Verify session was persisted
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.NotEmpty(t, storage.Sandboxes, "expected at least one session in storage")
+		cwd, cwdErr := os.Getwd()
+		require.NoError(t, cwdErr)
+		// The temp dir is not a git repo, so the branch resolves to "detached"
+		session, found := storage.GetSession(cwd, "detached", ".rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-lock-test", session.RunID)
+
+		// Verify lock was released (we can acquire it again)
+		newLock, err := cli.TryLockSandboxStorage()
+		require.NoError(t, err)
+		cli.UnlockSandboxStorage(newLock)
+	})
+
+	t.Run("releases caller-provided lock on InitiateRun failure", func(t *testing.T) {
+		setup := setupTest(t)
+
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		require.NoError(t, os.MkdirAll(rwxDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte("tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"), 0o644))
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{Image: "ubuntu:24.04", Config: "rwx/base 1.0.0", Arch: "x86_64"}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			return nil, fmt.Errorf("API error")
+		}
+
+		lock, err := cli.LockSandboxStorage()
+		require.NoError(t, err)
+
+		_, err = setup.service.StartSandbox(cli.StartSandboxConfigWithLock(cli.StartSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Json:       true,
+		}, lock))
+
+		require.Error(t, err)
+
+		// Verify lock was released despite the error
+		newLock, err := cli.TryLockSandboxStorage()
+		require.NoError(t, err)
+		cli.UnlockSandboxStorage(newLock)
+	})
+}
+
+func TestService_ExecSandbox_ConcurrentAutoCreate(t *testing.T) {
+	t.Run("concurrent exec calls create only one sandbox", func(t *testing.T) {
+		setup := setupTest(t)
+
+		rwxDir := filepath.Join(setup.tmp, ".rwx")
+		require.NoError(t, os.MkdirAll(rwxDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(rwxDir, "sandbox.yml"), []byte("tasks:\n  - key: sandbox\n    run: rwx-sandbox\n"), 0o644))
+
+		address := "192.168.1.1:22"
+
+		setup.mockGit.MockGetBranch = "main"
+		setup.mockGit.MockGetCommit = "abc123"
+		setup.mockGit.MockGetOriginUrl = "git@github.com:example/repo.git"
+
+		setup.mockAPI.MockGetDefaultBase = func() (api.DefaultBaseResult, error) {
+			return api.DefaultBaseResult{Image: "ubuntu:24.04", Config: "rwx/base 1.0.0", Arch: "x86_64"}, nil
+		}
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: make(map[string]string),
+				LatestMinor: make(map[string]map[string]string),
+			}, nil
+		}
+
+		var initiateRunCount int32
+		setup.mockAPI.MockInitiateRun = func(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
+			newCount := atomic.AddInt32(&initiateRunCount, 1)
+			runID := fmt.Sprintf("run-%d", newCount)
+			return &api.InitiateRunResult{
+				RunID:  runID,
+				RunURL: fmt.Sprintf("https://cloud.rwx.com/mint/runs/%s", runID),
+			}, nil
+		}
+		setup.mockAPI.MockCreateSandboxToken = func(cfg api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error) {
+			return &api.CreateSandboxTokenResult{Token: "test-token"}, nil
+		}
+		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
+			return &api.ListSandboxRunsResult{Runs: []api.SandboxRunSummary{}}, nil
+		}
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		// Create a second service that shares the same mock API and filesystem
+		// but has its own stdout/stderr buffers.
+		stdout2 := &strings.Builder{}
+		stderr2 := &strings.Builder{}
+		service2, err := cli.NewService(cli.Config{
+			APIClient:   setup.mockAPI,
+			SSHClient:   setup.mockSSH,
+			GitClient:   setup.mockGit,
+			DockerCLI:   setup.mockDocker,
+			Stdin:       &bytes.Buffer{},
+			Stdout:      stdout2,
+			StdoutIsTTY: false,
+			Stderr:      stderr2,
+			StderrIsTTY: false,
+		})
+		require.NoError(t, err)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		var result1 *cli.ExecSandboxResult
+		var err1 error
+		go func() {
+			defer wg.Done()
+			result1, err1 = setup.service.ExecSandbox(cli.ExecSandboxConfig{
+				Command: []string{"echo", "hello"},
+				Json:    true,
+			})
+		}()
+
+		var result2 *cli.ExecSandboxResult
+		var err2 error
+		go func() {
+			defer wg.Done()
+			result2, err2 = service2.ExecSandbox(cli.ExecSandboxConfig{
+				Command: []string{"echo", "world"},
+				Json:    true,
+			})
+		}()
+
+		wg.Wait()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+
+		// Both should use the same run — only one InitiateRun call should have happened.
+		finalCount := atomic.LoadInt32(&initiateRunCount)
+		require.Equal(t, int32(1), finalCount, "only one sandbox should have been created, but got %d", finalCount)
+		require.Equal(t, result1.RunID, result2.RunID, "both exec calls should use the same sandbox")
 	})
 }
 

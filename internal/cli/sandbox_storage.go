@@ -123,6 +123,31 @@ func LockSandboxStorage() (*SandboxStorageLock, error) {
 	return lock, nil
 }
 
+// TryLockSandboxStorage attempts to acquire the lock without blocking.
+// Returns an error if the lock is already held by another process.
+func TryLockSandboxStorage() (*SandboxStorageLock, error) {
+	storagePath, err := sandboxStoragePath()
+	if err != nil {
+		return nil, err
+	}
+
+	lockPath := storagePath + ".lock"
+	if err := os.MkdirAll(filepath.Dir(lockPath), os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	lock := &SandboxStorageLock{flock: flock.New(lockPath)}
+	locked, err := lock.flock.TryLock()
+	if err != nil {
+		return nil, err
+	}
+	if !locked {
+		return nil, fmt.Errorf("sandbox storage is locked")
+	}
+
+	return lock, nil
+}
+
 func UnlockSandboxStorage(lock *SandboxStorageLock) {
 	if lock == nil {
 		return

@@ -29,6 +29,17 @@ type StartSandboxConfig struct {
 	Json           bool
 	Wait           bool
 	InitParameters map[string]string
+	// storageLock is an already-held storage lock passed by the caller
+	// (e.g. ExecSandbox) to keep the "check-then-create" atomic.
+	// StartSandbox will release it after persisting the initial session.
+	storageLock *SandboxStorageLock
+}
+
+// StartSandboxConfigWithLock returns a copy of cfg with the storage lock set.
+// This is exported for testing; production callers set storageLock directly.
+func StartSandboxConfigWithLock(cfg StartSandboxConfig, lock *SandboxStorageLock) StartSandboxConfig {
+	cfg.storageLock = lock
+	return cfg
 }
 
 type ExecSandboxConfig struct {
@@ -188,6 +199,10 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// If --id is provided, check if run is still active and reattach
 	if cfg.RunID != "" {
+		// Release caller-provided lock since the --id path manages its own locking
+		if cfg.storageLock != nil {
+			UnlockSandboxStorage(cfg.storageLock)
+		}
 		// Check if we have an existing session with a scoped token
 		var existingScopedToken string
 		storage, err := LoadSandboxStorage()
@@ -290,6 +305,9 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		if finishSpinner != nil {
 			finishSpinner("Failed to start sandbox")
 		}
+		if cfg.storageLock != nil {
+			UnlockSandboxStorage(cfg.storageLock)
+		}
 		return nil, err
 	}
 
@@ -299,9 +317,14 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Persist session immediately so sandbox list can find this run even if the
 	// process crashes before we finish setup (e.g. during scoped token creation).
-	lockFile, lockErr := LockSandboxStorage()
-	if lockErr != nil {
-		fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
+	// Use the caller-provided lock if available to keep check-then-create atomic.
+	lockFile := cfg.storageLock
+	if lockFile == nil {
+		var lockErr error
+		lockFile, lockErr = LockSandboxStorage()
+		if lockErr != nil {
+			fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
+		}
 	}
 
 	storage, err := LoadSandboxStorage()
@@ -334,6 +357,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 
 	// Update session with scoped token now that we have it
 	if storage != nil {
+		var lockErr error
 		lockFile, lockErr = LockSandboxStorage()
 		if lockErr != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to lock sandbox storage: %v\n", lockErr)
@@ -541,14 +565,15 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		}
 
 		if !found {
-			// Release before StartSandbox which acquires its own lock
-			UnlockSandboxStorage(lockFile)
-
+			// Pass the lock to StartSandbox so the "no session found → create
+			// new sandbox → persist session" sequence is atomic. StartSandbox
+			// will release it after the initial session is saved.
 			startResult, err := s.StartSandbox(StartSandboxConfig{
 				ConfigFile:     cfgFile,
 				RwxDirectory:   cfg.RwxDirectory,
 				Json:           cfg.Json,
 				InitParameters: cfg.InitParameters,
+				storageLock:    lockFile,
 			})
 			if err != nil {
 				return nil, err
@@ -915,16 +940,15 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 		}
 	}
 
-	// Release before StartSandbox which acquires its own lock
-	UnlockSandboxStorage(lockFile)
-
-	// Start new sandbox
+	// Pass the lock to StartSandbox so no concurrent process can slip in
+	// between the old session removal and the new session creation.
 	startResult, err := s.StartSandbox(StartSandboxConfig{
 		ConfigFile:     cfg.ConfigFile,
 		RwxDirectory:   cfg.RwxDirectory,
 		Json:           cfg.Json,
 		Wait:           cfg.Wait,
 		InitParameters: cfg.InitParameters,
+		storageLock:    lockFile,
 	})
 	if err != nil {
 		return nil, err
