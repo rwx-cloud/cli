@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/spf13/cobra"
 )
 

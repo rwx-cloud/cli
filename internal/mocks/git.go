@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/rwx-cloud/cli/internal/git"
+	"github.com/rwx-cloud/rwx/internal/git"
 )
 
 type Git struct {

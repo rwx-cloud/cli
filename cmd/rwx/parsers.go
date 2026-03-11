@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
 // ParseInitParameters converts a list of `key=value` pairs to a map. It also reads any `MINT_INIT_` variables from the

@@ -1,4 +1,4 @@
-module github.com/rwx-cloud/cli
+module github.com/rwx-cloud/rwx
 
 go 1.24.0
 

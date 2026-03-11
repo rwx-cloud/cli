@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rwx-cloud/cli/internal/config"
+	"github.com/rwx-cloud/rwx/internal/config"
 )
 
 const Filename = "docs_token"

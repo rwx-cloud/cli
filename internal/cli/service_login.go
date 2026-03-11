@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rwx-cloud/cli/internal/accesstoken"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/accesstoken"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
 type LoginConfig struct {

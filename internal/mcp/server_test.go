@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/mcp"
-	"github.com/rwx-cloud/cli/internal/mocks"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/mcp"
+	"github.com/rwx-cloud/rwx/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
 

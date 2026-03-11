@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/docker/cli/cli/config/types"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/stretchr/testify/require"
 )
 

@@ -11,7 +11,7 @@ on:
       ref: ${{ event.git.sha }}
 
 concurrency-pools:
-  - id: rwx-cloud/cli:main
+  - id: rwx-cloud/rwx:main
     capacity: 1
     on-overflow: cancel-waiting
 

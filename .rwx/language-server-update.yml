@@ -11,7 +11,7 @@ tasks:
   - key: code
     call: git/clone 2.0.4
     with:
-      repository: https://github.com/rwx-cloud/cli.git
+      repository: https://github.com/rwx-cloud/rwx.git
       ref: main
       github-token: ${{ github['rwx-cloud'].token }}
       preserve-git-dir: true

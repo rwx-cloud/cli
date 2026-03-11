@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/rwx-cloud/cli/internal/accesstoken"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/versions"
+	"github.com/rwx-cloud/rwx/internal/accesstoken"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/versions"
 )
 
 type ServeConfig struct {

@@ -1,6 +1,6 @@
 package accesstoken
 
-import "github.com/rwx-cloud/cli/internal/config"
+import "github.com/rwx-cloud/rwx/internal/config"
 
 const Filename = "accesstoken"
 

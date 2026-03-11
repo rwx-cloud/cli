@@ -3,8 +3,8 @@ package docstoken_test
 import (
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/config"
-	"github.com/rwx-cloud/cli/internal/docstoken"
+	"github.com/rwx-cloud/rwx/internal/config"
+	"github.com/rwx-cloud/rwx/internal/docstoken"
 	"github.com/stretchr/testify/require"
 )
 

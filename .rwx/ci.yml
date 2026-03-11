@@ -10,7 +10,7 @@ on:
       ref: ${{ event.git.sha }}
 
 concurrency-pools:
-  - id: rwx-cloud/cli:ci-${{ init.ref }}
+  - id: rwx-cloud/rwx:ci-${{ init.ref }}
     capacity: 1
     on-overflow: cancel-running
 
@@ -23,7 +23,7 @@ tasks:
     call: git/clone 2.0.4
     with:
       preserve-git-dir: true
-      repository: https://github.com/rwx-cloud/cli.git
+      repository: https://github.com/rwx-cloud/rwx.git
       ref: ${{ init.commit-sha }}
       github-token: ${{ github['rwx-cloud'].token }}
 
@@ -101,7 +101,7 @@ tasks:
       gotestsum \
         --jsonfile tmp/go-test.json \
         -- \
-        -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
+        -ldflags "-w -s -X github.com/rwx-cloud/rwx/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" \
         -parallel 4 \
         ./internal/... ./cmd/... ./test/...
     outputs:
@@ -111,7 +111,7 @@ tasks:
   - key: rwx-cli
     use: [go-deps, lsp-server]
     run: |
-      go build -a -ldflags "-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
+      go build -a -ldflags "-w -s -X github.com/rwx-cloud/rwx/cmd/rwx/config.Version=testing-${{ init.commit-sha }}" ./cmd/rwx
 
   - key: integration-tests
     use: rwx-cli

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/rwx-cloud/cli/internal/lsp"
+	"github.com/rwx-cloud/rwx/internal/lsp"
 	"github.com/spf13/cobra"
 )
 

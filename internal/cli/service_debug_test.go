@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/cli"
-	internalErrors "github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	internalErrors "github.com/rwx-cloud/rwx/internal/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )

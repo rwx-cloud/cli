@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rwx-cloud/cli/internal/api"
+	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/stretchr/testify/require"
 )
 

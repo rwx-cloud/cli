@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/mocks"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +50,7 @@ func TestService_InitiatingRun(t *testing.T) {
 				s.mockGit.MockGetBranch = branch
 				sha := "e86ec9c4802fb5f6c7d7220c5f7356278e7ace5a"
 				s.mockGit.MockGetCommit = sha
-				originUrl := "git@github.com:rwx-cloud/cli.git"
+				originUrl := "git@github.com:rwx-cloud/rwx.git"
 				s.mockGit.MockGetOriginUrl = originUrl
 
 				originalSpecifiedFileContent := "on:\n  cli:\n    init:\n      sha: ${{ event.git.sha }}\n\ntasks:\n  - key: foo\n    run: echo 'bar'\n" + baseSpec
@@ -1012,7 +1012,7 @@ func TestService_InitiatingRun(t *testing.T) {
 
 		s.mockGit.MockGetBranch = "main"
 		s.mockGit.MockGetCommit = "abc123"
-		s.mockGit.MockGetOriginUrl = "git@github.com:rwx-cloud/cli.git"
+		s.mockGit.MockGetOriginUrl = "git@github.com:rwx-cloud/rwx.git"
 
 		originalFileContent := `
 on:

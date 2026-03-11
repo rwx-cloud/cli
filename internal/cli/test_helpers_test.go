@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/mocks"
-	"github.com/rwx-cloud/cli/internal/telemetry"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/mocks"
+	"github.com/rwx-cloud/rwx/internal/telemetry"
 	"github.com/stretchr/testify/require"
 )
 

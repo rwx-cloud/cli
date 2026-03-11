@@ -160,14 +160,14 @@ func (c *Client) GetOriginUrl() string {
 }
 
 // RepoNameFromOriginUrl extracts the repository name from a git remote URL.
-// For example, "git@github.com:rwx-cloud/cli.git" returns "cli".
+// For example, "git@github.com:rwx-cloud/rwx.git" returns "rwx".
 func RepoNameFromOriginUrl(originUrl string) string {
-	// Handle SSH-style URLs (git@github.com:rwx-cloud/cli.git)
+	// Handle SSH-style URLs (git@github.com:rwx-cloud/rwx.git)
 	if idx := strings.LastIndex(originUrl, ":"); idx != -1 && !strings.Contains(originUrl, "://") {
 		originUrl = originUrl[idx+1:]
 	}
 
-	// Handle HTTPS-style URLs (https://github.com/rwx-cloud/cli.git)
+	// Handle HTTPS-style URLs (https://github.com/rwx-cloud/rwx.git)
 	if idx := strings.LastIndex(originUrl, "/"); idx != -1 {
 		originUrl = originUrl[idx+1:]
 	}

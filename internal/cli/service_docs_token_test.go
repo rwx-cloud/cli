@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/accesstoken"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/docstoken"
+	"github.com/rwx-cloud/rwx/internal/accesstoken"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/docstoken"
 	"github.com/stretchr/testify/require"
 )
 

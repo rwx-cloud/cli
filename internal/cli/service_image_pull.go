@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cliTypes "github.com/docker/cli/cli/config/types"
-	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
 type ImagePullConfig struct {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/git"
+	"github.com/rwx-cloud/rwx/internal/git"
 	"github.com/stretchr/testify/require"
 )
 
@@ -543,10 +543,10 @@ func TestRepoNameFromOriginUrl(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"SSH URL", "git@github.com:rwx-cloud/cli.git", "cli"},
-		{"HTTPS URL", "https://github.com/rwx-cloud/cli.git", "cli"},
-		{"SSH URL without .git suffix", "git@github.com:rwx-cloud/cli", "cli"},
-		{"HTTPS URL without .git suffix", "https://github.com/rwx-cloud/cli", "cli"},
+		{"SSH URL", "git@github.com:rwx-cloud/rwx.git", "rwx"},
+		{"HTTPS URL", "https://github.com/rwx-cloud/rwx.git", "rwx"},
+		{"SSH URL without .git suffix", "git@github.com:rwx-cloud/rwx", "rwx"},
+		{"HTTPS URL without .git suffix", "https://github.com/rwx-cloud/rwx", "rwx"},
 		{"empty string", "", ""},
 	}
 

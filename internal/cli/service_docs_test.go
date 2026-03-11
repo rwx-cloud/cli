@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/docs"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/docs"
 	"github.com/stretchr/testify/require"
 )
 

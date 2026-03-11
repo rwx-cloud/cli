@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/fs"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/fs"
 )
 
 type RwxDirectoryEntry = api.RwxDirectoryEntry

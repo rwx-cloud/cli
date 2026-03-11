@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/rwx-cloud/cli/internal/docstoken"
+import "github.com/rwx-cloud/rwx/internal/docstoken"
 
 func (s Service) resolveDocsToken() string {
 	if s.DocsTokenBackend == nil || s.AccessTokenBackend == nil {

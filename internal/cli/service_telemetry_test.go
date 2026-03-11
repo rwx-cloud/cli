@@ -11,9 +11,9 @@ import (
 
 	cliTypes "github.com/docker/cli/cli/config/types"
 
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/cli"
-	"github.com/rwx-cloud/cli/internal/git"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/git"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )

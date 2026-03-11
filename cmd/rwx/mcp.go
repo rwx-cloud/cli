@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rwx-cloud/cli/internal/mcp"
+	"github.com/rwx-cloud/rwx/internal/mcp"
 	"github.com/spf13/cobra"
 )
 

@@ -3,7 +3,7 @@ package main_test
 import (
 	"testing"
 
-	rwx "github.com/rwx-cloud/cli/cmd/rwx"
+	rwx "github.com/rwx-cloud/rwx/cmd/rwx"
 	"github.com/stretchr/testify/require"
 )
 

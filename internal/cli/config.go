@@ -3,13 +3,13 @@ package cli
 import (
 	"io"
 
-	"github.com/rwx-cloud/cli/internal/accesstoken"
-	"github.com/rwx-cloud/cli/internal/docker"
-	"github.com/rwx-cloud/cli/internal/docs"
-	"github.com/rwx-cloud/cli/internal/docstoken"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/telemetry"
-	"github.com/rwx-cloud/cli/internal/versions"
+	"github.com/rwx-cloud/rwx/internal/accesstoken"
+	"github.com/rwx-cloud/rwx/internal/docker"
+	"github.com/rwx-cloud/rwx/internal/docs"
+	"github.com/rwx-cloud/rwx/internal/docstoken"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/telemetry"
+	"github.com/rwx-cloud/rwx/internal/versions"
 )
 
 type Config struct {
