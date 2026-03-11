@@ -66,6 +66,8 @@ var (
 	ErrSandboxNoGitDir = errors.New("no .git directory found in sandbox. Set 'preserve-git-dir: true' on your git/clone task")
 	ErrSSH             = errors.New("ssh error")
 	ErrPatch           = errors.New("patch error")
+	ErrTimeout         = errors.New("timeout")
+	ErrLSP             = errors.New("lsp error")
 
 	// WrapSentinel wraps an error so that errors.Is returns true for the sentinel.
 	WrapSentinel = wrapSentinel

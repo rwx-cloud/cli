@@ -203,12 +203,12 @@ func runCheckProtocol(ctx context.Context, conn *jsonrpcConn, rwxDirectoryPath s
 	}
 	_, err := conn.request(ctx, "initialize", initParams)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "LSP initialize failed")
+		return nil, nil, errors.WrapSentinel(errors.Wrap(err, "LSP initialize failed"), errors.ErrLSP)
 	}
 
 	// initialized
 	if err := conn.notify("initialized", map[string]any{}); err != nil {
-		return nil, nil, errors.Wrap(err, "LSP initialized notification failed")
+		return nil, nil, errors.WrapSentinel(errors.Wrap(err, "LSP initialized notification failed"), errors.ErrLSP)
 	}
 
 	// Open files and pull diagnostics
@@ -238,7 +238,7 @@ func runCheckProtocol(ctx context.Context, conn *jsonrpcConn, rwxDirectoryPath s
 			},
 		}
 		if err := conn.notify("textDocument/didOpen", didOpenParams); err != nil {
-			return nil, nil, errors.Wrapf(err, "didOpen failed for %s", entry.OriginalPath)
+			return nil, nil, errors.WrapSentinel(errors.Wrapf(err, "didOpen failed for %s", entry.OriginalPath), errors.ErrLSP)
 		}
 
 		// textDocument/diagnostic (pull diagnostics)
@@ -249,12 +249,12 @@ func runCheckProtocol(ctx context.Context, conn *jsonrpcConn, rwxDirectoryPath s
 		}
 		result, err := conn.request(ctx, "textDocument/diagnostic", diagParams)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "diagnostic request failed for %s", entry.OriginalPath)
+			return nil, nil, errors.WrapSentinel(errors.Wrapf(err, "diagnostic request failed for %s", entry.OriginalPath), errors.ErrLSP)
 		}
 
 		fileDiags, err := parseDiagnosticResult(result, entry.OriginalPath)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "parsing diagnostics for %s", entry.OriginalPath)
+			return nil, nil, errors.WrapSentinel(errors.Wrapf(err, "parsing diagnostics for %s", entry.OriginalPath), errors.ErrLSP)
 		}
 		allDiagnostics = append(allDiagnostics, fileDiags...)
 
@@ -263,7 +263,7 @@ func runCheckProtocol(ctx context.Context, conn *jsonrpcConn, rwxDirectoryPath s
 			if len(rawItems) > 0 {
 				edits, err := requestCodeActions(ctx, conn, uri, rawItems)
 				if err != nil {
-					return nil, nil, errors.Wrapf(err, "code action request failed for %s", entry.OriginalPath)
+					return nil, nil, errors.WrapSentinel(errors.Wrapf(err, "code action request failed for %s", entry.OriginalPath), errors.ErrLSP)
 				}
 				if len(edits) > 0 {
 					newContent := applyTextEdits(entry.FileContents, edits)

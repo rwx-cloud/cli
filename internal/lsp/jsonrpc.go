@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
 type jsonrpcMessage struct {
@@ -95,13 +97,16 @@ func (c *jsonrpcConn) request(ctx context.Context, method string, params any) (j
 			return nil, fmt.Errorf("connection closed while waiting for response to %s", method)
 		}
 		if resp.Error != nil {
-			return nil, fmt.Errorf("LSP error on %s: %s", method, string(resp.Error))
+			return nil, errors.WrapSentinel(fmt.Errorf("LSP error on %s: %s", method, string(resp.Error)), errors.ErrLSP)
 		}
 		return resp.Result, nil
 	case <-ctx.Done():
 		c.pendingMu.Lock()
 		delete(c.pending, id)
 		c.pendingMu.Unlock()
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, errors.WrapSentinel(fmt.Errorf("timed out waiting for response to %s: %w", method, ctx.Err()), errors.ErrTimeout)
+		}
 		return nil, ctx.Err()
 	}
 }

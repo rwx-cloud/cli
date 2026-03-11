@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rwx-cloud/rwx/internal/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,6 +72,36 @@ func TestJSONRPC_RequestTimeout(t *testing.T) {
 	_, err := conn.request(ctx, "test/timeout", nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, errors.ErrTimeout)
+}
+
+func TestJSONRPC_RequestLSPError(t *testing.T) {
+	clientReader, serverWriter := io.Pipe()
+	serverReader, clientWriter := io.Pipe()
+
+	client := newJSONRPCConn(clientReader, clientWriter)
+	server := newJSONRPCConn(serverReader, serverWriter)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go client.readLoop(ctx)
+
+	// Server responds with a JSON-RPC error
+	go func() {
+		msg, err := server.readMessage()
+		if err != nil {
+			return
+		}
+		resp := fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"error":{"code":-32600,"message":"invalid request"}}`, *msg.ID)
+		frame := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(resp), resp)
+		_, _ = io.WriteString(serverWriter, frame)
+	}()
+
+	_, err := client.request(ctx, "test/method", nil)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errors.ErrLSP)
+	require.Contains(t, err.Error(), "LSP error on test/method")
 }
 
 func TestJSONRPC_Notify_NoResponse(t *testing.T) {
