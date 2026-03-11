@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
-	"slices"
 	"time"
 
+	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/errors"
 	"github.com/rwx-cloud/cli/internal/lsp"
 
@@ -31,31 +31,41 @@ var (
 				outputFormat = "json"
 			}
 
-			cfg, err := lsp.NewCheckConfig(
-				LintRwxDirectory,
-				outputFormat,
-				LintTimeout,
-				args,
-				LintFix,
-			)
-			if err != nil {
-				return err
-			}
+			result, err := service.Lint(cli.LintConfig{
+				Check: func() (*cli.LintCheckResult, error) {
+					cfg, err := lsp.NewCheckConfig(
+						LintRwxDirectory,
+						outputFormat,
+						LintTimeout,
+						args,
+						LintFix,
+					)
+					if err != nil {
+						return nil, err
+					}
 
-			result, err := lsp.Check(cmd.Context(), cfg, os.Stdout)
-			if err != nil {
-				return err
-			}
+					checkResult, err := lsp.Check(cmd.Context(), cfg, os.Stdout)
+					if err != nil {
+						return nil, err
+					}
 
-			if len(result.Diagnostics) == 0 {
-				return nil
-			}
+					diagnostics := make([]cli.LintDiagnostic, len(checkResult.Diagnostics))
+					for i, d := range checkResult.Diagnostics {
+						diagnostics[i] = cli.LintDiagnostic{Severity: d.Severity}
+					}
 
-			hasError := slices.ContainsFunc(result.Diagnostics, func(d lsp.CheckDiagnostic) bool {
-				return d.Severity == "error"
+					return &cli.LintCheckResult{
+						Diagnostics: diagnostics,
+						FileCount:   checkResult.FileCount,
+					}, nil
+				},
+				Fix: LintFix,
 			})
+			if err != nil {
+				return err
+			}
 
-			if hasError || LintWarningsAsErrors {
+			if result.HasError || LintWarningsAsErrors {
 				return LintFailure
 			}
 
