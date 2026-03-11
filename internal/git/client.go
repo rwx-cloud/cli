@@ -315,7 +315,7 @@ func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile 
 	}
 
 	if len(data.patch) == 0 {
-		return PatchFile{}
+		return PatchFile{UntrackedFiles: data.untracked}
 	}
 
 	outputPath := filepath.Join(destDir, data.sha)

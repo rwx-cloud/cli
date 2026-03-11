@@ -425,6 +425,17 @@ func TestGeneratePatchFile(t *testing.T) {
 			require.Equal(t, 1, patchFile.UntrackedFiles.Count)
 		})
 
+		t.Run("with only untracked files", func(t *testing.T) {
+			tempDir, _ := repoFixture(t, "testdata/GeneratePatchFile-diff-untracked-only")
+
+			client := &git.Client{Binary: "git", Dir: filepath.Join(tempDir, "repo")}
+			patchFile := client.GeneratePatchFile(client.Dir, nil)
+
+			require.Equal(t, false, patchFile.Written)
+			require.Equal(t, []string{"untracked.txt"}, patchFile.UntrackedFiles.Files)
+			require.Equal(t, 1, patchFile.UntrackedFiles.Count)
+		})
+
 		t.Run("excluding paths via pathspec", func(t *testing.T) {
 			tempDir, sha := repoFixture(t, "testdata/GeneratePatchFile-diff-exclude")
 
