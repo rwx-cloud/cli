@@ -183,6 +183,33 @@ func TestTelemetry_ImageBuild(t *testing.T) {
 	})
 }
 
+func TestTelemetry_ImagePull(t *testing.T) {
+	t.Run("records image.pull", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockWhoami = func() (*api.WhoamiResult, error) {
+			return &api.WhoamiResult{OrganizationSlug: "test-org"}, nil
+		}
+
+		setup.mockDocker.RegistryValue = "registry.rwx.com"
+		setup.mockDocker.PasswordValue = "docker-pass"
+
+		_, err := setup.service.ImagePull(cli.ImagePullConfig{
+			TaskID:     "task-pull-1",
+			Timeout:    10 * time.Second,
+			OutputJSON: true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		pullEvent := findEvent(events, "image.pull")
+		require.NotNil(t, pullEvent)
+		require.Equal(t, true, pullEvent.Props["success"])
+		require.Contains(t, pullEvent.Props, "duration_ms")
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)

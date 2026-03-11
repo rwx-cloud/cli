@@ -29,7 +29,15 @@ type ImagePullResult struct {
 	Tags     []string `json:",omitempty"`
 }
 
-func (s Service) ImagePull(config ImagePullConfig) (*ImagePullResult, error) {
+func (s Service) ImagePull(config ImagePullConfig) (pullResult *ImagePullResult, pullErr error) {
+	start := time.Now()
+	defer func() {
+		s.recordTelemetry("image.pull", map[string]any{
+			"duration_ms": time.Since(start).Milliseconds(),
+			"success":     pullErr == nil,
+		})
+	}()
+
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
