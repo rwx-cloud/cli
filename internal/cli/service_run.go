@@ -118,7 +118,12 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 	}
 
 	if patchable {
-		patchFile = s.GitClient.GeneratePatchFile(patchDir, []string{".", ":!" + relativeRunDefinitionPath})
+		var patchErr error
+		patchFile, patchErr = s.GitClient.GeneratePatchFile(patchDir, []string{".", ":!" + relativeRunDefinitionPath})
+		if patchErr != nil {
+			errorMessage = patchErr.Error()
+			fmt.Fprintf(s.Stderr, "Warning: failed to generate patch: %s\n\n", errorMessage)
+		}
 	}
 
 	// Load directory entries

@@ -9,17 +9,18 @@ import (
 )
 
 type Git struct {
-	MockGetBranch         string
-	MockGetHead           string
-	MockGetCommit         string
-	MockGetCommitError    error
-	MockGetOriginUrl      string
-	MockGeneratePatchFile git.PatchFile
-	MockGeneratePatch     func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
-	MockApplyPatch        func(patch []byte) *exec.Cmd
-	MockApplyPatchReject  func(patch []byte) *exec.Cmd
-	MockIsInstalled       bool
-	MockIsInsideWorkTree  bool
+	MockGetBranch              string
+	MockGetHead                string
+	MockGetCommit              string
+	MockGetCommitError         error
+	MockGetOriginUrl           string
+	MockGeneratePatchFile      git.PatchFile
+	MockGeneratePatchFileError error
+	MockGeneratePatch          func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
+	MockApplyPatch             func(patch []byte) *exec.Cmd
+	MockApplyPatchReject       func(patch []byte) *exec.Cmd
+	MockIsInstalled            bool
+	MockIsInsideWorkTree       bool
 }
 
 func (c *Git) GetBranch() string {
@@ -38,18 +39,20 @@ func (c *Git) GetOriginUrl() string {
 	return c.MockGetOriginUrl
 }
 
-func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile {
+func (c *Git) GeneratePatchFile(destDir string, pathspec []string) (git.PatchFile, error) {
+	if c.MockGeneratePatchFileError != nil {
+		return git.PatchFile{}, c.MockGeneratePatchFileError
+	}
+
 	if c.MockGeneratePatchFile.Written {
 		if err := os.MkdirAll(destDir, 0755); err != nil {
-			// We can't write a patch
-			return git.PatchFile{}
+			return git.PatchFile{}, err
 		}
 
 		sha, _ := c.GetCommit()
 		path := filepath.Join(destDir, sha)
 		if err := os.WriteFile(path, []byte("patch"), 0644); err != nil {
-			// We can't write a patch
-			return git.PatchFile{}
+			return git.PatchFile{}, err
 		}
 
 		return git.PatchFile{
@@ -57,10 +60,10 @@ func (c *Git) GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
 			Path:            path,
 			UntrackedFiles:  c.MockGeneratePatchFile.UntrackedFiles,
 			LFSChangedFiles: c.MockGeneratePatchFile.LFSChangedFiles,
-		}
+		}, nil
 	}
 
-	return c.MockGeneratePatchFile
+	return c.MockGeneratePatchFile, nil
 }
 
 func (c *Git) GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
