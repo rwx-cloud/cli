@@ -61,7 +61,7 @@ type GitClient interface {
 	GetHead() string
 	GetCommit() (string, error)
 	GetOriginUrl() string
-	GeneratePatchFile(destDir string, pathspec []string) git.PatchFile
+	GeneratePatchFile(destDir string, pathspec []string) (git.PatchFile, error)
 	GeneratePatch(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error)
 	ApplyPatch(patch []byte) *exec.Cmd
 	ApplyPatchReject(patch []byte) *exec.Cmd

@@ -304,34 +304,34 @@ func (c *Client) generatePatchData(pathspec []string) patchResult {
 	}
 }
 
-func (c *Client) GeneratePatchFile(destDir string, pathspec []string) PatchFile {
+func (c *Client) GeneratePatchFile(destDir string, pathspec []string) (PatchFile, error) {
 	data := c.generatePatchData(pathspec)
 	if !data.ok {
-		return PatchFile{}
+		return PatchFile{}, fmt.Errorf("unable to generate patch data")
 	}
 
 	if data.lfs.Count > 0 {
-		return PatchFile{LFSChangedFiles: data.lfs}
+		return PatchFile{LFSChangedFiles: data.lfs}, nil
 	}
 
 	if len(data.patch) == 0 {
-		return PatchFile{UntrackedFiles: data.untracked}
+		return PatchFile{UntrackedFiles: data.untracked}, nil
 	}
 
 	outputPath := filepath.Join(destDir, data.sha)
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-		return PatchFile{}
+		return PatchFile{}, fmt.Errorf("unable to create patch directory: %w", err)
 	}
 
 	if err := os.WriteFile(outputPath, data.patch, 0644); err != nil {
-		return PatchFile{}
+		return PatchFile{}, fmt.Errorf("unable to write patch file: %w", err)
 	}
 
 	return PatchFile{
 		Written:        true,
 		Path:           outputPath,
 		UntrackedFiles: data.untracked,
-	}
+	}, nil
 }
 
 // AddUntrackedFilesForPatch temporarily adds untracked files with intent-to-add
