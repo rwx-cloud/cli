@@ -397,6 +397,37 @@ func TestTelemetry_PackagesUpdate(t *testing.T) {
 	})
 }
 
+func TestTelemetry_Lint(t *testing.T) {
+	t.Run("records lint.run", func(t *testing.T) {
+		setup := setupTest(t)
+
+		result, err := setup.service.Lint(cli.LintConfig{
+			Check: func() (*cli.LintCheckResult, error) {
+				return &cli.LintCheckResult{
+					Diagnostics: []cli.LintDiagnostic{
+						{Severity: "error"},
+						{Severity: "warning"},
+						{Severity: "warning"},
+					},
+					FileCount: 3,
+				}, nil
+			},
+			Fix: true,
+		})
+
+		require.NoError(t, err)
+		require.True(t, result.HasError)
+
+		events := setup.drainEvents()
+		lintEvent := findEvent(events, "lint.run")
+		require.NotNil(t, lintEvent)
+		require.Equal(t, 3, lintEvent.Props["file_count"])
+		require.Equal(t, 1, lintEvent.Props["error_count"])
+		require.Equal(t, 2, lintEvent.Props["warning_count"])
+		require.Equal(t, true, lintEvent.Props["fix"])
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)

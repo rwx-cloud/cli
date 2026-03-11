@@ -40,6 +40,13 @@ func (s Service) Lint(cfg LintConfig) (*LintResult, error) {
 		}
 	}
 
+	s.recordTelemetry("lint.run", map[string]any{
+		"file_count":    checkResult.FileCount,
+		"error_count":   errorCount,
+		"warning_count": warningCount,
+		"fix":           cfg.Fix,
+	})
+
 	return &LintResult{
 		HasError:     errorCount > 0,
 		ErrorCount:   errorCount,
