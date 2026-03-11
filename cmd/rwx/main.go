@@ -90,6 +90,10 @@ func classifyError(err error) string {
 		return "ssh_failed"
 	case errors.Is(err, internalerrors.ErrPatch):
 		return "patch_failed"
+	case errors.Is(err, internalerrors.ErrTimeout):
+		return "timeout"
+	case errors.Is(err, internalerrors.ErrLSP):
+		return "lsp_error"
 	default:
 		return "unknown"
 	}
