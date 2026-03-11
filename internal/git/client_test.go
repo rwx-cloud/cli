@@ -456,6 +456,38 @@ func TestGeneratePatchFile(t *testing.T) {
 	})
 }
 
+func TestIsAncestor(t *testing.T) {
+	t.Run("returns true when candidate is ancestor of HEAD", func(t *testing.T) {
+		repo, firstSHA := repoFixture(t, "testdata/IsAncestor-linear")
+		client := &git.Client{Binary: "git", Dir: repo}
+		require.True(t, client.IsAncestor(firstSHA, "HEAD"))
+	})
+
+	t.Run("returns false when candidate is descendant of HEAD", func(t *testing.T) {
+		repo, firstSHA := repoFixture(t, "testdata/IsAncestor-linear")
+		client := &git.Client{Binary: "git", Dir: repo}
+		headSHA := client.GetHead()
+		require.False(t, client.IsAncestor(headSHA, firstSHA))
+	})
+
+	t.Run("returns false for unrelated SHA", func(t *testing.T) {
+		repo, _ := repoFixture(t, "testdata/IsAncestor-linear")
+		client := &git.Client{Binary: "git", Dir: repo}
+		require.False(t, client.IsAncestor("deadbeefdeadbeef", "HEAD"))
+	})
+
+	t.Run("returns true when candidate equals HEAD", func(t *testing.T) {
+		repo, _ := repoFixture(t, "testdata/IsAncestor-linear")
+		client := &git.Client{Binary: "git", Dir: repo}
+		require.True(t, client.IsAncestor("HEAD", "HEAD"))
+	})
+
+	t.Run("returns false when not in a git repo", func(t *testing.T) {
+		client := &git.Client{Binary: "git", Dir: t.TempDir()}
+		require.False(t, client.IsAncestor("abc", "HEAD"))
+	})
+}
+
 func TestCommitMismatchNote(t *testing.T) {
 	t.Run("returns note with short SHAs when commits differ", func(t *testing.T) {
 		note := git.CommitMismatchNote(

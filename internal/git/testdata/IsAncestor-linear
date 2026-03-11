@@ -1,0 +1,10 @@
+#!/bin/bash
+set -eou pipefail
+
+git init > /dev/null
+git commit --allow-empty -m "commit 1" > /dev/null
+FIRST=$(git rev-parse --short HEAD)
+git commit --allow-empty -m "commit 2" > /dev/null
+git commit --allow-empty -m "commit 3" > /dev/null
+
+echo "$FIRST"

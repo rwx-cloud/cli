@@ -404,6 +404,14 @@ func (c *Client) GeneratePatch(pathspec []string) ([]byte, *LFSChangedFilesMetad
 	return data.patch, nil, nil
 }
 
+// IsAncestor returns true if candidateSHA is an ancestor of (or equal to) headRef.
+// Returns false on any error, including when not in a git repo.
+func (c *Client) IsAncestor(candidateSHA, headRef string) bool {
+	cmd := exec.Command(c.Binary, "merge-base", "--is-ancestor", candidateSHA, headRef)
+	cmd.Dir = c.Dir
+	return cmd.Run() == nil
+}
+
 // ApplyPatch returns an exec.Cmd that applies a patch to the working directory.
 // The patch bytes should be provided to the command's stdin before running.
 func (c *Client) ApplyPatch(patch []byte) *exec.Cmd {
