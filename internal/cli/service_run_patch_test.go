@@ -234,6 +234,17 @@ func TestService_InitiatingRunPatch(t *testing.T) {
 			require.NotContains(t, result.stderr, "untracked file")
 		})
 
+		t.Run("when no patch is written but there are untracked files", func(t *testing.T) {
+			patchFile := git.PatchFile{
+				UntrackedFiles: git.UntrackedFilesMetadata{Files: []string{"foo.txt"}, Count: 1},
+			}
+			expectedPatch := api.PatchMetadata{UntrackedFiles: []string{"foo.txt"}, UntrackedCount: 1}
+			result := initiateRun(t, patchFile, expectedPatch)
+			require.NotContains(t, result.stderr, "Included a git patch")
+			require.Contains(t, result.stderr, "The patch did not include the following untracked file. Add it with git add to use it in the run:")
+			require.Contains(t, result.stderr, "  foo.txt")
+		})
+
 		t.Run("when a patch is written with 1 untracked file", func(t *testing.T) {
 			patchFile := git.PatchFile{
 				Written:        true,
