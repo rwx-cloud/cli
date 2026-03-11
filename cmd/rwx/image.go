@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/rwx-cloud/cli/cmd/rwx/image"
-	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/rwx/cmd/rwx/image"
+	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/spf13/cobra"
 )
 

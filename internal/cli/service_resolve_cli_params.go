@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml/ast"
-	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
 type ResolveCliParamsResult struct {

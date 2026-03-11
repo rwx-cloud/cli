@@ -19,7 +19,7 @@ on:
       commit: ${{ event.git.sha }}
 
 concurrency-pools:
-  - id: rwx-cloud/cli::release-${{ init.kind }}
+  - id: rwx-cloud/rwx::release-${{ init.kind }}
     capacity: 1
     on-overflow: cancel-waiting
 
@@ -88,7 +88,7 @@ tasks:
     after: verify-inputs
     with:
       preserve-git-dir: true
-      repository: https://github.com/rwx-cloud/cli.git
+      repository: https://github.com/rwx-cloud/rwx.git
       ref: ${{ init.commit }}
       github-token: ${{ github-apps.rwx-cloud-bot.token }}
 
@@ -224,7 +224,7 @@ tasks:
         extension=".exe"
       fi
 
-      ldflags="-w -s -X github.com/rwx-cloud/cli/cmd/rwx/config.Version=${{ tasks.extract-version-details.values.full-version }}"
+      ldflags="-w -s -X github.com/rwx-cloud/rwx/cmd/rwx/config.Version=${{ tasks.extract-version-details.values.full-version }}"
 
       if [[ "${{ parallel.link }}" == "static" ]]; then
         export CC=musl-gcc
@@ -290,7 +290,7 @@ tasks:
         --latest=false \
         --draft=${{ init.kind != 'production' && init.kind != 'unstable' }} \
         --prerelease=${{ init.kind != 'production' }} \
-        --notes="The RWX CLI ${aliased_version} release and tag exist to provide an easy way to download the latest ${aliased_version}.x.x release of the RWX CLI. For example, you can always download the latest Linux x86 ${aliased_version} release at this URL: https://github.com/rwx-cloud/cli/releases/download/${aliased_version}/mint-linux-x86_64. (Look at the assets attached to this release to find the other available downloads.) This release and its assets are updated whenever a new ${aliased_version}.x.x version of the RWX CLI is released." \
+        --notes="The RWX CLI ${aliased_version} release and tag exist to provide an easy way to download the latest ${aliased_version}.x.x release of the RWX CLI. For example, you can always download the latest Linux x86 ${aliased_version} release at this URL: https://github.com/rwx-cloud/rwx/releases/download/${aliased_version}/mint-linux-x86_64. (Look at the assets attached to this release to find the other available downloads.) This release and its assets are updated whenever a new ${aliased_version}.x.x version of the RWX CLI is released." \
         --title "RWX CLI ${aliased_version}"
 
       mkdir ./full_release && cd ./full_release

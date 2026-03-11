@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rwx-cloud/cli/cmd/rwx/config"
-	"github.com/rwx-cloud/cli/internal/accesstoken"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/messages"
-	"github.com/rwx-cloud/cli/internal/versions"
+	"github.com/rwx-cloud/rwx/cmd/rwx/config"
+	"github.com/rwx-cloud/rwx/internal/accesstoken"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/messages"
+	"github.com/rwx-cloud/rwx/internal/versions"
 )
 
 var ErrNotFound = errors.New("not found")

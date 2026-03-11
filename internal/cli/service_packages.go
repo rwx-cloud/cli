@@ -9,9 +9,9 @@ import (
 
 	tsize "github.com/kopoli/go-terminal-size"
 
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/text"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/text"
 
 	"github.com/goccy/go-yaml/ast"
 )

@@ -1,7 +1,7 @@
 package image
 
 import (
-	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/skratchdot/open-golang/open"
 
 	"github.com/spf13/cobra"

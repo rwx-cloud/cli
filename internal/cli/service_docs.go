@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rwx-cloud/cli/internal/docs"
+	"github.com/rwx-cloud/rwx/internal/docs"
 )
 
 type DocsSearchConfig struct {

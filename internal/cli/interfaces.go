@@ -4,9 +4,9 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/git"
-	"github.com/rwx-cloud/cli/internal/ssh"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/git"
+	"github.com/rwx-cloud/rwx/internal/ssh"
 
 	gossh "golang.org/x/crypto/ssh"
 )

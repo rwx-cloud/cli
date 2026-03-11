@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"al.essio.dev/pkg/shellescape"
-	"github.com/rwx-cloud/cli/internal/api"
-	"github.com/rwx-cloud/cli/internal/errors"
-	"github.com/rwx-cloud/cli/internal/git"
+	"github.com/rwx-cloud/rwx/internal/api"
+	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/git"
 
 	"golang.org/x/crypto/ssh"
 )

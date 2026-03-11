@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rwx-cloud/cli/cmd/rwx/config"
+	"github.com/rwx-cloud/rwx/cmd/rwx/config"
 )
 
 type Client struct {

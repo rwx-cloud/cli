@@ -1,6 +1,6 @@
 package versions
 
-import "github.com/rwx-cloud/cli/internal/config"
+import "github.com/rwx-cloud/rwx/internal/config"
 
 type Backend interface {
 	Get() (string, error)

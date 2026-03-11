@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rwx-cloud/cli/internal/cli"
+	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/stretchr/testify/require"
 )
 
