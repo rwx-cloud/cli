@@ -64,7 +64,16 @@ func NewImagePushConfig(taskID string, references []string, compression string, 
 	}, nil
 }
 
-func (s Service) ImagePush(config ImagePushConfig) (*ImagePushResult, error) {
+func (s Service) ImagePush(config ImagePushConfig) (pushResult *ImagePushResult, pushErr error) {
+	start := time.Now()
+	defer func() {
+		s.recordTelemetry("image.push", map[string]any{
+			"compression": config.Compression,
+			"duration_ms": time.Since(start).Milliseconds(),
+			"success":     pushErr == nil,
+		})
+	}()
+
 	request := api.StartImagePushConfig{
 		TaskID:      config.TaskID,
 		Image:       api.StartImagePushConfigImage{},

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	cliTypes "github.com/docker/cli/cli/config/types"
+
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/cli"
 	"github.com/rwx-cloud/cli/internal/git"
@@ -86,6 +88,40 @@ func TestTelemetry_Login(t *testing.T) {
 		loginEvent := findEvent(events, "auth.login")
 		require.NotNil(t, loginEvent)
 		require.Equal(t, false, loginEvent.Props["success"])
+	})
+}
+
+func TestTelemetry_ImagePush(t *testing.T) {
+	t.Run("records image.push", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockDocker.GetAuthConfigFunc = func(registry string) (cliTypes.AuthConfig, error) {
+			return cliTypes.AuthConfig{Username: "user", Password: "pass"}, nil
+		}
+
+		setup.mockAPI.MockTaskIDStatus = func(cfg api.TaskIDStatusConfig) (api.TaskStatusResult, error) {
+			return api.TaskStatusResult{
+				Polling: api.PollingResult{Completed: true},
+				Status:  &api.TaskStatus{Result: api.TaskStatusSucceeded},
+			}, nil
+		}
+
+		setup.mockAPI.MockStartImagePush = func(cfg api.StartImagePushConfig) (api.StartImagePushResult, error) {
+			return api.StartImagePushResult{PushID: "push-1", RunURL: "https://cloud.rwx.com/runs/1"}, nil
+		}
+
+		config, err := cli.NewImagePushConfig("task-123", []string{"docker.io/test/repo:latest"}, "zstd", true, false, func(url string) error { return nil })
+		require.NoError(t, err)
+
+		_, err = setup.service.ImagePush(config)
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		pushEvent := findEvent(events, "image.push")
+		require.NotNil(t, pushEvent)
+		require.Equal(t, "zstd", pushEvent.Props["compression"])
+		require.Equal(t, true, pushEvent.Props["success"])
+		require.Contains(t, pushEvent.Props, "duration_ms")
 	})
 }
 
