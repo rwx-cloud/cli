@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/skratchdot/open-golang/open"
 
@@ -38,7 +39,15 @@ type DownloadLogsResult struct {
 	OutputFiles []string
 }
 
-func (s Service) DownloadLogs(cfg DownloadLogsConfig) (*DownloadLogsResult, error) {
+func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dlErr error) {
+	start := time.Now()
+	defer func() {
+		s.recordTelemetry("logs.download", map[string]any{
+			"duration_ms":  time.Since(start).Milliseconds(),
+			"auto_extract": cfg.AutoExtract,
+		})
+	}()
+
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")

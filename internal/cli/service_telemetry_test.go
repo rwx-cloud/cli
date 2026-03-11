@@ -300,6 +300,40 @@ func TestTelemetry_ArtifactDownload(t *testing.T) {
 	})
 }
 
+func TestTelemetry_LogsDownload(t *testing.T) {
+	t.Run("records logs.download", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetLogDownloadRequest = func(taskID string) (api.LogDownloadRequestResult, error) {
+			return api.LogDownloadRequestResult{
+				Filename: "logs.txt",
+			}, nil
+		}
+
+		setup.mockAPI.MockDownloadLogs = func(req api.LogDownloadRequestResult) ([]byte, error) {
+			return []byte("log content"), nil
+		}
+
+		outputDir := filepath.Join(setup.tmp, "logs-output")
+		require.NoError(t, os.MkdirAll(outputDir, 0o755))
+
+		_, err := setup.service.DownloadLogs(cli.DownloadLogsConfig{
+			TaskID:      "task-logs-1",
+			OutputDir:   outputDir,
+			Json:        true,
+			AutoExtract: true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		dlEvent := findEvent(events, "logs.download")
+		require.NotNil(t, dlEvent)
+		require.Equal(t, true, dlEvent.Props["auto_extract"])
+		require.Contains(t, dlEvent.Props, "duration_ms")
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)
