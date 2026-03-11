@@ -8,6 +8,7 @@ import (
 	"github.com/rwx-cloud/cli/internal/docs"
 	"github.com/rwx-cloud/cli/internal/docstoken"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/telemetry"
 	"github.com/rwx-cloud/cli/internal/versions"
 )
 
@@ -20,6 +21,7 @@ type Config struct {
 	DocsTokenBackend   docstoken.Backend
 	AccessTokenBackend accesstoken.Backend
 	VersionsBackend    versions.Backend
+	TelemetryCollector *telemetry.Collector
 	Stdin              io.Reader
 	Stdout             io.Writer
 	StdoutIsTTY        bool

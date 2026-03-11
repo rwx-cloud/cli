@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
@@ -228,6 +229,7 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 		i++
 	}
 
+	initiateStart := time.Now()
 	runResult, err := s.APIClient.InitiateRun(api.InitiateRunConfig{
 		InitializationParameters: initializationParameters,
 		TaskDefinitions:          runDefinition,
@@ -252,6 +254,14 @@ func (s Service) InitiateRun(cfg InitiateRunConfig) (*api.InitiateRunResult, err
 			GitInstalled:   gitInstalled,
 		},
 	})
+
+	s.recordTelemetry("run.initiate", map[string]any{
+		"has_targets":     len(cfg.TargetedTasks) > 0,
+		"has_init_params": len(cfg.InitParameters) > 0,
+		"duration_ms":     time.Since(initiateStart).Milliseconds(),
+		"success":         err == nil,
+	})
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initiate run")
 	}

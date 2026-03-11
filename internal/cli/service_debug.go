@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rwx-cloud/cli/internal/errors"
 
@@ -61,21 +62,48 @@ func (s Service) DebugTask(cfg DebugTaskConfig) error {
 		},
 	}
 
+	connectStart := time.Now()
 	if err = s.SSHClient.Connect(connectionInfo.Address, sshConfig); err != nil {
-		return errors.Wrap(err, "unable to establish SSH connection to remote host")
+		s.recordTelemetry("ssh.connect", map[string]any{
+			"duration_ms": time.Since(connectStart).Milliseconds(),
+			"success":     false,
+		})
+		return errors.WrapSentinel(fmt.Errorf("unable to establish SSH connection to remote host: %w", err), errors.ErrSSH)
 	}
+	s.recordTelemetry("ssh.connect", map[string]any{
+		"duration_ms": time.Since(connectStart).Milliseconds(),
+		"success":     true,
+	})
 	defer s.SSHClient.Close()
 
+	cmdStart := time.Now()
 	if err := s.SSHClient.InteractiveSession(); err != nil {
+		exitCode := -1
 		var exitErr *ssh.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = exitErr.ExitStatus()
+		}
+
+		s.recordTelemetry("ssh.command", map[string]any{
+			"duration_ms": time.Since(cmdStart).Milliseconds(),
+			"exit_code":   exitCode,
+			"interactive": true,
+		})
+
 		// 137 is the default exit code for SIGKILL. This happens if the agent is forcefully terminating
 		// the SSH server due to a run or task cancellation.
-		if errors.As(err, &exitErr) && exitErr.ExitStatus() == 137 {
+		if exitCode == 137 {
 			return errors.New("The task was cancelled. Please check the Web UI for further details.")
 		}
 
-		return errors.Wrap(err, "unable to start interactive session on remote host")
+		return errors.WrapSentinel(fmt.Errorf("unable to start interactive session on remote host: %w", err), errors.ErrSSH)
 	}
+
+	s.recordTelemetry("ssh.command", map[string]any{
+		"duration_ms": time.Since(cmdStart).Milliseconds(),
+		"exit_code":   0,
+		"interactive": true,
+	})
 
 	return nil
 }

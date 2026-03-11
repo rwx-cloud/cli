@@ -86,6 +86,10 @@ func classifyError(err error) string {
 		return "not_found"
 	case errors.Is(err, internalerrors.ErrGone):
 		return "gone"
+	case errors.Is(err, internalerrors.ErrSSH):
+		return "ssh_failed"
+	case errors.Is(err, internalerrors.ErrPatch):
+		return "patch_failed"
 	default:
 		return "unknown"
 	}
