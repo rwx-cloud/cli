@@ -111,6 +111,10 @@ func (s Service) ResolvePackages(cfg ResolvePackagesConfig) (ResolvePackagesResu
 		}
 	}
 
+	s.recordTelemetry("packages.resolve", map[string]any{
+		"package_count": len(replacements),
+	})
+
 	return ResolvePackagesResult{ResolvedPackages: replacements}, nil
 }
 
@@ -142,6 +146,10 @@ func (s Service) UpdatePackages(cfg UpdatePackagesConfig) (*UpdatePackagesResult
 	if err != nil {
 		return nil, err
 	}
+
+	s.recordTelemetry("packages.update", map[string]any{
+		"package_count": len(replacements),
+	})
 
 	result := &UpdatePackagesResult{UpdatedPackages: replacements}
 

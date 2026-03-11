@@ -334,6 +334,69 @@ func TestTelemetry_LogsDownload(t *testing.T) {
 	})
 }
 
+func TestTelemetry_PackagesResolve(t *testing.T) {
+	t.Run("records packages.resolve", func(t *testing.T) {
+		setup := setupTest(t)
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "run.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n    call: my-org/my-pkg\n"), 0o644))
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: map[string]string{"my-org/my-pkg": "1.0.0"},
+				LatestMinor: map[string]map[string]string{},
+				Renames:     map[string]string{},
+			}, nil
+		}
+
+		result, err := setup.service.ResolvePackages(cli.ResolvePackagesConfig{
+			RwxDirectory:        filepath.Join(setup.tmp, ".rwx"),
+			LatestVersionPicker: cli.PickLatestMajorVersion,
+			Json:                true,
+		})
+
+		require.NoError(t, err)
+		require.NotEmpty(t, result.ResolvedPackages)
+
+		events := setup.drainEvents()
+		resolveEvent := findEvent(events, "packages.resolve")
+		require.NotNil(t, resolveEvent)
+		require.Equal(t, len(result.ResolvedPackages), resolveEvent.Props["package_count"])
+	})
+}
+
+func TestTelemetry_PackagesUpdate(t *testing.T) {
+	t.Run("records packages.update", func(t *testing.T) {
+		setup := setupTest(t)
+
+		configPath := filepath.Join(setup.tmp, ".rwx", "run.yml")
+		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n    call: my-org/my-pkg 1.0.0\n"), 0o644))
+
+		setup.mockAPI.MockGetPackageVersions = func() (*api.PackageVersionsResult, error) {
+			return &api.PackageVersionsResult{
+				LatestMajor: map[string]string{"my-org/my-pkg": "2.0.0"},
+				LatestMinor: map[string]map[string]string{
+					"my-org/my-pkg": {"1": "1.1.0"},
+				},
+				Renames: map[string]string{},
+			}, nil
+		}
+
+		result, err := setup.service.UpdatePackages(cli.UpdatePackagesConfig{
+			RwxDirectory:             filepath.Join(setup.tmp, ".rwx"),
+			ReplacementVersionPicker: cli.PickLatestMinorVersion,
+			Json:                     true,
+		})
+
+		require.NoError(t, err)
+
+		events := setup.drainEvents()
+		updateEvent := findEvent(events, "packages.update")
+		require.NotNil(t, updateEvent)
+		require.Equal(t, len(result.UpdatedPackages), updateEvent.Props["package_count"])
+	})
+}
+
 func TestTelemetry_SandboxStart(t *testing.T) {
 	t.Run("records sandbox.start for new sandbox", func(t *testing.T) {
 		setup := setupTest(t)
