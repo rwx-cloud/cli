@@ -1139,6 +1139,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1191,6 +1192,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			Command:    []string{"make", "test"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1256,6 +1258,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1330,6 +1333,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1374,6 +1378,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1437,6 +1442,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1503,6 +1509,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
@@ -1567,6 +1574,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
+			Sync:       true,
 		})
 
 		require.NoError(t, err)
