@@ -318,6 +318,87 @@ func GetCurrentGitBranch(cwd string) string {
 	return branch
 }
 
+// AncestryChecker abstracts the git ancestor check so callers can inject a
+// real git.Client or a test mock.
+type AncestryChecker interface {
+	IsAncestor(candidateSHA, headRef string) bool
+}
+
+// GetSessionByAncestry falls back to ancestry-based lookup when the current
+// branch is detached and an exact key match was not found. If a stored session's
+// detached SHA is an ancestor of HEAD, the session is returned and re-keyed to
+// the current branch so subsequent lookups hit the fast path.
+// The caller must call Save() to persist the re-keyed session.
+func (s *SandboxStorage) GetSessionByAncestry(cwd, branch, configFile string, checker AncestryChecker) (*SandboxSession, bool) {
+	if !IsDetachedBranch(branch) || DetachedShortSHA(branch) == "" {
+		return nil, false
+	}
+
+	for key, session := range s.Sandboxes {
+		storedCwd, storedBranch, storedConfig := ParseSessionKey(key)
+		if storedCwd != cwd || storedConfig != configFile {
+			continue
+		}
+		if !IsDetachedBranch(storedBranch) {
+			continue
+		}
+		storedSHA := DetachedShortSHA(storedBranch)
+		if storedSHA == "" {
+			continue
+		}
+		if checker.IsAncestor(storedSHA, "HEAD") {
+			delete(s.Sandboxes, key)
+			newKey := SessionKey(cwd, branch, configFile)
+			s.Sandboxes[newKey] = session
+			return &session, true
+		}
+	}
+	return nil, false
+}
+
+// GetSessionsForCwdBranchByAncestry returns sessions where the stored detached
+// SHA is an ancestor of HEAD. Matching sessions are re-keyed to the current branch.
+// The caller must call Save() to persist key changes.
+func (s *SandboxStorage) GetSessionsForCwdBranchByAncestry(cwd, branch string, checker AncestryChecker) []SandboxSession {
+	if !IsDetachedBranch(branch) || DetachedShortSHA(branch) == "" {
+		return nil
+	}
+
+	type rekey struct {
+		oldKey  string
+		config  string
+		session SandboxSession
+	}
+	var toRekey []rekey
+
+	for key, session := range s.Sandboxes {
+		storedCwd, storedBranch, storedConfig := ParseSessionKey(key)
+		if storedCwd != cwd {
+			continue
+		}
+		if !IsDetachedBranch(storedBranch) {
+			continue
+		}
+		storedSHA := DetachedShortSHA(storedBranch)
+		if storedSHA == "" {
+			continue
+		}
+		if checker.IsAncestor(storedSHA, "HEAD") {
+			toRekey = append(toRekey, rekey{oldKey: key, config: storedConfig, session: session})
+		}
+	}
+
+	var sessions []SandboxSession
+	for _, r := range toRekey {
+		delete(s.Sandboxes, r.oldKey)
+		newKey := SessionKey(cwd, branch, r.config)
+		s.Sandboxes[newKey] = r.session
+		sessions = append(sessions, r.session)
+	}
+
+	return sessions
+}
+
 func ParseSessionKey(key string) (cwd, branch, configFile string) {
 	// Key format: cwd:branch:configFile
 	// Find last two colons
