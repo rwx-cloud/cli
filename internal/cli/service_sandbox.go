@@ -694,22 +694,25 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 	// Pull changes from sandbox back to local
 	var pulledFiles []string
-	var syncPullSuccess bool
-	var syncPullRejCount int
-	pullStart := time.Now()
-	pulled, pullPatchBytes, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
-	syncPullMs := time.Since(pullStart).Milliseconds()
-	if pullErr != nil {
-		fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
-		syncPullRejCount = len(findRejFiles(cwd, pulled))
-	} else {
-		syncPullSuccess = true
-	}
-	if pulled != nil {
-		pulledFiles = pulled
-	}
-
+	var syncPullMs int64
+	var syncPullPatchBytes int
 	if cfg.Sync {
+		var syncPullSuccess bool
+		var syncPullRejCount int
+		pullStart := time.Now()
+		pulled, pullPatchBytes, pullErr := s.pullChangesFromSandbox(cwd, cfg.Json)
+		syncPullMs = time.Since(pullStart).Milliseconds()
+		syncPullPatchBytes = pullPatchBytes
+		if pullErr != nil {
+			fmt.Fprintf(s.Stderr, "Warning: failed to pull changes from sandbox: %v\n", pullErr)
+			syncPullRejCount = len(findRejFiles(cwd, pulled))
+		} else {
+			syncPullSuccess = true
+		}
+		if pulled != nil {
+			pulledFiles = pulled
+		}
+
 		s.recordTelemetry("sandbox.sync_pull", map[string]any{
 			"patch_bytes":    pullPatchBytes,
 			"duration_ms":    syncPullMs,
@@ -743,7 +746,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		"sync_push_ms":     syncPushMs,
 		"sync_pull_ms":     syncPullMs,
 		"push_patch_bytes": syncPushPatchBytes,
-		"pull_patch_bytes": pullPatchBytes,
+		"pull_patch_bytes": syncPullPatchBytes,
 	})
 
 	runURL := s.sandboxRunURL(&SandboxSession{RunURL: sessionRunURL})
