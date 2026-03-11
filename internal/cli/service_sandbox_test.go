@@ -1386,6 +1386,60 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		require.Equal(t, 0, result.ExitCode)
 		require.Contains(t, setup.mockStderr.String(), "Warning: failed to pull changes from sandbox")
 	})
+
+	t.Run("skips pull when Sync is false", func(t *testing.T) {
+		setup := setupTest(t)
+
+		runID := "run-pull-no-sync-123"
+		address := "192.168.1.1:22"
+		gitDiffCalled := false
+
+		setup.mockAPI.MockGetSandboxConnectionInfo = func(id, token string) (api.SandboxConnectionInfo, error) {
+			return api.SandboxConnectionInfo{
+				Sandboxable:    true,
+				Address:        address,
+				PrivateUserKey: sandboxPrivateTestKey,
+				PublicHostKey:  sandboxPublicTestKey,
+			}, nil
+		}
+
+		setup.mockSSH.MockConnect = func(addr string, _ ssh.ClientConfig) error {
+			return nil
+		}
+
+		// Sandbox has changes, but pull should never be attempted
+		sandboxPatch := "diff --git a/file.txt b/file.txt\nindex abc..def 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+		setup.mockSSH.MockExecuteCommandWithOutput = func(cmd string) (int, string, error) {
+			if strings.Contains(cmd, "git diff refs/rwx-sync") {
+				gitDiffCalled = true
+				return 0, sandboxPatch, nil
+			}
+			return 0, "", nil
+		}
+
+		setup.mockSSH.MockExecuteCommand = func(cmd string) (int, error) {
+			return 0, nil
+		}
+
+		setup.mockGit.MockGeneratePatch = func(pathspec []string) ([]byte, *git.LFSChangedFilesMetadata, error) {
+			return nil, nil, nil
+		}
+
+		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
+			ConfigFile: ".rwx/sandbox.yml",
+			Command:    []string{"echo", "hello"},
+			RunID:      runID,
+			Json:       true,
+			Sync:       false,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, runID, result.RunID)
+		require.Equal(t, 0, result.ExitCode)
+		require.Empty(t, result.PulledFiles, "pull should be skipped when Sync is false")
+		require.False(t, gitDiffCalled, "git diff refs/rwx-sync should not be called when Sync is false")
+	})
 }
 
 func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
