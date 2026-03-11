@@ -11,6 +11,7 @@ import (
 	"al.essio.dev/pkg/shellescape"
 	"github.com/rwx-cloud/cli/internal/api"
 	"github.com/rwx-cloud/cli/internal/errors"
+	"github.com/rwx-cloud/cli/internal/git"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -154,6 +155,13 @@ func (s Service) CheckExistingSandbox(configFile string) (*CheckExistingSandboxR
 	}
 
 	session, found := storage.GetSession(cwd, branch, configFile)
+	if !found && IsDetachedBranch(branch) {
+		gitClient := &git.Client{Binary: "git", Dir: cwd}
+		session, found = storage.GetSessionByAncestry(cwd, branch, configFile, gitClient)
+		if found {
+			_ = storage.Save()
+		}
+	}
 	if !found {
 		return &CheckExistingSandboxResult{Exists: false}, nil
 	}
@@ -469,6 +477,13 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		if cfg.ConfigFile != "" {
 			// Config file provided - look up specific session
 			session, found = storage.GetSession(cwd, branch, cfg.ConfigFile)
+			if !found && IsDetachedBranch(branch) {
+				gitClient := &git.Client{Binary: "git", Dir: cwd}
+				session, found = storage.GetSessionByAncestry(cwd, branch, cfg.ConfigFile, gitClient)
+				if found {
+					_ = storage.Save()
+				}
+			}
 			if found {
 				// Check if session is still valid (use scoped token if available)
 				connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
@@ -491,6 +506,13 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		} else {
 			// No config file - find any session for cwd+branch
 			sessions := storage.GetSessionsForCwdBranch(cwd, branch)
+			if len(sessions) == 0 && IsDetachedBranch(branch) {
+				gitClient := &git.Client{Binary: "git", Dir: cwd}
+				sessions = storage.GetSessionsForCwdBranchByAncestry(cwd, branch, gitClient)
+				if len(sessions) > 0 {
+					_ = storage.Save()
+				}
+			}
 
 			// Filter to only active sessions
 			var activeSessions []SandboxSession
@@ -536,7 +558,15 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 					if decErr != nil {
 						continue
 					}
-					if state.CWD == cwd && state.Branch == branch && state.ConfigFile == cfgFile {
+					branchMatch := state.Branch == branch
+					if !branchMatch && IsDetachedBranch(branch) && IsDetachedBranch(state.Branch) {
+						storedSHA := DetachedShortSHA(state.Branch)
+						if storedSHA != "" {
+							gitClient := &git.Client{Binary: "git", Dir: cwd}
+							branchMatch = gitClient.IsAncestor(storedSHA, "HEAD")
+						}
+					}
+					if state.CWD == cwd && branchMatch && state.ConfigFile == cfgFile {
 						// Verify the remote sandbox is still alive before reusing
 						connInfo, connErr := s.APIClient.GetSandboxConnectionInfo(run.ID, "")
 						if connErr != nil || connInfo.Polling.Completed {
@@ -917,6 +947,13 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 		branch := GetCurrentGitBranch(cwd)
 
 		sessions := storage.GetSessionsForCwdBranch(cwd, branch)
+		if len(sessions) == 0 && IsDetachedBranch(branch) {
+			gitClient := &git.Client{Binary: "git", Dir: cwd}
+			sessions = storage.GetSessionsForCwdBranchByAncestry(cwd, branch, gitClient)
+			if len(sessions) > 0 {
+				_ = storage.Save()
+			}
+		}
 		if len(sessions) == 0 {
 			return nil, fmt.Errorf("No sandbox found for %s:%s.\nUse 'rwx sandbox list' to see available sandboxes, or use --id to specify a run ID.", cwd, branch)
 		}
@@ -1002,6 +1039,10 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 	} else {
 		session, found := storage.GetSession(cwd, branch, cfg.ConfigFile)
+		if !found && IsDetachedBranch(branch) {
+			gitClient := &git.Client{Binary: "git", Dir: cwd}
+			session, found = storage.GetSessionByAncestry(cwd, branch, cfg.ConfigFile, gitClient)
+		}
 		if found {
 			oldRunID = session.RunID
 
