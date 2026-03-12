@@ -75,6 +75,7 @@ func recordTelemetry(err error, start time.Time) {
 	if err != nil {
 		telem.Record("cli.error", map[string]any{
 			"command":    commandName,
+			"flags":      flagNames,
 			"error_type": classifyError(err),
 			"handled":    errors.Is(err, HandledError),
 		})
