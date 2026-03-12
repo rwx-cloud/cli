@@ -9,6 +9,7 @@ import (
 
 	"github.com/rwx-cloud/rwx/internal/cli"
 	internalerrors "github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -43,6 +44,59 @@ func main() {
 	os.Exit(1)
 }
 
+// telemetrySafeData defines which flag values and positional args are safe
+// to include in telemetry, per command. Commands not listed here only send
+// flag names (existing behavior).
+var telemetrySafeData = map[string]struct {
+	flagValues []string
+	args       bool
+}{
+	"run":           {flagValues: []string{"no-cache", "target", "dir", "open", "debug", "wait", "fail-fast", "title"}, args: false},
+	"debug":         {args: true},
+	"dispatch":      {flagValues: []string{"ref", "open", "debug", "title"}, args: true},
+	"lint":          {flagValues: []string{"warnings-as-errors", "dir", "output", "timeout", "fix"}, args: true},
+	"results":       {flagValues: []string{"wait", "fail-fast"}, args: true},
+	"logs":          {flagValues: []string{"output-dir", "output-file", "auto-extract", "open"}, args: true},
+	"sandbox start": {flagValues: []string{"dir", "open", "wait"}, args: true},
+	"sandbox exec":  {flagValues: []string{"dir", "open", "no-sync"}, args: false},
+	"sandbox list":  {},
+	"sandbox stop":  {flagValues: []string{"all"}},
+	"sandbox reset": {flagValues: []string{"dir", "open", "wait"}, args: true},
+	"sandbox init":  {args: true},
+}
+
+func safeTelemetryProps(commandName string, cmd *cobra.Command) map[string]any {
+	safe, ok := telemetrySafeData[commandName]
+	if !ok || cmd == nil {
+		return nil
+	}
+
+	props := map[string]any{}
+
+	safeSet := make(map[string]struct{}, len(safe.flagValues))
+	for _, name := range safe.flagValues {
+		safeSet[name] = struct{}{}
+	}
+
+	flagValues := make(map[string]string)
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		if _, isSafe := safeSet[f.Name]; isSafe {
+			flagValues[f.Name] = f.Value.String()
+		}
+	})
+	if len(flagValues) > 0 {
+		props["flag_values"] = flagValues
+	}
+
+	if safe.args {
+		if args := cmd.Flags().Args(); len(args) > 0 {
+			props["args"] = args
+		}
+	}
+
+	return props
+}
+
 func recordTelemetry(err error, start time.Time) {
 	if telem == nil {
 		return
@@ -64,21 +118,31 @@ func recordTelemetry(err error, start time.Time) {
 		})
 	}
 
-	telem.Record("cli.command", map[string]any{
+	safeProps := safeTelemetryProps(commandName, cmd)
+
+	commandProps := map[string]any{
 		"command":       commandName,
 		"flags":         flagNames,
 		"output_format": Output,
 		"duration_ms":   time.Since(start).Milliseconds(),
 		"success":       err == nil,
-	})
+	}
+	for k, v := range safeProps {
+		commandProps[k] = v
+	}
+	telem.Record("cli.command", commandProps)
 
 	if err != nil {
-		telem.Record("cli.error", map[string]any{
+		errorProps := map[string]any{
 			"command":    commandName,
 			"flags":      flagNames,
 			"error_type": classifyError(err),
 			"handled":    errors.Is(err, HandledError),
-		})
+		}
+		for k, v := range safeProps {
+			errorProps[k] = v
+		}
+		telem.Record("cli.error", errorProps)
 	}
 
 	telem.Flush()
