@@ -1,5 +1,9 @@
 # RWX
 
+<p align="center">
+  <img src=".github/assets/hero.png" alt="RWX" width="734" />
+</p>
+
 The agent-native cloud platform for sandboxes, CI pipelines, and building container images.
 
 RWX gives developers and AI agents a programmatic interface to run code in the cloud with sub-second cached builds, DAG-based parallelization, and structured output. Developers and agents can iterate on changes until CI passes — without a single commit or push.
