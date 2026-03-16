@@ -164,3 +164,60 @@ func TestService_ShowVar(t *testing.T) {
 		require.Contains(t, s.mockStdout.String(), `"Value":"hello-world"`)
 	})
 }
+
+func TestService_DeleteVar(t *testing.T) {
+	t.Run("deletes a var", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteVar = func(cfg api.DeleteVarConfig) (*api.DeleteVarResult, error) {
+			require.Equal(t, "MY_VAR", cfg.VarName)
+			require.Equal(t, "default", cfg.VaultName)
+			return &api.DeleteVarResult{}, nil
+		}
+
+		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, "Deleted var \"MY_VAR\" from vault \"default\".\n", s.mockStdout.String())
+	})
+
+	t.Run("when unable to delete var", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteVar = func(cfg api.DeleteVarConfig) (*api.DeleteVarResult, error) {
+			return nil, errors.New("not found")
+		}
+
+		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MISSING",
+			Vault:   "default",
+		})
+
+		require.Nil(t, result)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("with json output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteVar = func(cfg api.DeleteVarConfig) (*api.DeleteVarResult, error) {
+			return &api.DeleteVarResult{}, nil
+		}
+
+		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+			Json:    true,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Contains(t, s.mockStdout.String(), `"Var":"MY_VAR"`)
+		require.Contains(t, s.mockStdout.String(), `"Vault":"default"`)
+	})
+}

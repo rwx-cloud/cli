@@ -199,6 +199,13 @@ type ShowVarResult struct {
 	Value string `json:"value"`
 }
 
+type DeleteVarConfig struct {
+	VarName   string
+	VaultName string
+}
+
+type DeleteVarResult struct{}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }

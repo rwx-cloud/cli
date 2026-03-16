@@ -151,6 +151,28 @@ var (
 	}
 )
 
+var (
+	varsDeleteVault string
+
+	vaultsVarsDeleteCmd = &cobra.Command{
+		Args: cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			useJson := useJsonOutput()
+			_, err := service.DeleteVar(cli.DeleteVarConfig{
+				VarName: args[0],
+				Vault:   varsDeleteVault,
+				Json:    useJson,
+			})
+			return err
+		},
+		Short: "Delete a var from a vault",
+		Use:   "delete NAME [flags]",
+	}
+)
+
 // --- set-secrets alias (backwards compatibility) ---
 
 var (
@@ -209,6 +231,10 @@ func init() {
 	// vaults vars show
 	vaultsVarsShowCmd.Flags().StringVar(&varsShowVault, "vault", "default", "the name of the vault to show the var from")
 	vaultsVarsCmd.AddCommand(vaultsVarsShowCmd)
+
+	// vaults vars delete
+	vaultsVarsDeleteCmd.Flags().StringVar(&varsDeleteVault, "vault", "default", "the name of the vault to delete the var from")
+	vaultsVarsCmd.AddCommand(vaultsVarsDeleteCmd)
 
 	vaultsCmd.AddCommand(vaultsVarsCmd)
 

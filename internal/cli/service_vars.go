@@ -176,3 +176,55 @@ func (s Service) ShowVar(cfg ShowVarConfig) (*ShowVarResult, error) {
 
 	return result, nil
 }
+
+type DeleteVarConfig struct {
+	VarName string
+	Vault   string
+	Json    bool
+}
+
+func (c DeleteVarConfig) Validate() error {
+	if c.VarName == "" {
+		return errors.New("the var name must be provided")
+	}
+
+	if c.Vault == "" {
+		return errors.New("the vault name must be provided")
+	}
+
+	return nil
+}
+
+type DeleteVarResult struct{}
+
+func (s Service) DeleteVar(cfg DeleteVarConfig) (*DeleteVarResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	_, err = s.APIClient.DeleteVar(api.DeleteVarConfig{
+		VarName:   cfg.VarName,
+		VaultName: cfg.Vault,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to delete var")
+	}
+
+	if cfg.Json {
+		output := struct {
+			Var   string
+			Vault string
+		}{
+			Var:   cfg.VarName,
+			Vault: cfg.Vault,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		fmt.Fprintf(s.Stdout, "Deleted var %q from vault %q.\n", cfg.VarName, cfg.Vault)
+	}
+
+	return &DeleteVarResult{}, nil
+}

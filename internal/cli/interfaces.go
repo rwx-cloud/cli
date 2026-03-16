@@ -27,6 +27,7 @@ type APIClient interface {
 	DeleteSecret(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
 	SetVar(api.SetVarConfig) (*api.SetVarResult, error)
 	ShowVar(api.ShowVarConfig) (*api.ShowVarResult, error)
+	DeleteVar(api.DeleteVarConfig) (*api.DeleteVarResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)
 	GetPackageDocumentation(packageName string) (*api.PackageDocumentationResult, error)
 	GetDefaultBase() (api.DefaultBaseResult, error)
