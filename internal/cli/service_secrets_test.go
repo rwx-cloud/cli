@@ -93,3 +93,60 @@ func TestService_SettingSecrets(t *testing.T) {
 		require.Equal(t, "\nSuccessfully set the following secrets: A, B, C, D", s.mockStdout.String())
 	})
 }
+
+func TestService_DeleteSecret(t *testing.T) {
+	t.Run("deletes a secret", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteSecret = func(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {
+			require.Equal(t, "MY_SECRET", cfg.SecretName)
+			require.Equal(t, "default", cfg.VaultName)
+			return &api.DeleteSecretResult{}, nil
+		}
+
+		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MY_SECRET",
+			Vault:      "default",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, "Deleted secret \"MY_SECRET\" from vault \"default\".\n", s.mockStdout.String())
+	})
+
+	t.Run("when unable to delete secret", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteSecret = func(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {
+			return nil, errors.New("not found")
+		}
+
+		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MISSING",
+			Vault:      "default",
+		})
+
+		require.Nil(t, result)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("with json output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockDeleteSecret = func(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {
+			return &api.DeleteSecretResult{}, nil
+		}
+
+		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MY_SECRET",
+			Vault:      "default",
+			Json:       true,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Contains(t, s.mockStdout.String(), `"Secret":"MY_SECRET"`)
+		require.Contains(t, s.mockStdout.String(), `"Vault":"default"`)
+	})
+}

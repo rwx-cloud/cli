@@ -556,6 +556,35 @@ func (c Client) CreateVault(cfg CreateVaultConfig) (*CreateVaultResult, error) {
 	return &CreateVaultResult{}, nil
 }
 
+func (c Client) DeleteSecret(cfg DeleteSecretConfig) (*DeleteSecretResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/vaults/secrets/%s?vault_name=%s",
+		url.PathEscape(cfg.SecretName),
+		url.QueryEscape(cfg.VaultName),
+	)
+
+	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &DeleteSecretResult{}, nil
+}
+
 func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 

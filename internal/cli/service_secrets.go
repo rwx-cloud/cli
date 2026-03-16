@@ -12,6 +12,58 @@ import (
 	"github.com/rwx-cloud/rwx/internal/errors"
 )
 
+type DeleteSecretConfig struct {
+	SecretName string
+	Vault      string
+	Json       bool
+}
+
+func (c DeleteSecretConfig) Validate() error {
+	if c.SecretName == "" {
+		return errors.New("the secret name must be provided")
+	}
+
+	if c.Vault == "" {
+		return errors.New("the vault name must be provided")
+	}
+
+	return nil
+}
+
+type DeleteSecretResult struct{}
+
+func (s Service) DeleteSecret(cfg DeleteSecretConfig) (*DeleteSecretResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	_, err = s.APIClient.DeleteSecret(api.DeleteSecretConfig{
+		SecretName: cfg.SecretName,
+		VaultName:  cfg.Vault,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to delete secret")
+	}
+
+	if cfg.Json {
+		output := struct {
+			Secret string
+			Vault  string
+		}{
+			Secret: cfg.SecretName,
+			Vault:  cfg.Vault,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		fmt.Fprintf(s.Stdout, "Deleted secret %q from vault %q.\n", cfg.SecretName, cfg.Vault)
+	}
+
+	return &DeleteSecretResult{}, nil
+}
+
 type SetSecretsInVaultConfig struct {
 	Secrets []string
 	Vault   string

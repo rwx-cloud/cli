@@ -170,6 +170,13 @@ type CreateVaultRepoPermission struct {
 
 type CreateVaultResult struct{}
 
+type DeleteSecretConfig struct {
+	SecretName string
+	VaultName  string
+}
+
+type DeleteSecretResult struct{}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }
