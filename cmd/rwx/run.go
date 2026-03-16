@@ -27,6 +27,7 @@ var (
 	Wait           bool
 	FailFast       bool
 	RunAll         bool
+	RunPage        int
 	Title          string
 
 	runCmd = &cobra.Command{
@@ -138,6 +139,7 @@ var (
 							RunID: runResult.RunID,
 							All:   true,
 							Json:  true,
+							Page:  RunPage,
 						})
 						if err != nil {
 							return err
@@ -150,6 +152,9 @@ var (
 							Message          string
 							ResultStatus     string
 							Tasks            []taskOutput
+							Page             int
+							HasMore          bool
+							RunInProgress    bool
 						}{
 							RunID:            jsonOutput.RunID,
 							RunURL:           jsonOutput.RunURL,
@@ -158,6 +163,9 @@ var (
 							Message:          jsonOutput.Message,
 							ResultStatus:     waitResult.ResultStatus,
 							Tasks:            toTaskOutputs(promptResult.Tasks),
+							Page:             promptResult.Page,
+							HasMore:          promptResult.HasMore,
+							RunInProgress:    promptResult.RunInProgress,
 						}
 						waitResultJson, err := json.Marshal(allJsonOutput)
 						if err != nil {
@@ -178,6 +186,7 @@ var (
 					promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
 						RunID: runResult.RunID,
 						All:   RunAll,
+						Page:  RunPage,
 					})
 					if err == nil {
 						fmt.Printf("\n%s", promptResult.Prompt)
@@ -232,5 +241,6 @@ func init() {
 	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete and report the result status")
 	runCmd.Flags().BoolVar(&FailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
 	runCmd.Flags().BoolVar(&RunAll, "all", false, "include all tasks in the run output, not just failures (only has an effect when used with --wait)")
+	runCmd.Flags().IntVar(&RunPage, "page", 0, "page number for paginated results (only has an effect when used with --all)")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 }

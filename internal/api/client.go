@@ -750,6 +750,9 @@ func (c Client) GetRunPrompt(cfg GetRunPromptConfig) (GetRunPromptResult, error)
 	endpoint := fmt.Sprintf("/mint/api/runs/%s/prompt", url.PathEscape(cfg.RunID))
 	if cfg.All {
 		endpoint += "?all=true"
+		if cfg.Page > 0 {
+			endpoint += fmt.Sprintf("&page=%d", cfg.Page)
+		}
 	}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -782,12 +785,15 @@ func (c Client) GetRunPrompt(cfg GetRunPromptConfig) (GetRunPromptResult, error)
 
 	if cfg.All && cfg.Json {
 		var tasksResp struct {
-			Tasks []RunPromptTask `json:"tasks"`
+			Tasks         []RunPromptTask `json:"tasks"`
+			Page          int             `json:"page"`
+			HasMore       bool            `json:"has_more"`
+			RunInProgress bool            `json:"run_in_progress"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&tasksResp); err != nil {
 			return GetRunPromptResult{}, errors.Wrap(err, "unable to parse API response")
 		}
-		return GetRunPromptResult{Tasks: tasksResp.Tasks}, nil
+		return GetRunPromptResult{Tasks: tasksResp.Tasks, Page: tasksResp.Page, HasMore: tasksResp.HasMore, RunInProgress: tasksResp.RunInProgress}, nil
 	}
 
 	body, err := io.ReadAll(resp.Body)

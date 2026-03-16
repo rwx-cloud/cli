@@ -16,6 +16,7 @@ var (
 	ResultsWait     bool
 	ResultsFailFast bool
 	ResultsAll      bool
+	ResultsPage     int
 
 	resultsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -69,20 +70,27 @@ var (
 						RunID: result.RunID,
 						All:   true,
 						Json:  true,
+						Page:  ResultsPage,
 					})
 					if err != nil {
 						return err
 					}
 					jsonOutput := struct {
-						RunID        string
-						ResultStatus string
-						Completed    bool
-						Tasks        []taskOutput
+						RunID         string
+						ResultStatus  string
+						Completed     bool
+						Tasks         []taskOutput
+						Page          int
+						HasMore       bool
+						RunInProgress bool
 					}{
-						RunID:        result.RunID,
-						ResultStatus: result.ResultStatus,
-						Completed:    result.Completed,
-						Tasks:        toTaskOutputs(promptResult.Tasks),
+						RunID:         result.RunID,
+						ResultStatus:  result.ResultStatus,
+						Completed:     result.Completed,
+						Tasks:         toTaskOutputs(promptResult.Tasks),
+						Page:          promptResult.Page,
+						HasMore:       promptResult.HasMore,
+						RunInProgress: promptResult.RunInProgress,
 					}
 					resultJson, err := json.Marshal(jsonOutput)
 					if err != nil {
@@ -125,6 +133,7 @@ var (
 				promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
 					RunID: result.RunID,
 					All:   ResultsAll,
+					Page:  ResultsPage,
 				})
 				if err == nil {
 					fmt.Printf("\n%s", promptResult.Prompt)
@@ -159,4 +168,5 @@ func init() {
 	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "poll for the run to complete and report the result status")
 	resultsCmd.Flags().BoolVar(&ResultsFailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
 	resultsCmd.Flags().BoolVar(&ResultsAll, "all", false, "include all tasks in the run, not just failures")
+	resultsCmd.Flags().IntVar(&ResultsPage, "page", 0, "page number for paginated results (only has an effect when used with --all)")
 }

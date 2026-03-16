@@ -62,4 +62,28 @@ func TestService_GetRunPrompt(t *testing.T) {
 		require.Equal(t, "ci.lint", result.Tasks[0].Key)
 		require.Equal(t, "succeeded", result.Tasks[0].Status)
 	})
+
+	t.Run("passes page to API and returns pagination fields", func(t *testing.T) {
+		setup := setupTest(t)
+
+		setup.mockAPI.MockGetRunPrompt = func(cfg api.GetRunPromptConfig) (api.GetRunPromptResult, error) {
+			require.Equal(t, 3, cfg.Page)
+			return api.GetRunPromptResult{
+				Tasks:   []api.RunPromptTask{{Key: "ci.lint", Status: "succeeded"}},
+				Page:    3,
+				HasMore: true,
+			}, nil
+		}
+
+		result, err := setup.service.GetRunPrompt(cli.GetRunPromptConfig{
+			RunID: "run-789",
+			All:   true,
+			Json:  true,
+			Page:  3,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, 3, result.Page)
+		require.True(t, result.HasMore)
+	})
 }

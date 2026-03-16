@@ -1255,6 +1255,47 @@ func TestAPIClient_GetRunPrompt(t *testing.T) {
 		require.Equal(t, "ci.test", result.Tasks[1].Key)
 		require.Equal(t, "failed", result.Tasks[1].Status)
 	})
+
+	t.Run("passes page parameter and parses pagination fields", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "all=true&page=2", req.URL.RawQuery)
+			require.Equal(t, "application/json", req.Header.Get("Accept"))
+			body := `{"tasks": [{"key": "ci.deploy", "status": "succeeded"}], "page": 2, "has_more": true}`
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "run-123", All: true, Json: true, Page: 2})
+		require.NoError(t, err)
+		require.Len(t, result.Tasks, 1)
+		require.Equal(t, "ci.deploy", result.Tasks[0].Key)
+		require.Equal(t, 2, result.Page)
+		require.True(t, result.HasMore)
+	})
+
+	t.Run("does not include page parameter when page is zero", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "all=true", req.URL.RawQuery)
+			body := `{"tasks": [], "page": 1, "has_more": false}`
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "run-123", All: true, Json: true, Page: 0})
+		require.NoError(t, err)
+		require.Equal(t, 1, result.Page)
+		require.False(t, result.HasMore)
+	})
 }
 
 func TestAPIClient_DownloadArtifact(t *testing.T) {

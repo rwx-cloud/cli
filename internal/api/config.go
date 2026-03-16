@@ -289,6 +289,7 @@ type GetRunPromptConfig struct {
 	RunID string
 	All   bool
 	Json  bool
+	Page  int
 }
 
 type RunPromptTask struct {
@@ -297,8 +298,11 @@ type RunPromptTask struct {
 }
 
 type GetRunPromptResult struct {
-	Prompt string
-	Tasks  []RunPromptTask
+	Prompt        string
+	Tasks         []RunPromptTask
+	RunInProgress bool
+	Page          int
+	HasMore       bool
 }
 
 type SandboxRunSummary struct {
