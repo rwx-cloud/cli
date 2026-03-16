@@ -26,6 +26,7 @@ var (
 	Debug          bool
 	Wait           bool
 	FailFast       bool
+	RunAll         bool
 	Title          string
 
 	runCmd = &cobra.Command{
@@ -132,16 +133,52 @@ var (
 				}
 
 				if useJson {
-					jsonOutput.ResultStatus = waitResult.ResultStatus
-					waitResultJson, err := json.Marshal(jsonOutput)
-					if err != nil {
-						return err
+					if RunAll {
+						promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
+							RunID: runResult.RunID,
+							All:   true,
+							Json:  true,
+						})
+						if err != nil {
+							return err
+						}
+						allJsonOutput := struct {
+							RunID            string
+							RunURL           string
+							TargetedTaskKeys []string
+							DefinitionPath   string
+							Message          string
+							ResultStatus     string
+							Tasks            []taskOutput
+						}{
+							RunID:            jsonOutput.RunID,
+							RunURL:           jsonOutput.RunURL,
+							TargetedTaskKeys: jsonOutput.TargetedTaskKeys,
+							DefinitionPath:   jsonOutput.DefinitionPath,
+							Message:          jsonOutput.Message,
+							ResultStatus:     waitResult.ResultStatus,
+							Tasks:            toTaskOutputs(promptResult.Tasks),
+						}
+						waitResultJson, err := json.Marshal(allJsonOutput)
+						if err != nil {
+							return err
+						}
+						fmt.Println(string(waitResultJson))
+					} else {
+						jsonOutput.ResultStatus = waitResult.ResultStatus
+						waitResultJson, err := json.Marshal(jsonOutput)
+						if err != nil {
+							return err
+						}
+						fmt.Println(string(waitResultJson))
 					}
-					fmt.Println(string(waitResultJson))
 				} else {
 					fmt.Printf("Run result status: %s\n", waitResult.ResultStatus)
 
-					promptResult, err := service.GetRunPrompt(runResult.RunID)
+					promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
+						RunID: runResult.RunID,
+						All:   RunAll,
+					})
 					if err == nil {
 						fmt.Printf("\n%s", promptResult.Prompt)
 					}
@@ -194,5 +231,6 @@ func init() {
 	runCmd.Flags().BoolVar(&Debug, "debug", false, "start a remote debugging session once a breakpoint is hit")
 	runCmd.Flags().BoolVar(&Wait, "wait", false, "poll for the run to complete and report the result status")
 	runCmd.Flags().BoolVar(&FailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
+	runCmd.Flags().BoolVar(&RunAll, "all", false, "include all tasks in the run output, not just failures (only has an effect when used with --wait)")
 	runCmd.Flags().StringVar(&Title, "title", "", "the title the UI will display for the run")
 }

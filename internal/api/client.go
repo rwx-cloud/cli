@@ -746,18 +746,26 @@ func (c Client) RunStatus(cfg RunStatusConfig) (RunStatusResult, error) {
 	return result, nil
 }
 
-func (c Client) GetRunPrompt(runID string) (string, error) {
-	endpoint := fmt.Sprintf("/mint/api/runs/%s/prompt", url.PathEscape(runID))
+func (c Client) GetRunPrompt(cfg GetRunPromptConfig) (GetRunPromptResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/runs/%s/prompt", url.PathEscape(cfg.RunID))
+	if cfg.All {
+		endpoint += "?all=true"
+	}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
-		return "", errors.Wrap(err, "unable to create new HTTP request")
+		return GetRunPromptResult{}, errors.Wrap(err, "unable to create new HTTP request")
 	}
-	req.Header.Set("Accept", "text/plain")
+
+	if cfg.All && cfg.Json {
+		req.Header.Set("Accept", "application/json")
+	} else {
+		req.Header.Set("Accept", "text/plain")
+	}
 
 	resp, err := c.RoundTrip(req)
 	if err != nil {
-		return "", errors.Wrap(err, "HTTP request failed")
+		return GetRunPromptResult{}, errors.Wrap(err, "HTTP request failed")
 	}
 	defer resp.Body.Close()
 
@@ -767,17 +775,27 @@ func (c Client) GetRunPrompt(runID string) (string, error) {
 			errMsg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
 		}
 		if resp.StatusCode == http.StatusNotFound {
-			return "", errors.Wrap(ErrNotFound, errMsg)
+			return GetRunPromptResult{}, errors.Wrap(ErrNotFound, errMsg)
 		}
-		return "", errors.New(errMsg)
+		return GetRunPromptResult{}, errors.New(errMsg)
+	}
+
+	if cfg.All && cfg.Json {
+		var tasksResp struct {
+			Tasks []RunPromptTask `json:"tasks"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&tasksResp); err != nil {
+			return GetRunPromptResult{}, errors.Wrap(err, "unable to parse API response")
+		}
+		return GetRunPromptResult{Tasks: tasksResp.Tasks}, nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errors.Wrap(err, "unable to read response body")
+		return GetRunPromptResult{}, errors.Wrap(err, "unable to read response body")
 	}
 
-	return string(body), nil
+	return GetRunPromptResult{Prompt: string(body)}, nil
 }
 
 func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, error) {

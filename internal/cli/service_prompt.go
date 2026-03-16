@@ -1,13 +1,26 @@
 package cli
 
-type GetRunPromptResult struct {
-	Prompt string
+import "github.com/rwx-cloud/rwx/internal/api"
+
+type GetRunPromptConfig struct {
+	RunID string
+	All   bool
+	Json  bool
 }
 
-func (s Service) GetRunPrompt(runID string) (*GetRunPromptResult, error) {
-	prompt, err := s.APIClient.GetRunPrompt(runID)
+type GetRunPromptResult struct {
+	Prompt string
+	Tasks  []api.RunPromptTask
+}
+
+func (s Service) GetRunPrompt(cfg GetRunPromptConfig) (*GetRunPromptResult, error) {
+	result, err := s.APIClient.GetRunPrompt(api.GetRunPromptConfig{
+		RunID: cfg.RunID,
+		All:   cfg.All,
+		Json:  cfg.Json,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return &GetRunPromptResult{Prompt: prompt}, nil
+	return &GetRunPromptResult{Prompt: result.Prompt, Tasks: result.Tasks}, nil
 }

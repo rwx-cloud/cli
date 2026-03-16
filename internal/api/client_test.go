@@ -1183,6 +1183,7 @@ func TestAPIClient_GetRunPrompt(t *testing.T) {
 			require.Equal(t, "/mint/api/runs/run-123/prompt", req.URL.Path)
 			require.Equal(t, http.MethodGet, req.Method)
 			require.Equal(t, "text/plain", req.Header.Get("Accept"))
+			require.Empty(t, req.URL.RawQuery)
 			return &http.Response{
 				Status:     "200 OK",
 				StatusCode: 200,
@@ -1192,9 +1193,9 @@ func TestAPIClient_GetRunPrompt(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		result, err := c.GetRunPrompt("run-123")
+		result, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "run-123"})
 		require.NoError(t, err)
-		require.NotEmpty(t, result)
+		require.Equal(t, "some prompt text", result.Prompt)
 	})
 
 	t.Run("handles 404 not found", func(t *testing.T) {
@@ -1208,9 +1209,51 @@ func TestAPIClient_GetRunPrompt(t *testing.T) {
 
 		c := api.NewClientWithRoundTrip(roundTrip)
 
-		_, err := c.GetRunPrompt("nonexistent")
+		_, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "nonexistent"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("passes all=true query param when All is set", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/runs/run-123/prompt", req.URL.Path)
+			require.Equal(t, "all=true", req.URL.RawQuery)
+			require.Equal(t, "text/plain", req.Header.Get("Accept"))
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte("prompt with all tasks table"))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "run-123", All: true})
+		require.NoError(t, err)
+		require.Equal(t, "prompt with all tasks table", result.Prompt)
+	})
+
+	t.Run("requests JSON and parses tasks when All and Json are set", func(t *testing.T) {
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "all=true", req.URL.RawQuery)
+			require.Equal(t, "application/json", req.Header.Get("Accept"))
+			body := `{"tasks": [{"key": "ci.lint", "status": "succeeded"}, {"key": "ci.test", "status": "failed"}]}`
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetRunPrompt(api.GetRunPromptConfig{RunID: "run-123", All: true, Json: true})
+		require.NoError(t, err)
+		require.Len(t, result.Tasks, 2)
+		require.Equal(t, "ci.lint", result.Tasks[0].Key)
+		require.Equal(t, "succeeded", result.Tasks[0].Status)
+		require.Equal(t, "ci.test", result.Tasks[1].Key)
+		require.Equal(t, "failed", result.Tasks[1].Status)
 	})
 }
 

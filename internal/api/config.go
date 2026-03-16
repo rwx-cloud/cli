@@ -285,6 +285,22 @@ type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
 }
 
+type GetRunPromptConfig struct {
+	RunID string
+	All   bool
+	Json  bool
+}
+
+type RunPromptTask struct {
+	Key    string `json:"key"`
+	Status string `json:"status"`
+}
+
+type GetRunPromptResult struct {
+	Prompt string
+	Tasks  []RunPromptTask
+}
+
 type SandboxRunSummary struct {
 	ID       string `json:"id"`
 	RunURL   string `json:"run_url"`

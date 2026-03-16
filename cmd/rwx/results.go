@@ -15,6 +15,7 @@ import (
 var (
 	ResultsWait     bool
 	ResultsFailFast bool
+	ResultsAll      bool
 
 	resultsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -63,20 +64,47 @@ var (
 			}
 
 			if useJson {
-				jsonOutput := struct {
-					RunID        string
-					ResultStatus string
-					Completed    bool
-				}{
-					RunID:        result.RunID,
-					ResultStatus: result.ResultStatus,
-					Completed:    result.Completed,
+				if ResultsAll {
+					promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
+						RunID: result.RunID,
+						All:   true,
+						Json:  true,
+					})
+					if err != nil {
+						return err
+					}
+					jsonOutput := struct {
+						RunID        string
+						ResultStatus string
+						Completed    bool
+						Tasks        []taskOutput
+					}{
+						RunID:        result.RunID,
+						ResultStatus: result.ResultStatus,
+						Completed:    result.Completed,
+						Tasks:        toTaskOutputs(promptResult.Tasks),
+					}
+					resultJson, err := json.Marshal(jsonOutput)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(resultJson))
+				} else {
+					jsonOutput := struct {
+						RunID        string
+						ResultStatus string
+						Completed    bool
+					}{
+						RunID:        result.RunID,
+						ResultStatus: result.ResultStatus,
+						Completed:    result.Completed,
+					}
+					resultJson, err := json.Marshal(jsonOutput)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(resultJson))
 				}
-				resultJson, err := json.Marshal(jsonOutput)
-				if err != nil {
-					return err
-				}
-				fmt.Println(string(resultJson))
 			} else {
 				if runID == "" && result.Commit != "" {
 					if head := service.GitClient.GetHead(); head != "" {
@@ -94,7 +122,10 @@ var (
 					fmt.Printf("Run status: %s (in progress)\n", result.ResultStatus)
 				}
 
-				promptResult, err := service.GetRunPrompt(result.RunID)
+				promptResult, err := service.GetRunPrompt(cli.GetRunPromptConfig{
+					RunID: result.RunID,
+					All:   ResultsAll,
+				})
 				if err == nil {
 					fmt.Printf("\n%s", promptResult.Prompt)
 				}
@@ -109,7 +140,23 @@ var (
 	}
 )
 
+// taskOutput is used for JSON marshaling to ensure PascalCase keys,
+// since api.RunPromptTask uses camelCase tags for server deserialization.
+type taskOutput struct {
+	Key    string
+	Status string
+}
+
+func toTaskOutputs(tasks []api.RunPromptTask) []taskOutput {
+	out := make([]taskOutput, len(tasks))
+	for i, t := range tasks {
+		out[i] = taskOutput{Key: t.Key, Status: t.Status}
+	}
+	return out
+}
+
 func init() {
 	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "poll for the run to complete and report the result status")
 	resultsCmd.Flags().BoolVar(&ResultsFailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
+	resultsCmd.Flags().BoolVar(&ResultsAll, "all", false, "include all tasks in the run, not just failures")
 }

@@ -36,7 +36,7 @@ type APIClient interface {
 	GetAllArtifactDownloadRequests(taskId string) ([]api.ArtifactDownloadRequestResult, error)
 	GetArtifactDownloadRequest(taskId, artifactKey string) (api.ArtifactDownloadRequestResult, error)
 	DownloadArtifact(api.ArtifactDownloadRequestResult) ([]byte, error)
-	GetRunPrompt(runID string) (string, error)
+	GetRunPrompt(cfg api.GetRunPromptConfig) (api.GetRunPromptResult, error)
 	GetSandboxInitTemplate() (api.SandboxInitTemplateResult, error)
 	ListSandboxRuns() (*api.ListSandboxRunsResult, error)
 	CancelRun(runID, scopedToken string) error
