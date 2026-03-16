@@ -42,9 +42,11 @@ func InitList(requireAccessToken func() error, getService func() cli.Service, us
 
 			if taskKeySet {
 				var runID string
+				var runIDExplicit bool
 				var err error
 				if len(args) > 0 {
 					runID = args[0]
+					runIDExplicit = true
 				} else {
 					runID, err = svc.ResolveRunIDFromGitContext()
 					if err != nil {
@@ -53,15 +55,17 @@ func InitList(requireAccessToken func() error, getService func() cli.Service, us
 				}
 				cfg.RunID = runID
 				cfg.TaskKey = listTaskKey
-			} else {
-				cfg.TaskID = args[0]
+
+				_, err = svc.ListArtifacts(cfg)
+				if err != nil {
+					return handleTaskKeyError(err, runID, runIDExplicit)
+				}
+				return nil
 			}
 
+			cfg.TaskID = args[0]
 			_, err := svc.ListArtifacts(cfg)
-			if err != nil {
-				return handleTaskKeyError(err)
-			}
-			return nil
+			return err
 		},
 		Short: "List artifacts for a task",
 		Use:   "list [task-id | run-id --task <key>] [flags]",

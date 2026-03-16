@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/rwx-cloud/rwx/internal/cli"
@@ -81,8 +80,10 @@ var (
 
 			if taskKeySet {
 				var runID string
+				var runIDExplicit bool
 				if len(args) > 0 {
 					runID = args[0]
+					runIDExplicit = true
 				} else {
 					runID, err = service.ResolveRunIDFromGitContext()
 					if err != nil {
@@ -91,15 +92,17 @@ var (
 				}
 				cfg.RunID = runID
 				cfg.TaskKey = LogsTaskKey
-			} else {
-				cfg.TaskID = args[0]
+
+				_, err = service.DownloadLogs(cfg)
+				if err != nil {
+					return handleTaskKeyError(err, runID, runIDExplicit)
+				}
+				return nil
 			}
 
+			cfg.TaskID = args[0]
 			_, err = service.DownloadLogs(cfg)
-			if err != nil {
-				return handleTaskKeyError(err)
-			}
-			return nil
+			return err
 		},
 		Short: "Download logs for a task",
 		Use:   "logs [task-id | run-id --task <key>] [flags]",
@@ -115,16 +118,23 @@ func init() {
 	logsCmd.Flags().StringVar(&LogsTaskKey, "task", "", "task key (e.g., ci.checks.lint); resolves the task by key instead of ID")
 }
 
-// handleTaskKeyError formats AmbiguousTaskKeyError with matching keys for user display
-func handleTaskKeyError(err error) error {
+// handleTaskKeyError formats task-key-specific errors for user display.
+// For ambiguous keys, it shows matching keys. For not-found and other errors,
+// it suggests using `rwx results --all` to discover available task keys.
+func handleTaskKeyError(err error, runID string, runIDExplicit bool) error {
 	var ambiguousErr *api.AmbiguousTaskKeyError
 	if errors.As(err, &ambiguousErr) {
 		msg := fmt.Sprintf("%s\n\nMatching keys:\n", ambiguousErr.Error())
 		for _, key := range ambiguousErr.MatchingKeys {
 			msg += fmt.Sprintf("  %s\n", key)
 		}
-		msg += strings.TrimRight("\nRetry with a fully-qualified key.", "\n")
+		msg += "\nRetry with a fully-qualified key."
 		return errors.New(msg)
 	}
-	return err
+
+	suggestion := "rwx results --all"
+	if runIDExplicit {
+		suggestion = fmt.Sprintf("rwx results %s --all", runID)
+	}
+	return errors.Errorf("%s\n\nUse '%s' to see all available task keys.", err, suggestion)
 }
