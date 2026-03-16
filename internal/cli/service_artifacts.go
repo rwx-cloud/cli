@@ -20,6 +20,8 @@ import (
 
 type DownloadArtifactConfig struct {
 	TaskID                 string
+	RunID                  string
+	TaskKey                string
 	ArtifactKey            string
 	OutputDir              string
 	OutputFile             string
@@ -30,7 +32,11 @@ type DownloadArtifactConfig struct {
 }
 
 func (c DownloadArtifactConfig) Validate() error {
-	if c.TaskID == "" {
+	if c.TaskKey != "" {
+		if c.RunID == "" {
+			return errors.New("run ID must be provided when using task key")
+		}
+	} else if c.TaskID == "" {
 		return errors.New("task ID must be provided")
 	}
 	if c.ArtifactKey == "" {
@@ -63,9 +69,17 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (_ *DownloadArtifa
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	artifactDownloadRequest, err := s.APIClient.GetArtifactDownloadRequest(cfg.TaskID, cfg.ArtifactKey)
+	var artifactDownloadRequest api.ArtifactDownloadRequestResult
+	if cfg.TaskKey != "" {
+		artifactDownloadRequest, err = s.APIClient.GetArtifactDownloadRequestByTaskKey(cfg.RunID, cfg.TaskKey, cfg.ArtifactKey)
+	} else {
+		artifactDownloadRequest, err = s.APIClient.GetArtifactDownloadRequest(cfg.TaskID, cfg.ArtifactKey)
+	}
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
+			if cfg.TaskKey != "" {
+				return nil, errors.New(fmt.Sprintf("Artifact %s for task key '%s' not found", cfg.ArtifactKey, cfg.TaskKey))
+			}
 			return nil, errors.New(fmt.Sprintf("Artifact %s for task %s not found", cfg.ArtifactKey, cfg.TaskID))
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download request")
@@ -189,12 +203,18 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (_ *DownloadArtifa
 }
 
 type ListArtifactsConfig struct {
-	TaskID string
-	Json   bool
+	TaskID  string
+	RunID   string
+	TaskKey string
+	Json    bool
 }
 
 func (c ListArtifactsConfig) Validate() error {
-	if c.TaskID == "" {
+	if c.TaskKey != "" {
+		if c.RunID == "" {
+			return errors.New("run ID must be provided when using task key")
+		}
+	} else if c.TaskID == "" {
 		return errors.New("task ID must be provided")
 	}
 	return nil
@@ -216,9 +236,17 @@ func (s Service) ListArtifacts(cfg ListArtifactsConfig) (*ListArtifactsResult, e
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	artifactDownloadRequests, err := s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	var artifactDownloadRequests []api.ArtifactDownloadRequestResult
+	if cfg.TaskKey != "" {
+		artifactDownloadRequests, err = s.APIClient.GetAllArtifactDownloadRequestsByTaskKey(cfg.RunID, cfg.TaskKey)
+	} else {
+		artifactDownloadRequests, err = s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	}
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
+			if cfg.TaskKey != "" {
+				return nil, errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey))
+			}
 			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifacts")
@@ -288,6 +316,8 @@ func formatBytes(b int64) string {
 
 type DownloadAllArtifactsConfig struct {
 	TaskID                 string
+	RunID                  string
+	TaskKey                string
 	OutputDir              string
 	OutputDirExplicitlySet bool
 	Json                   bool
@@ -296,7 +326,11 @@ type DownloadAllArtifactsConfig struct {
 }
 
 func (c DownloadAllArtifactsConfig) Validate() error {
-	if c.TaskID == "" {
+	if c.TaskKey != "" {
+		if c.RunID == "" {
+			return errors.New("run ID must be provided when using task key")
+		}
+	} else if c.TaskID == "" {
 		return errors.New("task ID must be provided")
 	}
 	return nil
@@ -324,9 +358,17 @@ func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (_ *Downlo
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	artifactDownloadRequests, err := s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	var artifactDownloadRequests []api.ArtifactDownloadRequestResult
+	if cfg.TaskKey != "" {
+		artifactDownloadRequests, err = s.APIClient.GetAllArtifactDownloadRequestsByTaskKey(cfg.RunID, cfg.TaskKey)
+	} else {
+		artifactDownloadRequests, err = s.APIClient.GetAllArtifactDownloadRequests(cfg.TaskID)
+	}
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
+			if cfg.TaskKey != "" {
+				return nil, errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey))
+			}
 			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download requests")

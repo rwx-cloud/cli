@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/rwx-cloud/rwx/internal/accesstoken"
 	"github.com/rwx-cloud/rwx/internal/errors"
@@ -342,6 +343,15 @@ type RunStatusResult struct {
 	RunURL  string        `json:"run_url,omitempty"`
 	Commit  *string       `json:"commit_sha,omitempty"`
 	Polling PollingResult `json:"polling"`
+}
+
+type AmbiguousTaskKeyError struct {
+	TaskKey      string
+	MatchingKeys []string
+}
+
+func (e *AmbiguousTaskKeyError) Error() string {
+	return fmt.Sprintf("ambiguous task key '%s' matched multiple tasks", e.TaskKey)
 }
 
 type SandboxInitTemplateResult struct {
