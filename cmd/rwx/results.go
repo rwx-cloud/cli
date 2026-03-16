@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/rwx-cloud/rwx/internal/cli"
-	"github.com/rwx-cloud/rwx/internal/errors"
 	"github.com/rwx-cloud/rwx/internal/git"
 
 	"github.com/spf13/cobra"
@@ -27,39 +25,27 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			useJson := useJsonOutput()
 
-			var runID, branchName, repositoryName string
+			var runID string
+			runIDFromGit := false
 			if len(args) > 0 {
 				runID = args[0]
 			} else {
-				branchName = service.GitClient.GetBranch()
-				repositoryName = git.RepoNameFromOriginUrl(service.GitClient.GetOriginUrl())
-
-				if branchName == "" || repositoryName == "" {
-					return fmt.Errorf("unable to determine the current branch and repository from git; please provide a run ID")
+				var err error
+				runID, err = service.ResolveRunIDFromGitContext()
+				if err != nil {
+					return err
 				}
-
-				if !useJson {
-					fmt.Printf("Fetching the latest run for %s repository on branch %s...\n", repositoryName, branchName)
-				}
+				runIDFromGit = true
 			}
 
 			result, err := service.GetRunStatus(cli.GetRunStatusConfig{
-				RunID:          runID,
-				BranchName:     branchName,
-				RepositoryName: repositoryName,
-				Wait:           ResultsWait,
-				FailFast:       ResultsFailFast,
-				Json:           useJson,
+				RunID:    runID,
+				Wait:     ResultsWait,
+				FailFast: ResultsFailFast,
+				Json:     useJson,
 			})
 			if err != nil {
-				if runID == "" && errors.Is(err, api.ErrNotFound) {
-					return fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
-				}
 				return err
-			}
-
-			if result.RunID == "" {
-				return fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
 			}
 
 			if useJson {
@@ -78,7 +64,7 @@ var (
 				}
 				fmt.Println(string(resultJson))
 			} else {
-				if runID == "" && result.Commit != "" {
+				if runIDFromGit && result.Commit != "" {
 					if head := service.GitClient.GetHead(); head != "" {
 						if note := git.CommitMismatchNote(head, result.Commit); note != "" {
 							fmt.Println(note)

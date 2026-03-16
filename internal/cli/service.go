@@ -7,7 +7,9 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/rwx-cloud/rwx/internal/errors"
+	"github.com/rwx-cloud/rwx/internal/git"
 	"github.com/rwx-cloud/rwx/internal/versions"
 )
 
@@ -107,6 +109,34 @@ func (s Service) confirmDestruction(prompt string, yes bool) error {
 	}
 
 	return nil
+}
+
+// ResolveRunIDFromGitContext resolves the latest run ID by looking up the
+// current git branch and repository name via the API.
+func (s Service) ResolveRunIDFromGitContext() (string, error) {
+	branchName := s.GitClient.GetBranch()
+	repositoryName := git.RepoNameFromOriginUrl(s.GitClient.GetOriginUrl())
+
+	if branchName == "" || repositoryName == "" {
+		return "", errors.New("unable to determine the current branch and repository from git; please provide a run ID")
+	}
+
+	result, err := s.APIClient.RunStatus(api.RunStatusConfig{
+		BranchName:     branchName,
+		RepositoryName: repositoryName,
+	})
+	if err != nil {
+		if errors.Is(err, api.ErrNotFound) {
+			return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+		}
+		return "", errors.Wrap(err, "unable to resolve run from git context")
+	}
+
+	if result.RunID == "" {
+		return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+	}
+
+	return result.RunID, nil
 }
 
 func Map[T any, R any](input []T, transformer func(T) R) []R {
