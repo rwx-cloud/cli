@@ -94,6 +94,41 @@ var (
 	}
 )
 
+// --- vars subcommand group ---
+
+var vaultsVarsCmd = &cobra.Command{
+	Short: "Manage vars in a vault",
+	Use:   "vars",
+}
+
+var (
+	varsSetVault string
+	varsSetFile  string
+
+	vaultsVarsSetCmd = &cobra.Command{
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var vars []string
+			if len(args) >= 0 {
+				vars = args
+			}
+
+			useJson := useJsonOutput()
+			_, err := service.SetVars(cli.SetVarsConfig{
+				Vault: varsSetVault,
+				File:  varsSetFile,
+				Vars:  vars,
+				Json:  useJson,
+			})
+			return err
+		},
+		Short: "Set vars in a vault",
+		Use:   "set [flags] [KEY=value]",
+	}
+)
+
 // --- set-secrets alias (backwards compatibility) ---
 
 var (
@@ -143,6 +178,13 @@ func init() {
 	vaultsSecretsCmd.AddCommand(vaultsSecretsDeleteCmd)
 
 	vaultsCmd.AddCommand(vaultsSecretsCmd)
+
+	// vaults vars set
+	vaultsVarsSetCmd.Flags().StringVar(&varsSetVault, "vault", "default", "the name of the vault to set the vars in")
+	vaultsVarsSetCmd.Flags().StringVar(&varsSetFile, "file", "", "the path to a file in dotenv format to read the vars from")
+	vaultsVarsCmd.AddCommand(vaultsVarsSetCmd)
+
+	vaultsCmd.AddCommand(vaultsVarsCmd)
 
 	// vaults set-secrets (alias for backwards compatibility)
 	vaultsSetSecretsCmd.Flags().StringVar(&setSecretsVault, "vault", "default", "the name of the vault to set the secrets in")

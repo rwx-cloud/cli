@@ -17,6 +17,7 @@ type API struct {
 	MockSetSecretsInVault              func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	MockCreateVault                    func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
 	MockDeleteSecret                   func(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
+	MockSetVar                         func(api.SetVarConfig) (*api.SetVarResult, error)
 	MockGetPackageVersions             func() (*api.PackageVersionsResult, error)
 	MockGetPackageDocumentation        func(string) (*api.PackageDocumentationResult, error)
 	MockInitiateDispatch               func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
@@ -125,6 +126,14 @@ func (c *API) DeleteSecret(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult,
 	}
 
 	return nil, errors.New("MockDeleteSecret was not configured")
+}
+
+func (c *API) SetVar(cfg api.SetVarConfig) (*api.SetVarResult, error) {
+	if c.MockSetVar != nil {
+		return c.MockSetVar(cfg)
+	}
+
+	return nil, errors.New("MockSetVar was not configured")
 }
 
 func (c *API) GetPackageVersions() (*api.PackageVersionsResult, error) {

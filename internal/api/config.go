@@ -177,6 +177,18 @@ type DeleteSecretConfig struct {
 
 type DeleteSecretResult struct{}
 
+type SetVarConfig struct {
+	VaultName string `json:"vault_name"`
+	Var       Var    `json:"var"`
+}
+
+type Var struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type SetVarResult struct{}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }
