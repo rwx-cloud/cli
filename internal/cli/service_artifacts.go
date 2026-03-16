@@ -78,9 +78,9 @@ func (s Service) DownloadArtifact(cfg DownloadArtifactConfig) (_ *DownloadArtifa
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
 			if cfg.TaskKey != "" {
-				return nil, errors.New(fmt.Sprintf("Artifact %s for task key '%s' not found", cfg.ArtifactKey, cfg.TaskKey))
+				return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifact %s for task key '%s' not found", cfg.ArtifactKey, cfg.TaskKey)), api.ErrNotFound)
 			}
-			return nil, errors.New(fmt.Sprintf("Artifact %s for task %s not found", cfg.ArtifactKey, cfg.TaskID))
+			return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifact %s for task %s not found", cfg.ArtifactKey, cfg.TaskID)), api.ErrNotFound)
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download request")
 	}
@@ -245,9 +245,9 @@ func (s Service) ListArtifacts(cfg ListArtifactsConfig) (*ListArtifactsResult, e
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
 			if cfg.TaskKey != "" {
-				return nil, errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey))
+				return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey)), api.ErrNotFound)
 			}
-			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
+			return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID)), api.ErrNotFound)
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifacts")
 	}
@@ -367,9 +367,9 @@ func (s Service) DownloadAllArtifacts(cfg DownloadAllArtifactsConfig) (_ *Downlo
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
 			if cfg.TaskKey != "" {
-				return nil, errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey))
+				return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifacts for task key '%s' not found", cfg.TaskKey)), api.ErrNotFound)
 			}
-			return nil, errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID))
+			return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Artifacts for task %s not found", cfg.TaskID)), api.ErrNotFound)
 		}
 		return nil, errors.Wrap(err, "unable to fetch artifact download requests")
 	}

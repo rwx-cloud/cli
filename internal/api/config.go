@@ -354,6 +354,10 @@ func (e *AmbiguousTaskKeyError) Error() string {
 	return fmt.Sprintf("ambiguous task key '%s' matched multiple tasks", e.TaskKey)
 }
 
+func (e *AmbiguousTaskKeyError) Unwrap() error {
+	return errors.ErrAmbiguousTaskKey
+}
+
 type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
 }

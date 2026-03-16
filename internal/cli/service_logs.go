@@ -68,9 +68,9 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
 			if cfg.TaskKey != "" {
-				return nil, errors.New(fmt.Sprintf("Task with key '%s' not found", cfg.TaskKey))
+				return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Task with key '%s' not found", cfg.TaskKey)), api.ErrNotFound)
 			}
-			return nil, errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID))
+			return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID)), api.ErrNotFound)
 		}
 		return nil, errors.Wrap(err, "unable to fetch log archive request")
 	}
