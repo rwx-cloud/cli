@@ -523,6 +523,164 @@ func (c Client) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*SetSecretsInVau
 	return &respBody, nil
 }
 
+func (c Client) CreateVault(cfg CreateVaultConfig) (*CreateVaultResult, error) {
+	endpoint := "/mint/api/vaults"
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &CreateVaultResult{}, nil
+}
+
+func (c Client) DeleteSecret(cfg DeleteSecretConfig) (*DeleteSecretResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/vaults/secrets/%s?vault_name=%s",
+		url.PathEscape(cfg.SecretName),
+		url.QueryEscape(cfg.VaultName),
+	)
+
+	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &DeleteSecretResult{}, nil
+}
+
+func (c Client) SetVar(cfg SetVarConfig) (*SetVarResult, error) {
+	endpoint := "/mint/api/vaults/vars"
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &SetVarResult{}, nil
+}
+
+func (c Client) ShowVar(cfg ShowVarConfig) (*ShowVarResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/vaults/vars/%s?vault_name=%s",
+		url.PathEscape(cfg.VarName),
+		url.QueryEscape(cfg.VaultName),
+	)
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	respBody := ShowVarResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &respBody, nil
+}
+
+func (c Client) DeleteVar(cfg DeleteVarConfig) (*DeleteVarResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/vaults/vars/%s?vault_name=%s",
+		url.PathEscape(cfg.VarName),
+		url.QueryEscape(cfg.VaultName),
+	)
+
+	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &DeleteVarResult{}, nil
+}
+
 func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 

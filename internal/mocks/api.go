@@ -15,6 +15,11 @@ type API struct {
 	MockWhoami                         func() (*api.WhoamiResult, error)
 	MockCreateDocsToken                func() (*api.DocsTokenResult, error)
 	MockSetSecretsInVault              func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
+	MockCreateVault                    func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
+	MockDeleteSecret                   func(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
+	MockSetVar                         func(api.SetVarConfig) (*api.SetVarResult, error)
+	MockShowVar                        func(api.ShowVarConfig) (*api.ShowVarResult, error)
+	MockDeleteVar                      func(api.DeleteVarConfig) (*api.DeleteVarResult, error)
 	MockGetPackageVersions             func() (*api.PackageVersionsResult, error)
 	MockGetPackageDocumentation        func(string) (*api.PackageDocumentationResult, error)
 	MockInitiateDispatch               func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
@@ -107,6 +112,46 @@ func (c *API) SetSecretsInVault(cfg api.SetSecretsInVaultConfig) (*api.SetSecret
 	}
 
 	return nil, errors.New("MockSetSecretsInVault was not configured")
+}
+
+func (c *API) CreateVault(cfg api.CreateVaultConfig) (*api.CreateVaultResult, error) {
+	if c.MockCreateVault != nil {
+		return c.MockCreateVault(cfg)
+	}
+
+	return nil, errors.New("MockCreateVault was not configured")
+}
+
+func (c *API) DeleteSecret(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {
+	if c.MockDeleteSecret != nil {
+		return c.MockDeleteSecret(cfg)
+	}
+
+	return nil, errors.New("MockDeleteSecret was not configured")
+}
+
+func (c *API) SetVar(cfg api.SetVarConfig) (*api.SetVarResult, error) {
+	if c.MockSetVar != nil {
+		return c.MockSetVar(cfg)
+	}
+
+	return nil, errors.New("MockSetVar was not configured")
+}
+
+func (c *API) ShowVar(cfg api.ShowVarConfig) (*api.ShowVarResult, error) {
+	if c.MockShowVar != nil {
+		return c.MockShowVar(cfg)
+	}
+
+	return nil, errors.New("MockShowVar was not configured")
+}
+
+func (c *API) DeleteVar(cfg api.DeleteVarConfig) (*api.DeleteVarResult, error) {
+	if c.MockDeleteVar != nil {
+		return c.MockDeleteVar(cfg)
+	}
+
+	return nil, errors.New("MockDeleteVar was not configured")
 }
 
 func (c *API) GetPackageVersions() (*api.PackageVersionsResult, error) {

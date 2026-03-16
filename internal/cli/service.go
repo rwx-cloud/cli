@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"sync/atomic"
 
 	"github.com/rwx-cloud/rwx/internal/errors"
@@ -79,6 +81,32 @@ func (s Service) recordTelemetry(event string, props map[string]any) {
 		return
 	}
 	s.TelemetryCollector.Record(event, props)
+}
+
+// confirmDestruction prompts the user to confirm a destructive action.
+// If yes is true, confirmation is skipped. In non-TTY environments without
+// yes, an error is returned instructing the user to pass --yes.
+func (s Service) confirmDestruction(prompt string, yes bool) error {
+	if yes {
+		return nil
+	}
+
+	if !s.StderrIsTTY {
+		return errors.New("use --yes to confirm in non-interactive environments")
+	}
+
+	fmt.Fprintf(s.Stderr, "%s [y/N]: ", prompt)
+	scanner := bufio.NewScanner(s.Stdin)
+	if !scanner.Scan() {
+		return errors.New("no input provided")
+	}
+
+	answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	if answer != "y" && answer != "yes" {
+		return errors.New("aborted")
+	}
+
+	return nil
 }
 
 func Map[T any, R any](input []T, transformer func(T) R) []R {

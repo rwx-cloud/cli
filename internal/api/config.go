@@ -157,6 +157,55 @@ type SetSecretsInVaultResult struct {
 	SetSecrets []string `json:"set_secrets"`
 }
 
+type CreateVaultConfig struct {
+	Name                  string                      `json:"name"`
+	Unlocked              bool                        `json:"unlocked"`
+	RepositoryPermissions []CreateVaultRepoPermission `json:"repository_permissions"`
+}
+
+type CreateVaultRepoPermission struct {
+	RepositorySlug string `json:"repository_slug"`
+	BranchPattern  string `json:"branch_pattern"`
+}
+
+type CreateVaultResult struct{}
+
+type DeleteSecretConfig struct {
+	SecretName string
+	VaultName  string
+}
+
+type DeleteSecretResult struct{}
+
+type SetVarConfig struct {
+	VaultName string `json:"vault_name"`
+	Var       Var    `json:"var"`
+}
+
+type Var struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type SetVarResult struct{}
+
+type ShowVarConfig struct {
+	VarName   string
+	VaultName string
+}
+
+type ShowVarResult struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type DeleteVarConfig struct {
+	VarName   string
+	VaultName string
+}
+
+type DeleteVarResult struct{}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }
