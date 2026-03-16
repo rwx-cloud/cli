@@ -116,3 +116,63 @@ func (s Service) SetVars(cfg SetVarsConfig) (*SetVarsResult, error) {
 
 	return result, nil
 }
+
+type ShowVarConfig struct {
+	VarName string
+	Vault   string
+	Json    bool
+}
+
+func (c ShowVarConfig) Validate() error {
+	if c.VarName == "" {
+		return errors.New("the var name must be provided")
+	}
+
+	if c.Vault == "" {
+		return errors.New("the vault name must be provided")
+	}
+
+	return nil
+}
+
+type ShowVarResult struct {
+	Name  string
+	Value string
+}
+
+func (s Service) ShowVar(cfg ShowVarConfig) (*ShowVarResult, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	apiResult, err := s.APIClient.ShowVar(api.ShowVarConfig{
+		VarName:   cfg.VarName,
+		VaultName: cfg.Vault,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to show var")
+	}
+
+	result := &ShowVarResult{
+		Name:  apiResult.Name,
+		Value: apiResult.Value,
+	}
+
+	if cfg.Json {
+		output := struct {
+			Name  string
+			Value string
+		}{
+			Name:  apiResult.Name,
+			Value: apiResult.Value,
+		}
+		if err := json.NewEncoder(s.Stdout).Encode(output); err != nil {
+			return nil, errors.Wrap(err, "unable to encode JSON output")
+		}
+	} else {
+		fmt.Fprintln(s.Stdout, apiResult.Value)
+	}
+
+	return result, nil
+}

@@ -189,6 +189,16 @@ type Var struct {
 
 type SetVarResult struct{}
 
+type ShowVarConfig struct {
+	VarName   string
+	VaultName string
+}
+
+type ShowVarResult struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }

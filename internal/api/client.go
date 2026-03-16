@@ -618,6 +618,40 @@ func (c Client) SetVar(cfg SetVarConfig) (*SetVarResult, error) {
 	return &SetVarResult{}, nil
 }
 
+func (c Client) ShowVar(cfg ShowVarConfig) (*ShowVarResult, error) {
+	endpoint := fmt.Sprintf("/mint/api/vaults/vars/%s?vault_name=%s",
+		url.PathEscape(cfg.VarName),
+		url.QueryEscape(cfg.VaultName),
+	)
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	respBody := ShowVarResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &respBody, nil
+}
+
 func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 

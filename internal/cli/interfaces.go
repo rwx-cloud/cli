@@ -26,6 +26,7 @@ type APIClient interface {
 	CreateVault(api.CreateVaultConfig) (*api.CreateVaultResult, error)
 	DeleteSecret(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
 	SetVar(api.SetVarConfig) (*api.SetVarResult, error)
+	ShowVar(api.ShowVarConfig) (*api.ShowVarResult, error)
 	GetPackageVersions() (*api.PackageVersionsResult, error)
 	GetPackageDocumentation(packageName string) (*api.PackageDocumentationResult, error)
 	GetDefaultBase() (api.DefaultBaseResult, error)

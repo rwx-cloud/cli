@@ -100,3 +100,67 @@ func TestService_SetVars(t *testing.T) {
 		require.Contains(t, s.mockStdout.String(), `"SetVars"`)
 	})
 }
+
+func TestService_ShowVar(t *testing.T) {
+	t.Run("shows a var", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockShowVar = func(cfg api.ShowVarConfig) (*api.ShowVarResult, error) {
+			require.Equal(t, "MY_VAR", cfg.VarName)
+			require.Equal(t, "default", cfg.VaultName)
+			return &api.ShowVarResult{
+				Name:  "MY_VAR",
+				Value: "hello-world",
+			}, nil
+		}
+
+		result, err := s.service.ShowVar(cli.ShowVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, "MY_VAR", result.Name)
+		require.Equal(t, "hello-world", result.Value)
+		require.Equal(t, "hello-world\n", s.mockStdout.String())
+	})
+
+	t.Run("when var not found", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockShowVar = func(cfg api.ShowVarConfig) (*api.ShowVarResult, error) {
+			return nil, errors.New("not found")
+		}
+
+		result, err := s.service.ShowVar(cli.ShowVarConfig{
+			VarName: "MISSING",
+			Vault:   "default",
+		})
+
+		require.Nil(t, result)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("with json output", func(t *testing.T) {
+		s := setupTest(t)
+
+		s.mockAPI.MockShowVar = func(cfg api.ShowVarConfig) (*api.ShowVarResult, error) {
+			return &api.ShowVarResult{
+				Name:  "MY_VAR",
+				Value: "hello-world",
+			}, nil
+		}
+
+		result, err := s.service.ShowVar(cli.ShowVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+			Json:    true,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Contains(t, s.mockStdout.String(), `"Name":"MY_VAR"`)
+		require.Contains(t, s.mockStdout.String(), `"Value":"hello-world"`)
+	})
+}

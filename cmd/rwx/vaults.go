@@ -129,6 +129,28 @@ var (
 	}
 )
 
+var (
+	varsShowVault string
+
+	vaultsVarsShowCmd = &cobra.Command{
+		Args: cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return requireAccessToken()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			useJson := useJsonOutput()
+			_, err := service.ShowVar(cli.ShowVarConfig{
+				VarName: args[0],
+				Vault:   varsShowVault,
+				Json:    useJson,
+			})
+			return err
+		},
+		Short: "Show a var from a vault",
+		Use:   "show NAME [flags]",
+	}
+)
+
 // --- set-secrets alias (backwards compatibility) ---
 
 var (
@@ -183,6 +205,10 @@ func init() {
 	vaultsVarsSetCmd.Flags().StringVar(&varsSetVault, "vault", "default", "the name of the vault to set the vars in")
 	vaultsVarsSetCmd.Flags().StringVar(&varsSetFile, "file", "", "the path to a file in dotenv format to read the vars from")
 	vaultsVarsCmd.AddCommand(vaultsVarsSetCmd)
+
+	// vaults vars show
+	vaultsVarsShowCmd.Flags().StringVar(&varsShowVault, "vault", "default", "the name of the vault to show the var from")
+	vaultsVarsCmd.AddCommand(vaultsVarsShowCmd)
 
 	vaultsCmd.AddCommand(vaultsVarsCmd)
 
