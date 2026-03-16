@@ -9,7 +9,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 2.0.4
+    call: git/clone 2.0.6
     with:
       repository: https://github.com/rwx-cloud/rwx.git
       ref: main
@@ -46,7 +46,7 @@ tasks:
       GITHUB_TOKEN: ${{ github['rwx-cloud'].token }}
 
   - key: create-pull-request
-    call: github/create-pull-request 1.0.3
+    call: github/create-pull-request 1.0.4
     use: update-ref
     with:
       github-token: ${{ github-apps.rwx-cloud-bot.token }}
