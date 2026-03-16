@@ -16,6 +16,7 @@ type API struct {
 	MockCreateDocsToken                func() (*api.DocsTokenResult, error)
 	MockSetSecretsInVault              func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	MockCreateVault                    func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
+	MockCreateVaultOidcToken           func(api.CreateVaultOidcTokenConfig) (*api.CreateVaultOidcTokenResult, error)
 	MockDeleteSecret                   func(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
 	MockSetVar                         func(api.SetVarConfig) (*api.SetVarResult, error)
 	MockShowVar                        func(api.ShowVarConfig) (*api.ShowVarResult, error)
@@ -120,6 +121,14 @@ func (c *API) CreateVault(cfg api.CreateVaultConfig) (*api.CreateVaultResult, er
 	}
 
 	return nil, errors.New("MockCreateVault was not configured")
+}
+
+func (c *API) CreateVaultOidcToken(cfg api.CreateVaultOidcTokenConfig) (*api.CreateVaultOidcTokenResult, error) {
+	if c.MockCreateVaultOidcToken != nil {
+		return c.MockCreateVaultOidcToken(cfg)
+	}
+
+	return nil, errors.New("MockCreateVaultOidcToken was not configured")
 }
 
 func (c *API) DeleteSecret(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {

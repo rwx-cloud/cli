@@ -681,6 +681,73 @@ func (c Client) DeleteVar(cfg DeleteVarConfig) (*DeleteVarResult, error) {
 	return &DeleteVarResult{}, nil
 }
 
+func (c Client) CreateVaultOidcToken(cfg CreateVaultOidcTokenConfig) (*CreateVaultOidcTokenResult, error) {
+	endpoint := "/mint/api/vaults/oidc_tokens"
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		msg := extractOidcTokenErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	result := CreateVaultOidcTokenResult{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return &result, nil
+}
+
+// extractOidcTokenErrorMessage handles the error formats from the OIDC token endpoint,
+// which returns {"errors": [...]} for validation failures in addition to the standard
+// {"error": "..."} format.
+func extractOidcTokenErrorMessage(reader io.Reader) string {
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return ""
+	}
+
+	errorsStruct := struct {
+		Errors []string `json:"errors,omitempty"`
+		Error  string   `json:"error,omitempty"`
+	}{}
+
+	if err := json.Unmarshal(body, &errorsStruct); err != nil {
+		return ""
+	}
+
+	if len(errorsStruct.Errors) > 0 {
+		return strings.Join(errorsStruct.Errors, "\n")
+	}
+
+	if errorsStruct.Error != "" {
+		return errorsStruct.Error
+	}
+
+	return ""
+}
+
 func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 
