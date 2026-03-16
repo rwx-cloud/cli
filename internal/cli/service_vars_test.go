@@ -178,6 +178,7 @@ func TestService_DeleteVar(t *testing.T) {
 		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
 			VarName: "MY_VAR",
 			Vault:   "default",
+			Yes:     true,
 		})
 
 		require.NoError(t, err)
@@ -195,6 +196,7 @@ func TestService_DeleteVar(t *testing.T) {
 		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
 			VarName: "MISSING",
 			Vault:   "default",
+			Yes:     true,
 		})
 
 		require.Nil(t, result)
@@ -213,11 +215,55 @@ func TestService_DeleteVar(t *testing.T) {
 			VarName: "MY_VAR",
 			Vault:   "default",
 			Json:    true,
+			Yes:     true,
 		})
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.Contains(t, s.mockStdout.String(), `"Var":"MY_VAR"`)
 		require.Contains(t, s.mockStdout.String(), `"Vault":"default"`)
+	})
+
+	t.Run("requires --yes in non-interactive environments", func(t *testing.T) {
+		s := setupTest(t)
+
+		_, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "use --yes to confirm")
+	})
+
+	t.Run("prompts for confirmation in TTY", func(t *testing.T) {
+		s := setupTestWithTTY(t)
+		s.mockStdin.WriteString("y\n")
+
+		s.mockAPI.MockDeleteVar = func(cfg api.DeleteVarConfig) (*api.DeleteVarResult, error) {
+			return &api.DeleteVarResult{}, nil
+		}
+
+		result, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Contains(t, s.mockStderr.String(), `Delete var "MY_VAR" from vault "default"?`)
+	})
+
+	t.Run("aborts when user declines confirmation", func(t *testing.T) {
+		s := setupTestWithTTY(t)
+		s.mockStdin.WriteString("n\n")
+
+		_, err := s.service.DeleteVar(cli.DeleteVarConfig{
+			VarName: "MY_VAR",
+			Vault:   "default",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "aborted")
 	})
 }

@@ -107,6 +107,7 @@ func TestService_DeleteSecret(t *testing.T) {
 		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
 			SecretName: "MY_SECRET",
 			Vault:      "default",
+			Yes:        true,
 		})
 
 		require.NoError(t, err)
@@ -124,6 +125,7 @@ func TestService_DeleteSecret(t *testing.T) {
 		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
 			SecretName: "MISSING",
 			Vault:      "default",
+			Yes:        true,
 		})
 
 		require.Nil(t, result)
@@ -142,11 +144,55 @@ func TestService_DeleteSecret(t *testing.T) {
 			SecretName: "MY_SECRET",
 			Vault:      "default",
 			Json:       true,
+			Yes:        true,
 		})
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.Contains(t, s.mockStdout.String(), `"Secret":"MY_SECRET"`)
 		require.Contains(t, s.mockStdout.String(), `"Vault":"default"`)
+	})
+
+	t.Run("requires --yes in non-interactive environments", func(t *testing.T) {
+		s := setupTest(t)
+
+		_, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MY_SECRET",
+			Vault:      "default",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "use --yes to confirm")
+	})
+
+	t.Run("prompts for confirmation in TTY", func(t *testing.T) {
+		s := setupTestWithTTY(t)
+		s.mockStdin.WriteString("y\n")
+
+		s.mockAPI.MockDeleteSecret = func(cfg api.DeleteSecretConfig) (*api.DeleteSecretResult, error) {
+			return &api.DeleteSecretResult{}, nil
+		}
+
+		result, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MY_SECRET",
+			Vault:      "default",
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Contains(t, s.mockStderr.String(), `Delete secret "MY_SECRET" from vault "default"?`)
+	})
+
+	t.Run("aborts when user declines confirmation", func(t *testing.T) {
+		s := setupTestWithTTY(t)
+		s.mockStdin.WriteString("n\n")
+
+		_, err := s.service.DeleteSecret(cli.DeleteSecretConfig{
+			SecretName: "MY_SECRET",
+			Vault:      "default",
+		})
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "aborted")
 	})
 }

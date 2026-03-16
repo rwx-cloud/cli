@@ -74,6 +74,7 @@ var (
 
 var (
 	secretsDeleteVault string
+	secretsDeleteYes   bool
 
 	vaultsSecretsDeleteCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
@@ -86,6 +87,7 @@ var (
 				SecretName: args[0],
 				Vault:      secretsDeleteVault,
 				Json:       useJson,
+				Yes:        secretsDeleteYes,
 			})
 			return err
 		},
@@ -153,6 +155,7 @@ var (
 
 var (
 	varsDeleteVault string
+	varsDeleteYes   bool
 
 	vaultsVarsDeleteCmd = &cobra.Command{
 		Args: cobra.ExactArgs(1),
@@ -165,6 +168,7 @@ var (
 				VarName: args[0],
 				Vault:   varsDeleteVault,
 				Json:    useJson,
+				Yes:     varsDeleteYes,
 			})
 			return err
 		},
@@ -219,6 +223,7 @@ func init() {
 
 	// vaults secrets delete
 	vaultsSecretsDeleteCmd.Flags().StringVar(&secretsDeleteVault, "vault", "default", "the name of the vault to delete the secret from")
+	vaultsSecretsDeleteCmd.Flags().BoolVarP(&secretsDeleteYes, "yes", "y", false, "skip confirmation prompt")
 	vaultsSecretsCmd.AddCommand(vaultsSecretsDeleteCmd)
 
 	vaultsCmd.AddCommand(vaultsSecretsCmd)
@@ -234,6 +239,7 @@ func init() {
 
 	// vaults vars delete
 	vaultsVarsDeleteCmd.Flags().StringVar(&varsDeleteVault, "vault", "default", "the name of the vault to delete the var from")
+	vaultsVarsDeleteCmd.Flags().BoolVarP(&varsDeleteYes, "yes", "y", false, "skip confirmation prompt")
 	vaultsVarsCmd.AddCommand(vaultsVarsDeleteCmd)
 
 	vaultsCmd.AddCommand(vaultsVarsCmd)

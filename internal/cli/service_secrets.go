@@ -16,6 +16,7 @@ type DeleteSecretConfig struct {
 	SecretName string
 	Vault      string
 	Json       bool
+	Yes        bool
 }
 
 func (c DeleteSecretConfig) Validate() error {
@@ -36,6 +37,13 @@ func (s Service) DeleteSecret(cfg DeleteSecretConfig) (*DeleteSecretResult, erro
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	if err := s.confirmDestruction(
+		fmt.Sprintf("Delete secret %q from vault %q?", cfg.SecretName, cfg.Vault),
+		cfg.Yes,
+	); err != nil {
+		return nil, err
 	}
 
 	_, err = s.APIClient.DeleteSecret(api.DeleteSecretConfig{

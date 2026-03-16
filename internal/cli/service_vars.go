@@ -181,6 +181,7 @@ type DeleteVarConfig struct {
 	VarName string
 	Vault   string
 	Json    bool
+	Yes     bool
 }
 
 func (c DeleteVarConfig) Validate() error {
@@ -201,6 +202,13 @@ func (s Service) DeleteVar(cfg DeleteVarConfig) (*DeleteVarResult, error) {
 	err := cfg.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "validation failed")
+	}
+
+	if err := s.confirmDestruction(
+		fmt.Sprintf("Delete var %q from vault %q?", cfg.VarName, cfg.Vault),
+		cfg.Yes,
+	); err != nil {
+		return nil, err
 	}
 
 	_, err = s.APIClient.DeleteVar(api.DeleteVarConfig{
