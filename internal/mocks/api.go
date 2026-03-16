@@ -15,6 +15,7 @@ type API struct {
 	MockWhoami                         func() (*api.WhoamiResult, error)
 	MockCreateDocsToken                func() (*api.DocsTokenResult, error)
 	MockSetSecretsInVault              func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
+	MockCreateVault                    func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
 	MockGetPackageVersions             func() (*api.PackageVersionsResult, error)
 	MockGetPackageDocumentation        func(string) (*api.PackageDocumentationResult, error)
 	MockInitiateDispatch               func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
@@ -107,6 +108,14 @@ func (c *API) SetSecretsInVault(cfg api.SetSecretsInVaultConfig) (*api.SetSecret
 	}
 
 	return nil, errors.New("MockSetSecretsInVault was not configured")
+}
+
+func (c *API) CreateVault(cfg api.CreateVaultConfig) (*api.CreateVaultResult, error) {
+	if c.MockCreateVault != nil {
+		return c.MockCreateVault(cfg)
+	}
+
+	return nil, errors.New("MockCreateVault was not configured")
 }
 
 func (c *API) GetPackageVersions() (*api.PackageVersionsResult, error) {

@@ -523,6 +523,39 @@ func (c Client) SetSecretsInVault(cfg SetSecretsInVaultConfig) (*SetSecretsInVau
 	return &respBody, nil
 }
 
+func (c Client) CreateVault(cfg CreateVaultConfig) (*CreateVaultResult, error) {
+	endpoint := "/mint/api/vaults"
+
+	encodedBody, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to encode as JSON")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(encodedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		msg := extractErrorMessage(resp.Body)
+		if msg == "" {
+			msg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+
+		return nil, errors.New(msg)
+	}
+
+	return &CreateVaultResult{}, nil
+}
+
 func (c Client) GetPackageVersions() (*PackageVersionsResult, error) {
 	endpoint := "/mint/api/leaves"
 
