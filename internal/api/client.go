@@ -1006,7 +1006,9 @@ func (c Client) GetRunPrompt(runID string) (string, error) {
 }
 
 func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, error) {
-	endpoint := fmt.Sprintf("/mint/api/log_downloads/%s", url.PathEscape(taskId))
+	params := url.Values{}
+	params.Set("id", taskId)
+	endpoint := "/mint/api/log_download?" + params.Encode()
 	result := LogDownloadRequestResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -1023,6 +1025,33 @@ func (c Client) GetLogDownloadRequest(taskId string) (LogDownloadRequestResult, 
 	defer resp.Body.Close()
 
 	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (c Client) GetLogDownloadRequestByTaskKey(runID, taskKey string) (LogDownloadRequestResult, error) {
+	params := url.Values{}
+	params.Set("run_id", runID)
+	params.Set("task_key", taskKey)
+	endpoint := "/mint/api/log_download?" + params.Encode()
+	result := LogDownloadRequestResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeTaskKeyResponseJSON(resp, taskKey, &result); err != nil {
 		return result, err
 	}
 
@@ -1131,7 +1160,9 @@ func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationS
 }
 
 func (c Client) GetAllArtifactDownloadRequests(taskId string) ([]ArtifactDownloadRequestResult, error) {
-	endpoint := fmt.Sprintf("/mint/api/tasks/%s/artifact_downloads", url.PathEscape(taskId))
+	params := url.Values{}
+	params.Set("task_id", taskId)
+	endpoint := "/mint/api/artifact_downloads?" + params.Encode()
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -1165,8 +1196,52 @@ func (c Client) GetAllArtifactDownloadRequests(taskId string) ([]ArtifactDownloa
 	return results, nil
 }
 
+func (c Client) GetAllArtifactDownloadRequestsByTaskKey(runID, taskKey string) ([]ArtifactDownloadRequestResult, error) {
+	params := url.Values{}
+	params.Set("run_id", runID)
+	params.Set("task_key", taskKey)
+	endpoint := "/mint/api/artifact_downloads?" + params.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		return nil, parseAmbiguousTaskKeyError(resp.Body, taskKey)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		errMsg := extractErrorMessage(resp.Body)
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("Unable to call RWX API - %s", resp.Status)
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, errors.Wrap(ErrNotFound, errMsg)
+		}
+		return nil, errors.New(errMsg)
+	}
+
+	var results []ArtifactDownloadRequestResult
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return nil, errors.Wrap(err, "unable to parse API response")
+	}
+
+	return results, nil
+}
+
 func (c Client) GetArtifactDownloadRequest(taskId, artifactKey string) (ArtifactDownloadRequestResult, error) {
-	endpoint := fmt.Sprintf("/mint/api/tasks/%s/artifact_downloads/%s", url.PathEscape(taskId), url.PathEscape(artifactKey))
+	params := url.Values{}
+	params.Set("task_id", taskId)
+	endpoint := fmt.Sprintf("/mint/api/artifact_downloads/%s?%s", url.PathEscape(artifactKey), params.Encode())
 	result := ArtifactDownloadRequestResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -1183,6 +1258,33 @@ func (c Client) GetArtifactDownloadRequest(taskId, artifactKey string) (Artifact
 	defer resp.Body.Close()
 
 	if err = decodeResponseJSON(resp, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+func (c Client) GetArtifactDownloadRequestByTaskKey(runID, taskKey, artifactKey string) (ArtifactDownloadRequestResult, error) {
+	params := url.Values{}
+	params.Set("run_id", runID)
+	params.Set("task_key", taskKey)
+	endpoint := fmt.Sprintf("/mint/api/artifact_downloads/%s?%s", url.PathEscape(artifactKey), params.Encode())
+	result := ArtifactDownloadRequestResult{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return result, errors.Wrap(err, "unable to create new HTTP request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return result, errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if err = decodeTaskKeyResponseJSON(resp, taskKey, &result); err != nil {
 		return result, err
 	}
 
@@ -1327,6 +1429,29 @@ type ErrorMessage struct {
 	StackTrace []messages.StackEntry `json:"stack_trace,omitempty"`
 	Frame      string                `json:"frame"`
 	Advice     string                `json:"advice"`
+}
+
+func decodeTaskKeyResponseJSON(resp *http.Response, taskKey string, result any) error {
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		return parseAmbiguousTaskKeyError(resp.Body, taskKey)
+	}
+	return decodeResponseJSON(resp, result)
+}
+
+func parseAmbiguousTaskKeyError(body io.Reader, taskKey string) error {
+	respBody := struct {
+		Error string `json:"error"`
+	}{}
+	if err := json.NewDecoder(body).Decode(&respBody); err != nil || respBody.Error == "" {
+		return &AmbiguousTaskKeyError{
+			TaskKey: taskKey,
+			Message: "ambiguous task key",
+		}
+	}
+	return &AmbiguousTaskKeyError{
+		TaskKey: taskKey,
+		Message: respBody.Error,
+	}
 }
 
 // extractErrorMessage is a small helper function for parsing an API error message

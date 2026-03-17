@@ -344,6 +344,19 @@ type RunStatusResult struct {
 	Polling PollingResult `json:"polling"`
 }
 
+type AmbiguousTaskKeyError struct {
+	TaskKey string
+	Message string
+}
+
+func (e *AmbiguousTaskKeyError) Error() string {
+	return e.Message
+}
+
+func (e *AmbiguousTaskKeyError) Unwrap() error {
+	return errors.ErrAmbiguousTaskKey
+}
+
 type SandboxInitTemplateResult struct {
 	Template string `json:"template"`
 }

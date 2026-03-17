@@ -6,41 +6,44 @@ import (
 )
 
 type API struct {
-	MockInitiateRun                    func(api.InitiateRunConfig) (*api.InitiateRunResult, error)
-	MockGetDebugConnectionInfo         func(runID string) (api.DebugConnectionInfo, error)
-	MockGetSandboxConnectionInfo       func(runID, scopedToken string) (api.SandboxConnectionInfo, error)
-	MockCreateSandboxToken             func(api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error)
-	MockObtainAuthCode                 func(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
-	MockAcquireToken                   func(tokenUrl string) (*api.AcquireTokenResult, error)
-	MockWhoami                         func() (*api.WhoamiResult, error)
-	MockCreateDocsToken                func() (*api.DocsTokenResult, error)
-	MockSetSecretsInVault              func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
-	MockCreateVault                    func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
-	MockCreateVaultOidcToken           func(api.CreateVaultOidcTokenConfig) (*api.CreateVaultOidcTokenResult, error)
-	MockDeleteSecret                   func(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
-	MockSetVar                         func(api.SetVarConfig) (*api.SetVarResult, error)
-	MockShowVar                        func(api.ShowVarConfig) (*api.ShowVarResult, error)
-	MockDeleteVar                      func(api.DeleteVarConfig) (*api.DeleteVarResult, error)
-	MockGetPackageVersions             func() (*api.PackageVersionsResult, error)
-	MockGetPackageDocumentation        func(string) (*api.PackageDocumentationResult, error)
-	MockInitiateDispatch               func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
-	MockGetDispatch                    func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
-	MockGetDefaultBase                 func() (api.DefaultBaseResult, error)
-	MockMcpGetRunTestFailures          func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
-	MockStartImagePush                 func(api.StartImagePushConfig) (api.StartImagePushResult, error)
-	MockImagePushStatus                func(string) (api.ImagePushStatusResult, error)
-	MockTaskKeyStatus                  func(api.TaskKeyStatusConfig) (api.TaskStatusResult, error)
-	MockTaskIDStatus                   func(api.TaskIDStatusConfig) (api.TaskStatusResult, error)
-	MockRunStatus                      func(api.RunStatusConfig) (api.RunStatusResult, error)
-	MockGetLogDownloadRequest          func(string) (api.LogDownloadRequestResult, error)
-	MockDownloadLogs                   func(api.LogDownloadRequestResult) ([]byte, error)
-	MockGetAllArtifactDownloadRequests func(string) ([]api.ArtifactDownloadRequestResult, error)
-	MockGetArtifactDownloadRequest     func(string, string) (api.ArtifactDownloadRequestResult, error)
-	MockDownloadArtifact               func(api.ArtifactDownloadRequestResult) ([]byte, error)
-	MockGetRunPrompt                   func(string) (string, error)
-	MockGetSandboxInitTemplate         func() (api.SandboxInitTemplateResult, error)
-	MockListSandboxRuns                func() (*api.ListSandboxRunsResult, error)
-	MockCancelRun                      func(runID, scopedToken string) error
+	MockInitiateRun                             func(api.InitiateRunConfig) (*api.InitiateRunResult, error)
+	MockGetDebugConnectionInfo                  func(runID string) (api.DebugConnectionInfo, error)
+	MockGetSandboxConnectionInfo                func(runID, scopedToken string) (api.SandboxConnectionInfo, error)
+	MockCreateSandboxToken                      func(api.CreateSandboxTokenConfig) (*api.CreateSandboxTokenResult, error)
+	MockObtainAuthCode                          func(api.ObtainAuthCodeConfig) (*api.ObtainAuthCodeResult, error)
+	MockAcquireToken                            func(tokenUrl string) (*api.AcquireTokenResult, error)
+	MockWhoami                                  func() (*api.WhoamiResult, error)
+	MockCreateDocsToken                         func() (*api.DocsTokenResult, error)
+	MockSetSecretsInVault                       func(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
+	MockCreateVault                             func(api.CreateVaultConfig) (*api.CreateVaultResult, error)
+	MockCreateVaultOidcToken                    func(api.CreateVaultOidcTokenConfig) (*api.CreateVaultOidcTokenResult, error)
+	MockDeleteSecret                            func(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
+	MockSetVar                                  func(api.SetVarConfig) (*api.SetVarResult, error)
+	MockShowVar                                 func(api.ShowVarConfig) (*api.ShowVarResult, error)
+	MockDeleteVar                               func(api.DeleteVarConfig) (*api.DeleteVarResult, error)
+	MockGetPackageVersions                      func() (*api.PackageVersionsResult, error)
+	MockGetPackageDocumentation                 func(string) (*api.PackageDocumentationResult, error)
+	MockInitiateDispatch                        func(api.InitiateDispatchConfig) (*api.InitiateDispatchResult, error)
+	MockGetDispatch                             func(api.GetDispatchConfig) (*api.GetDispatchResult, error)
+	MockGetDefaultBase                          func() (api.DefaultBaseResult, error)
+	MockMcpGetRunTestFailures                   func(api.McpGetRunTestFailuresRequest) (*api.McpTextResult, error)
+	MockStartImagePush                          func(api.StartImagePushConfig) (api.StartImagePushResult, error)
+	MockImagePushStatus                         func(string) (api.ImagePushStatusResult, error)
+	MockTaskKeyStatus                           func(api.TaskKeyStatusConfig) (api.TaskStatusResult, error)
+	MockTaskIDStatus                            func(api.TaskIDStatusConfig) (api.TaskStatusResult, error)
+	MockRunStatus                               func(api.RunStatusConfig) (api.RunStatusResult, error)
+	MockGetLogDownloadRequest                   func(string) (api.LogDownloadRequestResult, error)
+	MockGetLogDownloadRequestByTaskKey          func(string, string) (api.LogDownloadRequestResult, error)
+	MockDownloadLogs                            func(api.LogDownloadRequestResult) ([]byte, error)
+	MockGetAllArtifactDownloadRequests          func(string) ([]api.ArtifactDownloadRequestResult, error)
+	MockGetAllArtifactDownloadRequestsByTaskKey func(string, string) ([]api.ArtifactDownloadRequestResult, error)
+	MockGetArtifactDownloadRequest              func(string, string) (api.ArtifactDownloadRequestResult, error)
+	MockGetArtifactDownloadRequestByTaskKey     func(string, string, string) (api.ArtifactDownloadRequestResult, error)
+	MockDownloadArtifact                        func(api.ArtifactDownloadRequestResult) ([]byte, error)
+	MockGetRunPrompt                            func(string) (string, error)
+	MockGetSandboxInitTemplate                  func() (api.SandboxInitTemplateResult, error)
+	MockListSandboxRuns                         func() (*api.ListSandboxRunsResult, error)
+	MockCancelRun                               func(runID, scopedToken string) error
 }
 
 func (c *API) InitiateRun(cfg api.InitiateRunConfig) (*api.InitiateRunResult, error) {
@@ -259,6 +262,13 @@ func (c *API) GetLogDownloadRequest(taskId string) (api.LogDownloadRequestResult
 	return api.LogDownloadRequestResult{}, errors.New("MockGetLogDownloadRequest was not configured")
 }
 
+func (c *API) GetLogDownloadRequestByTaskKey(runID, taskKey string) (api.LogDownloadRequestResult, error) {
+	if c.MockGetLogDownloadRequestByTaskKey != nil {
+		return c.MockGetLogDownloadRequestByTaskKey(runID, taskKey)
+	}
+	return api.LogDownloadRequestResult{}, errors.New("MockGetLogDownloadRequestByTaskKey was not configured")
+}
+
 func (c *API) DownloadLogs(request api.LogDownloadRequestResult, maxRetryDurationSeconds ...int) ([]byte, error) {
 	if c.MockDownloadLogs != nil {
 		return c.MockDownloadLogs(request)
@@ -275,12 +285,26 @@ func (c *API) GetAllArtifactDownloadRequests(taskId string) ([]api.ArtifactDownl
 	return nil, errors.New("MockGetAllArtifactDownloadRequests was not configured")
 }
 
+func (c *API) GetAllArtifactDownloadRequestsByTaskKey(runID, taskKey string) ([]api.ArtifactDownloadRequestResult, error) {
+	if c.MockGetAllArtifactDownloadRequestsByTaskKey != nil {
+		return c.MockGetAllArtifactDownloadRequestsByTaskKey(runID, taskKey)
+	}
+	return nil, errors.New("MockGetAllArtifactDownloadRequestsByTaskKey was not configured")
+}
+
 func (c *API) GetArtifactDownloadRequest(taskId, artifactKey string) (api.ArtifactDownloadRequestResult, error) {
 	if c.MockGetArtifactDownloadRequest != nil {
 		return c.MockGetArtifactDownloadRequest(taskId, artifactKey)
 	}
 
 	return api.ArtifactDownloadRequestResult{}, errors.New("MockGetArtifactDownloadRequest was not configured")
+}
+
+func (c *API) GetArtifactDownloadRequestByTaskKey(runID, taskKey, artifactKey string) (api.ArtifactDownloadRequestResult, error) {
+	if c.MockGetArtifactDownloadRequestByTaskKey != nil {
+		return c.MockGetArtifactDownloadRequestByTaskKey(runID, taskKey, artifactKey)
+	}
+	return api.ArtifactDownloadRequestResult{}, errors.New("MockGetArtifactDownloadRequestByTaskKey was not configured")
 }
 
 func (c *API) DownloadArtifact(request api.ArtifactDownloadRequestResult) ([]byte, error) {

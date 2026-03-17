@@ -100,6 +100,8 @@ func classifyError(err error) string {
 		return "timeout"
 	case errors.Is(err, internalerrors.ErrLSP):
 		return "lsp_error"
+	case errors.Is(err, internalerrors.ErrAmbiguousTaskKey):
+		return "ambiguous_task_key"
 	default:
 		return "unknown"
 	}

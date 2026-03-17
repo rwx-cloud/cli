@@ -18,6 +18,8 @@ import (
 
 type DownloadLogsConfig struct {
 	TaskID      string
+	RunID       string
+	TaskKey     string
 	OutputDir   string
 	OutputFile  string
 	Json        bool
@@ -26,7 +28,11 @@ type DownloadLogsConfig struct {
 }
 
 func (c DownloadLogsConfig) Validate() error {
-	if c.TaskID == "" {
+	if c.TaskKey != "" {
+		if c.RunID == "" {
+			return errors.New("run ID must be provided when using task key")
+		}
+	} else if c.TaskID == "" {
 		return errors.New("task ID must be provided")
 	}
 	if c.OutputDir != "" && c.OutputFile != "" {
@@ -53,10 +59,18 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	LogDownloadRequest, err := s.APIClient.GetLogDownloadRequest(cfg.TaskID)
+	var LogDownloadRequest api.LogDownloadRequestResult
+	if cfg.TaskKey != "" {
+		LogDownloadRequest, err = s.APIClient.GetLogDownloadRequestByTaskKey(cfg.RunID, cfg.TaskKey)
+	} else {
+		LogDownloadRequest, err = s.APIClient.GetLogDownloadRequest(cfg.TaskID)
+	}
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
-			return nil, errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID))
+			if cfg.TaskKey != "" {
+				return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Task with key '%s' not found", cfg.TaskKey)), api.ErrNotFound)
+			}
+			return nil, errors.WrapSentinel(errors.New(fmt.Sprintf("Task %s not found", cfg.TaskID)), api.ErrNotFound)
 		}
 		return nil, errors.Wrap(err, "unable to fetch log archive request")
 	}

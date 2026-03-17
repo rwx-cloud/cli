@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 
+	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/rwx-cloud/rwx/internal/cli"
 	"github.com/rwx-cloud/rwx/internal/errors"
 
@@ -14,6 +15,7 @@ var (
 	LogsOutputFile  string
 	LogsAutoExtract bool
 	LogsOpen        bool
+	LogsTaskKey     string
 
 	logsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -21,11 +23,20 @@ var (
 			return requireAccessToken()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return errors.New("task ID is required")
-			}
+			taskKeySet := cmd.Flags().Changed("task")
 
-			taskId := args[0]
+			if taskKeySet {
+				if len(args) > 1 {
+					return errors.New("accepts at most 1 arg (run-id) when --task is used")
+				}
+			} else {
+				if len(args) == 0 {
+					return errors.New("a task ID or --task flag is required")
+				}
+				if len(args) > 1 {
+					return errors.New("accepts at most 1 arg (task-id)")
+				}
+			}
 
 			outputDirSet := cmd.Flags().Changed("output-dir")
 			outputFileSet := cmd.Flags().Changed("output-file")
@@ -57,18 +68,41 @@ var (
 			}
 
 			useJson := useJsonOutput()
-			_, err = service.DownloadLogs(cli.DownloadLogsConfig{
-				TaskID:      taskId,
+
+			cfg := cli.DownloadLogsConfig{
 				OutputDir:   absOutputDir,
 				OutputFile:  absOutputFile,
 				Json:        useJson,
 				AutoExtract: LogsAutoExtract,
 				Open:        LogsOpen,
-			})
+			}
+
+			if taskKeySet {
+				var runID string
+				if len(args) > 0 {
+					runID = args[0]
+				} else {
+					runID, err = service.ResolveRunIDFromGitContext()
+					if err != nil {
+						return err
+					}
+				}
+				cfg.RunID = runID
+				cfg.TaskKey = LogsTaskKey
+
+				_, err = service.DownloadLogs(cfg)
+				if err != nil {
+					return handleTaskKeyError(err)
+				}
+				return nil
+			}
+
+			cfg.TaskID = args[0]
+			_, err = service.DownloadLogs(cfg)
 			return err
 		},
 		Short: "Download logs for a task",
-		Use:   "logs <taskId> [flags]",
+		Use:   "logs [task-id | run-id --task <key>] [flags]",
 	}
 )
 
@@ -78,4 +112,16 @@ func init() {
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
 	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
+	logsCmd.Flags().StringVar(&LogsTaskKey, "task", "", "task key (e.g., ci.checks.lint); resolves the task by key instead of ID")
+}
+
+// handleTaskKeyError formats task-key-specific errors for user display.
+// Sentinels are preserved so telemetry can classify the error.
+func handleTaskKeyError(err error) error {
+	var ambiguousErr *api.AmbiguousTaskKeyError
+	if errors.As(err, &ambiguousErr) {
+		return errors.WrapSentinel(errors.New(ambiguousErr.Error()), errors.ErrAmbiguousTaskKey)
+	}
+
+	return err
 }
