@@ -228,7 +228,7 @@ func TestService_ShowPackage(t *testing.T) {
 		require.Contains(t, output, "PARAMETER")
 		require.Contains(t, output, "repository")
 		require.Contains(t, output, "true")
-		require.NotContains(t, output, "# git/clone")
+		require.Contains(t, output, "# git/clone")
 	})
 
 	t.Run("wraps long parameter descriptions", func(t *testing.T) {
@@ -282,7 +282,7 @@ func TestService_ShowPackage(t *testing.T) {
 		require.Contains(t, output, longParamDesc)
 	})
 
-	t.Run("--readme flag renders readme", func(t *testing.T) {
+	t.Run("--no-readme flag hides readme", func(t *testing.T) {
 		s := setupTest(t)
 
 		s.mockAPI.MockGetPackageDocumentation = func(name string) (*api.PackageDocumentationResult, error) {
@@ -297,13 +297,12 @@ func TestService_ShowPackage(t *testing.T) {
 			}, nil
 		}
 
-		_, err := s.service.ShowPackage(cli.ShowPackageConfig{PackageName: "git/clone", Readme: true})
+		_, err := s.service.ShowPackage(cli.ShowPackageConfig{PackageName: "git/clone", NoReadme: true})
 		require.NoError(t, err)
 
 		output := s.mockStdout.String()
-		require.Contains(t, output, "# git/clone")
-		require.Contains(t, output, "Clones a Git repository.")
-		require.NotContains(t, output, "PARAMETER")
+		require.NotContains(t, output, "# git/clone")
+		require.Contains(t, output, "PARAMETER")
 	})
 
 	t.Run("returns error for not found package", func(t *testing.T) {
@@ -346,6 +345,6 @@ func TestService_ShowPackage(t *testing.T) {
 		require.Equal(t, "Clone a Git repository", output.Description)
 		require.Equal(t, "https://github.com/rwx-research/mint-leaves", output.SourceCodeUrl)
 		require.Len(t, output.Parameters, 1)
-		require.NotContains(t, s.mockStdout.String(), "# git/clone")
+		require.Equal(t, "# git/clone\n\nClones a Git repository.\n", output.Readme)
 	})
 }
