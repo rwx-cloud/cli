@@ -206,6 +206,20 @@ type DeleteVarConfig struct {
 
 type DeleteVarResult struct{}
 
+type CreateVaultOidcTokenConfig struct {
+	VaultName string `json:"vault_name"`
+	Name      string `json:"name,omitempty"`
+	Audience  string `json:"audience,omitempty"`
+	Provider  string `json:"provider,omitempty"`
+}
+
+type CreateVaultOidcTokenResult struct {
+	Audience         string `json:"audience"`
+	Subject          string `json:"subject"`
+	Expression       string `json:"expression"`
+	DocumentationURL string `json:"documentation_url"`
+}
+
 type ApiPackageInfo struct {
 	Description string `json:"description"`
 }

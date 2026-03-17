@@ -24,6 +24,7 @@ type APIClient interface {
 	CreateDocsToken() (*api.DocsTokenResult, error)
 	SetSecretsInVault(api.SetSecretsInVaultConfig) (*api.SetSecretsInVaultResult, error)
 	CreateVault(api.CreateVaultConfig) (*api.CreateVaultResult, error)
+	CreateVaultOidcToken(api.CreateVaultOidcTokenConfig) (*api.CreateVaultOidcTokenResult, error)
 	DeleteSecret(api.DeleteSecretConfig) (*api.DeleteSecretResult, error)
 	SetVar(api.SetVarConfig) (*api.SetVarResult, error)
 	ShowVar(api.ShowVarConfig) (*api.ShowVarResult, error)
