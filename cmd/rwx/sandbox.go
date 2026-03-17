@@ -27,7 +27,7 @@ var sandboxStartCmd = &cobra.Command{
 		return requireAccessToken()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		configFile := ".rwx/sandbox.yml"
+		configFile := cli.FindDefaultSandboxConfigFile()
 		if len(args) > 0 {
 			configFile = args[0]
 		}
@@ -338,7 +338,7 @@ var sandboxResetCmd = &cobra.Command{
 		return requireAccessToken()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		configFile := ".rwx/sandbox.yml"
+		configFile := cli.FindDefaultSandboxConfigFile()
 		if len(args) > 0 {
 			configFile = args[0]
 		}

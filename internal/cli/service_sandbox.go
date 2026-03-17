@@ -543,7 +543,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 		// Resolve config file once for both remote recovery and auto-create
 		cfgFile := cfg.ConfigFile
 		if cfgFile == "" {
-			cfgFile = ".rwx/sandbox.yml"
+			cfgFile = FindDefaultSandboxConfigFile()
 		}
 
 		if !found {
