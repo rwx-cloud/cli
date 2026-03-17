@@ -395,7 +395,7 @@ func (s Service) ListPackages(cfg ListPackagesConfig) (*ListPackagesResult, erro
 type ShowPackageConfig struct {
 	PackageName string
 	Json        bool
-	Readme      bool
+	NoReadme    bool
 }
 
 type ShowPackageResult struct {
@@ -405,6 +405,7 @@ type ShowPackageResult struct {
 	SourceCodeUrl   string
 	IssueTrackerUrl string
 	Parameters      []api.PackageDocumentationParameter
+	Readme          string
 }
 
 func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) {
@@ -420,14 +421,13 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 		SourceCodeUrl:   doc.SourceCodeUrl,
 		IssueTrackerUrl: doc.IssueTrackerUrl,
 		Parameters:      doc.Parameters,
+		Readme:          doc.Readme,
 	}
 
 	if cfg.Json {
 		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
 			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
-	} else if cfg.Readme {
-		fmt.Fprint(s.Stdout, doc.Readme)
 	} else {
 		termWidth := 80
 		if size, err := tsize.GetSize(); err == nil && size.Width > 0 {
@@ -489,6 +489,11 @@ func (s Service) ShowPackage(cfg ShowPackageConfig) (*ShowPackageResult, error) 
 					fmt.Fprintf(s.Stdout, "%s%s\n", wrapIndent, line)
 				}
 			}
+		}
+
+		if !cfg.NoReadme && doc.Readme != "" {
+			fmt.Fprintln(s.Stdout)
+			fmt.Fprint(s.Stdout, doc.Readme)
 		}
 	}
 
