@@ -162,7 +162,6 @@ func InitDownload(requireAccessToken func() error, getService func() cli.Service
 func runDownloadWithTaskKey(svc cli.Service, args []string, outputDirSet, outputFileSet bool, useJson bool) error {
 	var runID string
 	var artifactKey string
-	var runIDExplicit bool
 	var err error
 
 	if downloadAll {
@@ -172,7 +171,6 @@ func runDownloadWithTaskKey(svc cli.Service, args []string, outputDirSet, output
 
 		if len(args) > 0 {
 			runID = args[0]
-			runIDExplicit = true
 		} else {
 			runID, err = svc.ResolveRunIDFromGitContext()
 			if err != nil {
@@ -203,7 +201,7 @@ func runDownloadWithTaskKey(svc cli.Service, args []string, outputDirSet, output
 			Open:                   downloadOpen,
 		})
 		if err != nil {
-			return handleTaskKeyError(err, runID, runIDExplicit)
+			return handleTaskKeyError(err)
 		}
 		return nil
 	}
@@ -211,7 +209,6 @@ func runDownloadWithTaskKey(svc cli.Service, args []string, outputDirSet, output
 	// Without --all: 1 arg = artifact-key (infer run-id), 2 args = run-id + artifact-key
 	if len(args) == 2 {
 		runID = args[0]
-		runIDExplicit = true
 		artifactKey = args[1]
 	} else {
 		artifactKey = args[0]
@@ -259,33 +256,18 @@ func runDownloadWithTaskKey(svc cli.Service, args []string, outputDirSet, output
 		Open:                   downloadOpen,
 	})
 	if err != nil {
-		return handleTaskKeyError(err, runID, runIDExplicit)
+		return handleTaskKeyError(err)
 	}
 	return nil
 }
 
 // handleTaskKeyError formats task-key-specific errors for user display.
-// For ambiguous keys, it shows matching keys. For not-found and other errors,
-// it suggests using `rwx results --all` to discover available task keys.
 // Sentinels are preserved so telemetry can classify the error.
-func handleTaskKeyError(err error, runID string, runIDExplicit bool) error {
+func handleTaskKeyError(err error) error {
 	var ambiguousErr *api.AmbiguousTaskKeyError
 	if errors.As(err, &ambiguousErr) {
-		msg := fmt.Sprintf("%s\n\nMatching keys:\n", ambiguousErr.Error())
-		for _, key := range ambiguousErr.MatchingKeys {
-			msg += fmt.Sprintf("  %s\n", key)
-		}
-		msg += "\nRetry with a fully-qualified key."
-		return errors.WrapSentinel(errors.New(msg), errors.ErrAmbiguousTaskKey)
+		return errors.WrapSentinel(errors.New(ambiguousErr.Error()), errors.ErrAmbiguousTaskKey)
 	}
 
-	suggestion := "rwx results --all"
-	if runIDExplicit {
-		suggestion = fmt.Sprintf("rwx results %s --all", runID)
-	}
-	formatted := errors.Errorf("%s\n\nUse '%s' to see all available task keys.", err, suggestion)
-	if errors.Is(err, api.ErrNotFound) {
-		return errors.WrapSentinel(formatted, api.ErrNotFound)
-	}
-	return formatted
+	return err
 }

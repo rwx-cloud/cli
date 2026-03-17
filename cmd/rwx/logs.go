@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/rwx-cloud/rwx/internal/api"
@@ -80,10 +79,8 @@ var (
 
 			if taskKeySet {
 				var runID string
-				var runIDExplicit bool
 				if len(args) > 0 {
 					runID = args[0]
-					runIDExplicit = true
 				} else {
 					runID, err = service.ResolveRunIDFromGitContext()
 					if err != nil {
@@ -95,7 +92,7 @@ var (
 
 				_, err = service.DownloadLogs(cfg)
 				if err != nil {
-					return handleTaskKeyError(err, runID, runIDExplicit)
+					return handleTaskKeyError(err)
 				}
 				return nil
 			}
@@ -119,27 +116,12 @@ func init() {
 }
 
 // handleTaskKeyError formats task-key-specific errors for user display.
-// For ambiguous keys, it shows matching keys. For not-found and other errors,
-// it suggests using `rwx results --all` to discover available task keys.
 // Sentinels are preserved so telemetry can classify the error.
-func handleTaskKeyError(err error, runID string, runIDExplicit bool) error {
+func handleTaskKeyError(err error) error {
 	var ambiguousErr *api.AmbiguousTaskKeyError
 	if errors.As(err, &ambiguousErr) {
-		msg := fmt.Sprintf("%s\n\nMatching keys:\n", ambiguousErr.Error())
-		for _, key := range ambiguousErr.MatchingKeys {
-			msg += fmt.Sprintf("  %s\n", key)
-		}
-		msg += "\nRetry with a fully-qualified key."
-		return errors.WrapSentinel(errors.New(msg), errors.ErrAmbiguousTaskKey)
+		return errors.WrapSentinel(errors.New(ambiguousErr.Error()), errors.ErrAmbiguousTaskKey)
 	}
 
-	suggestion := "rwx results --all"
-	if runIDExplicit {
-		suggestion = fmt.Sprintf("rwx results %s --all", runID)
-	}
-	formatted := errors.Errorf("%s\n\nUse '%s' to see all available task keys.", err, suggestion)
-	if errors.Is(err, api.ErrNotFound) {
-		return errors.WrapSentinel(formatted, api.ErrNotFound)
-	}
-	return formatted
+	return err
 }

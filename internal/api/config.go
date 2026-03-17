@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/rwx-cloud/rwx/internal/accesstoken"
 	"github.com/rwx-cloud/rwx/internal/errors"
@@ -346,12 +345,12 @@ type RunStatusResult struct {
 }
 
 type AmbiguousTaskKeyError struct {
-	TaskKey      string
-	MatchingKeys []string
+	TaskKey string
+	Message string
 }
 
 func (e *AmbiguousTaskKeyError) Error() string {
-	return fmt.Sprintf("ambiguous task key '%s' matched multiple tasks", e.TaskKey)
+	return e.Message
 }
 
 func (e *AmbiguousTaskKeyError) Unwrap() error {

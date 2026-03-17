@@ -1440,15 +1440,17 @@ func decodeTaskKeyResponseJSON(resp *http.Response, taskKey string, result any) 
 
 func parseAmbiguousTaskKeyError(body io.Reader, taskKey string) error {
 	respBody := struct {
-		Error        string   `json:"error"`
-		MatchingKeys []string `json:"matching_keys"`
+		Error string `json:"error"`
 	}{}
-	if err := json.NewDecoder(body).Decode(&respBody); err != nil {
-		return errors.New("ambiguous task key")
+	if err := json.NewDecoder(body).Decode(&respBody); err != nil || respBody.Error == "" {
+		return &AmbiguousTaskKeyError{
+			TaskKey: taskKey,
+			Message: "ambiguous task key",
+		}
 	}
 	return &AmbiguousTaskKeyError{
-		TaskKey:      taskKey,
-		MatchingKeys: respBody.MatchingKeys,
+		TaskKey: taskKey,
+		Message: respBody.Error,
 	}
 }
 
