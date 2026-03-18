@@ -306,22 +306,25 @@ func TestTelemetry_LogsDownload(t *testing.T) {
 
 		setup.mockAPI.MockGetLogDownloadRequest = func(taskID string) (api.LogDownloadRequestResult, error) {
 			return api.LogDownloadRequestResult{
-				Filename: "logs.txt",
+				Filename: "logs.zip",
+				RunID:    "run-telemetry",
 			}, nil
 		}
 
 		setup.mockAPI.MockDownloadLogs = func(req api.LogDownloadRequestResult) ([]byte, error) {
-			return []byte("log content"), nil
+			return createTestZip(t, map[string][]byte{
+				"task.log": []byte("log content"),
+			}), nil
 		}
 
 		outputDir := filepath.Join(setup.tmp, "logs-output")
 		require.NoError(t, os.MkdirAll(outputDir, 0o755))
 
 		_, err := setup.service.DownloadLogs(cli.DownloadLogsConfig{
-			TaskID:      "task-logs-1",
-			OutputDir:   outputDir,
-			Json:        true,
-			AutoExtract: true,
+			TaskID:    "task-logs-1",
+			OutputDir: outputDir,
+			Json:      true,
+			Zip:       true,
 		})
 
 		require.NoError(t, err)
@@ -329,7 +332,7 @@ func TestTelemetry_LogsDownload(t *testing.T) {
 		events := setup.drainEvents()
 		dlEvent := findEvent(events, "logs.download")
 		require.NotNil(t, dlEvent)
-		require.Equal(t, true, dlEvent.Props["auto_extract"])
+		require.Equal(t, true, dlEvent.Props["zip"])
 		require.Contains(t, dlEvent.Props, "duration_ms")
 	})
 }

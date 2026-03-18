@@ -14,6 +14,7 @@ var (
 	LogsOutputDir   string
 	LogsOutputFile  string
 	LogsAutoExtract bool
+	LogsZip         bool
 	LogsOpen        bool
 	LogsTaskKey     string
 
@@ -70,11 +71,11 @@ var (
 			useJson := useJsonOutput()
 
 			cfg := cli.DownloadLogsConfig{
-				OutputDir:   absOutputDir,
-				OutputFile:  absOutputFile,
-				Json:        useJson,
-				AutoExtract: LogsAutoExtract,
-				Open:        LogsOpen,
+				OutputDir:  absOutputDir,
+				OutputFile: absOutputFile,
+				Json:       useJson,
+				Zip:        LogsZip,
+				Open:       LogsOpen,
 			}
 
 			if taskKeySet {
@@ -111,6 +112,10 @@ func init() {
 	logsCmd.Flags().StringVar(&LogsOutputFile, "output-file", "", "output file path for the downloaded log file")
 	logsCmd.MarkFlagsMutuallyExclusive("output-dir", "output-file")
 	logsCmd.Flags().BoolVar(&LogsAutoExtract, "auto-extract", false, "automatically extract zip archives")
+	if err := logsCmd.Flags().MarkHidden("auto-extract"); err != nil {
+		panic(err)
+	}
+	logsCmd.Flags().BoolVar(&LogsZip, "zip", false, "skip extraction and save raw zip archive")
 	logsCmd.Flags().BoolVar(&LogsOpen, "open", false, "automatically open the downloaded file(s)")
 	logsCmd.Flags().StringVar(&LogsTaskKey, "task", "", "task key (e.g., ci.checks.lint); resolves the task by key instead of ID")
 }

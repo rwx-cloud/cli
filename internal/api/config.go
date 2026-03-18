@@ -311,10 +311,11 @@ type TaskStatusResult struct {
 }
 
 type LogDownloadRequestResult struct {
-	URL      string  `json:"url"`
-	Token    string  `json:"token"`
-	Filename string  `json:"filename"`
-	Contents *string `json:"contents,omitempty"`
+	URL      string `json:"url"`
+	Token    string `json:"token"`
+	Filename string `json:"filename"`
+	Contents string `json:"contents"`
+	RunID    string `json:"run_id"`
 }
 
 type ArtifactDownloadRequestResult struct {
