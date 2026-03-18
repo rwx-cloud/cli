@@ -646,8 +646,9 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 		bodyBytes, _ := json.Marshal(body)
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/artifact_downloads/my-artifact", req.URL.Path)
+			require.Equal(t, "/mint/api/artifact_download", req.URL.Path)
 			require.Equal(t, "task-123", req.URL.Query().Get("task_id"))
+			require.Equal(t, "my-artifact", req.URL.Query().Get("key"))
 			require.Equal(t, http.MethodGet, req.Method)
 			return &http.Response{
 				Status:     "200 OK",
@@ -684,8 +685,9 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 		bodyBytes, _ := json.Marshal(body)
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/artifact_downloads/my-dir", req.URL.Path)
+			require.Equal(t, "/mint/api/artifact_download", req.URL.Path)
 			require.Equal(t, "task-456", req.URL.Query().Get("task_id"))
+			require.Equal(t, "my-dir", req.URL.Query().Get("key"))
 			require.Equal(t, http.MethodGet, req.Method)
 			return &http.Response{
 				Status:     "200 OK",
@@ -703,8 +705,9 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 
 	t.Run("handles 404 not found", func(t *testing.T) {
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Equal(t, "/mint/api/artifact_downloads/missing", req.URL.Path)
+			require.Equal(t, "/mint/api/artifact_download", req.URL.Path)
 			require.Equal(t, "task-999", req.URL.Query().Get("task_id"))
+			require.Equal(t, "missing", req.URL.Query().Get("key"))
 			return &http.Response{
 				Status:     "404 Not Found",
 				StatusCode: 404,
@@ -734,7 +737,8 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 		bodyBytes, _ := json.Marshal(body)
 
 		roundTrip := func(req *http.Request) (*http.Response, error) {
-			require.Contains(t, req.URL.Path, "/mint/api/artifact_downloads/")
+			require.Equal(t, "/mint/api/artifact_download", req.URL.Path)
+			require.Equal(t, "my-artifact-v1.2.3", req.URL.Query().Get("key"))
 			return &http.Response{
 				Status:     "200 OK",
 				StatusCode: 200,
