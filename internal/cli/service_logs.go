@@ -17,14 +17,14 @@ import (
 )
 
 type DownloadLogsConfig struct {
-	TaskID      string
-	RunID       string
-	TaskKey     string
-	OutputDir   string
-	OutputFile  string
-	Json        bool
-	AutoExtract bool
-	Open        bool
+	TaskID     string
+	RunID      string
+	TaskKey    string
+	OutputDir  string
+	OutputFile string
+	Json       bool
+	Zip        bool
+	Open       bool
 }
 
 func (c DownloadLogsConfig) Validate() error {
@@ -49,8 +49,8 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 	start := time.Now()
 	defer func() {
 		s.recordTelemetry("logs.download", map[string]any{
-			"duration_ms":  time.Since(start).Milliseconds(),
-			"auto_extract": cfg.AutoExtract,
+			"duration_ms": time.Since(start).Milliseconds(),
+			"zip":         cfg.Zip,
 		})
 	}()
 
@@ -59,11 +59,11 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 		return nil, errors.Wrap(err, "validation failed")
 	}
 
-	var LogDownloadRequest api.LogDownloadRequestResult
+	var logDownloadRequest api.LogDownloadRequestResult
 	if cfg.TaskKey != "" {
-		LogDownloadRequest, err = s.APIClient.GetLogDownloadRequestByTaskKey(cfg.RunID, cfg.TaskKey)
+		logDownloadRequest, err = s.APIClient.GetLogDownloadRequestByTaskKey(cfg.RunID, cfg.TaskKey)
 	} else {
-		LogDownloadRequest, err = s.APIClient.GetLogDownloadRequest(cfg.TaskID)
+		logDownloadRequest, err = s.APIClient.GetLogDownloadRequest(cfg.TaskID)
 	}
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
@@ -81,55 +81,72 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 		s.Stderr,
 	)
 
-	logBytes, err := s.APIClient.DownloadLogs(LogDownloadRequest)
+	logBytes, err := s.APIClient.DownloadLogs(logDownloadRequest)
 	stopSpinner()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to download logs")
 	}
 
-	var outputPath string
-	if cfg.OutputFile != "" {
-		outputPath = cfg.OutputFile
-	} else {
-		outputPath = filepath.Join(cfg.OutputDir, LogDownloadRequest.Filename)
-	}
-
-	outputDir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return nil, errors.Wrapf(err, "unable to create output directory %s", outputDir)
-	}
-
-	if _, err := os.Stat(outputPath); err == nil {
-		if !cfg.Json {
-			fmt.Fprintf(s.Stdout, "Overwriting existing file at %s\n", outputPath)
-		}
-	}
-
-	if err := os.WriteFile(outputPath, logBytes, 0644); err != nil {
-		return nil, errors.Wrapf(err, "unable to write log file to %s", outputPath)
+	// When OutputFile is set but we're in default extract mode, use its directory as the base.
+	outputDir := cfg.OutputDir
+	if outputDir == "" && cfg.OutputFile != "" {
+		outputDir = filepath.Dir(cfg.OutputFile)
 	}
 
 	var outputFiles []string
-	outputFiles = append(outputFiles, outputPath)
 
-	if cfg.AutoExtract && strings.HasSuffix(strings.ToLower(outputPath), ".zip") {
-		// Create a directory named after the zip file (without .zip extension)
-		zipName := filepath.Base(outputPath)
-		extractDirName := strings.TrimSuffix(zipName, filepath.Ext(zipName))
-		extractDir := filepath.Join(filepath.Dir(outputPath), extractDirName)
+	if cfg.Zip {
+		var zipPath string
+		if cfg.OutputFile != "" {
+			zipPath = cfg.OutputFile
+		} else {
+			zipPath = filepath.Join(outputDir, logDownloadRequest.Filename)
+		}
 
+		if err := os.MkdirAll(filepath.Dir(zipPath), 0755); err != nil {
+			return nil, errors.Wrapf(err, "unable to create output directory %s", filepath.Dir(zipPath))
+		}
+
+		if err := os.WriteFile(zipPath, logBytes, 0644); err != nil {
+			return nil, errors.Wrapf(err, "unable to write zip file to %s", zipPath)
+		}
+
+		outputFiles = []string{zipPath}
+
+		if !cfg.Json {
+			fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", zipPath)
+		}
+	} else {
+		extractDir := filepath.Join(outputDir, logDownloadRequest.RunID)
 		if err := os.MkdirAll(extractDir, 0755); err != nil {
 			return nil, errors.Wrapf(err, "unable to create extraction directory %s", extractDir)
 		}
 
-		extractedFiles, err := extractZip(outputPath, extractDir)
+		// Write zip bytes to a temp file so extractZip can open it by path.
+		tmpFile, err := os.CreateTemp("", "rwx-logs-*.zip")
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to extract zip archive %s", outputPath)
+			return nil, errors.Wrap(err, "unable to create temporary file for zip")
+		}
+		tmpPath := tmpFile.Name()
+		defer os.Remove(tmpPath)
+
+		if _, err := tmpFile.Write(logBytes); err != nil {
+			tmpFile.Close()
+			return nil, errors.Wrap(err, "unable to write temporary zip file")
+		}
+		tmpFile.Close()
+
+		extractedFiles, err := extractZip(tmpPath, extractDir)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to extract zip archive")
 		}
 		outputFiles = extractedFiles
 
 		if !cfg.Json {
-			fmt.Fprintf(s.Stdout, "Extracted %d file(s) from %s to %s\n", len(extractedFiles), outputPath, extractDir)
+			fmt.Fprintf(s.Stdout, "Logs downloaded to %s/\n", extractDir)
+			for _, file := range outputFiles {
+				fmt.Fprintf(s.Stdout, "  %s\n", file)
+			}
 		}
 	}
 
@@ -149,16 +166,8 @@ func (s Service) DownloadLogs(cfg DownloadLogsConfig) (_ *DownloadLogsResult, dl
 		if err := json.NewEncoder(s.Stdout).Encode(result); err != nil {
 			return nil, errors.Wrap(err, "unable to encode JSON output")
 		}
-	} else {
-		if len(outputFiles) == 1 {
-			fmt.Fprintf(s.Stdout, "Logs downloaded to %s\n", outputFiles[0])
-		} else {
-			fmt.Fprintf(s.Stdout, "Logs downloaded and extracted:\n")
-			for _, file := range outputFiles {
-				fmt.Fprintf(s.Stdout, "  %s\n", file)
-			}
-		}
 	}
+
 	return result, nil
 }
 

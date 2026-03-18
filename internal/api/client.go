@@ -1078,29 +1078,18 @@ func (c Client) DownloadLogs(request LogDownloadRequestResult, maxRetryDurationS
 		var req *http.Request
 		var err error
 
-		if request.Contents != nil {
-			// POST approach, for zip files (group tasks)
-			formData := url.Values{}
-			formData.Set("token", request.Token)
-			formData.Set("filename", request.Filename)
-			formData.Set("contents", *request.Contents)
-			encodedBody := formData.Encode()
+		formData := url.Values{}
+		formData.Set("token", request.Token)
+		formData.Set("filename", request.Filename)
+		formData.Set("contents", request.Contents)
+		encodedBody := formData.Encode()
 
-			req, err = http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to create new HTTP request")
-			}
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Accept", "application/octet-stream")
-		} else {
-			// GET approach, for single log files
-			req, err = http.NewRequest(http.MethodGet, request.URL, nil)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to create new HTTP request")
-			}
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", request.Token))
-			req.Header.Set("Accept", "application/octet-stream")
+		req, err = http.NewRequest(http.MethodPost, request.URL, strings.NewReader(encodedBody))
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to create new HTTP request")
 		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/octet-stream")
 
 		// Use http.DefaultClient directly since the logs will come from a task server URL rather than Cloud
 		resp, err := http.DefaultClient.Do(req)

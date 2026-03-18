@@ -425,7 +425,7 @@ func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
 		require.Equal(t, "https://example.com/logs/download", result.URL)
 		require.Equal(t, "jwt-token-123", result.Token)
 		require.Equal(t, "task-123-logs.log", result.Filename)
-		require.Nil(t, result.Contents)
+		require.Equal(t, "", result.Contents)
 	})
 
 	t.Run("builds the request and parses the response with contents", func(t *testing.T) {
@@ -460,8 +460,7 @@ func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
 		require.Equal(t, "https://example.com/logs/download", result.URL)
 		require.Equal(t, "jwt-token-123", result.Token)
 		require.Equal(t, "task-123-logs.zip", result.Filename)
-		require.NotNil(t, result.Contents)
-		require.Equal(t, `{"key":"value"}`, *result.Contents)
+		require.Equal(t, `{"key":"value"}`, result.Contents)
 	})
 
 	t.Run("handles 404 not found", func(t *testing.T) {
@@ -484,35 +483,7 @@ func TestAPIClient_GetLogDownloadRequest(t *testing.T) {
 }
 
 func TestAPIClient_DownloadLogs(t *testing.T) {
-	t.Run("makes GET request with Authorization header when Contents is nil", func(t *testing.T) {
-		logContents := []byte("2024-01-01 12:00:00 INFO Starting task\n2024-01-01 12:00:01 INFO Task completed\n")
-
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "Bearer jwt-token-123", r.Header.Get("Authorization"))
-
-			w.WriteHeader(http.StatusOK)
-			_, writeErr := w.Write(logContents)
-			require.NoError(t, writeErr)
-		}))
-		defer server.Close()
-
-		c := api.NewClientWithRoundTrip(func(req *http.Request) (*http.Response, error) {
-			return http.DefaultClient.Do(req)
-		})
-
-		result, err := c.DownloadLogs(api.LogDownloadRequestResult{
-			URL:      server.URL,
-			Token:    "jwt-token-123",
-			Filename: "task-123-logs.log",
-			Contents: nil, // No Contents = GET request
-		})
-
-		require.NoError(t, err)
-		require.Equal(t, logContents, result)
-	})
-
-	t.Run("makes POST request with form data when Contents is present", func(t *testing.T) {
+	t.Run("makes POST request with form data", func(t *testing.T) {
 		zipContents := []byte("PK\x03\x04\x14\x00\x08\x00\x08\x00")
 		contents := `{"key":"value"}`
 
@@ -540,7 +511,7 @@ func TestAPIClient_DownloadLogs(t *testing.T) {
 			URL:      server.URL,
 			Token:    "jwt-token-123",
 			Filename: "task-123-logs.zip",
-			Contents: &contents, // Contents present = POST request
+			Contents: contents,
 		})
 
 		require.NoError(t, err)
