@@ -753,6 +753,46 @@ func TestAPIClient_GetArtifactDownloadRequest(t *testing.T) {
 	})
 }
 
+func TestAPIClient_GetArtifactDownloadRequestByTaskKey(t *testing.T) {
+	t.Run("sends run_id, task_key, and key as query params", func(t *testing.T) {
+		body := struct {
+			URL         string `json:"url"`
+			Filename    string `json:"filename"`
+			SizeInBytes int64  `json:"size_in_bytes"`
+			Kind        string `json:"kind"`
+			Key         string `json:"key"`
+		}{
+			URL:         "https://s3.example.com/artifacts/abc123",
+			Filename:    "build-task-123-my-artifact.tar",
+			SizeInBytes: 1024,
+			Kind:        "file",
+			Key:         "my-artifact",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		roundTrip := func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "/mint/api/artifact_download", req.URL.Path)
+			require.Equal(t, "run-123", req.URL.Query().Get("run_id"))
+			require.Equal(t, "build", req.URL.Query().Get("task_key"))
+			require.Equal(t, "my-artifact", req.URL.Query().Get("key"))
+			require.Equal(t, http.MethodGet, req.Method)
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: 200,
+				Body:       io.NopCloser(bytes.NewReader(bodyBytes)),
+			}, nil
+		}
+
+		c := api.NewClientWithRoundTrip(roundTrip)
+
+		result, err := c.GetArtifactDownloadRequestByTaskKey("run-123", "build", "my-artifact")
+		require.NoError(t, err)
+		require.Equal(t, "https://s3.example.com/artifacts/abc123", result.URL)
+		require.Equal(t, "file", result.Kind)
+		require.Equal(t, "my-artifact", result.Key)
+	})
+}
+
 func TestAPIClient_GetAllArtifactDownloadRequests(t *testing.T) {
 	t.Run("parses array response", func(t *testing.T) {
 		body := []struct {
