@@ -1257,7 +1257,8 @@ func (c Client) GetArtifactDownloadRequestByTaskKey(runID, taskKey, artifactKey 
 	params := url.Values{}
 	params.Set("run_id", runID)
 	params.Set("task_key", taskKey)
-	endpoint := fmt.Sprintf("/mint/api/artifact_downloads/%s?%s", url.PathEscape(artifactKey), params.Encode())
+	params.Set("key", artifactKey)
+	endpoint := fmt.Sprintf("/mint/api/artifact_download?%s", params.Encode())
 	result := ArtifactDownloadRequestResult{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
