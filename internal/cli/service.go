@@ -52,6 +52,7 @@ func NewService(cfg Config) (Service, error) {
 
 func (s Service) outputLatestVersionMessage() {
 	versions.LoadLatestVersionFromFile(s.VersionsBackend)
+	versions.LoadLatestSkillVersionFromFile(s.SkillVersionsBackend)
 
 	if !versions.NewVersionAvailable() {
 		return

@@ -14,11 +14,13 @@ var versionHolder *lockedVersions
 var EmptyVersion = semver.MustParse("0.0.0")
 
 const latestVersionFilename = "latestversion"
+const latestSkillVersionFilename = "latestskillversion"
 
 type lockedVersions struct {
-	currentVersion *semver.Version
-	latestVersion  *semver.Version
-	mu             sync.RWMutex
+	currentVersion     *semver.Version
+	latestVersion      *semver.Version
+	latestSkillVersion *semver.Version
+	mu                 sync.RWMutex
 }
 
 func init() {
@@ -29,8 +31,9 @@ func init() {
 	}
 
 	versionHolder = &lockedVersions{
-		currentVersion: currentVersion,
-		latestVersion:  EmptyVersion,
+		currentVersion:     currentVersion,
+		latestVersion:      EmptyVersion,
+		latestSkillVersion: EmptyVersion,
 	}
 }
 
@@ -65,6 +68,26 @@ func NewVersionAvailable() bool {
 	return latestVersion.GreaterThan(currentVersion)
 }
 
+func GetSkillLatestVersion() *semver.Version {
+	versionHolder.mu.RLock()
+	defer versionHolder.mu.RUnlock()
+
+	return versionHolder.latestSkillVersion
+}
+
+func SetSkillLatestVersion(versionStr string) error {
+	version, err := semver.NewVersion(versionStr)
+	if err != nil {
+		return err
+	}
+
+	versionHolder.mu.Lock()
+	versionHolder.latestSkillVersion = version
+	versionHolder.mu.Unlock()
+
+	return nil
+}
+
 func InstalledWithHomebrew() bool {
 	fname, err := os.Executable()
 	if err != nil {
@@ -93,6 +116,32 @@ func SaveLatestVersionToFile(backend Backend) {
 	}
 
 	latestVersion := GetCliLatestVersion()
+	if latestVersion.Equal(EmptyVersion) {
+		return
+	}
+
+	_ = backend.Set(latestVersion.String())
+}
+
+func LoadLatestSkillVersionFromFile(backend Backend) {
+	if backend == nil {
+		return
+	}
+
+	versionStr, err := backend.Get()
+	if err != nil || versionStr == "" {
+		return
+	}
+
+	_ = SetSkillLatestVersion(versionStr)
+}
+
+func SaveLatestSkillVersionToFile(backend Backend) {
+	if backend == nil {
+		return
+	}
+
+	latestVersion := GetSkillLatestVersion()
 	if latestVersion.Equal(EmptyVersion) {
 		return
 	}

@@ -13,20 +13,21 @@ import (
 )
 
 type Config struct {
-	APIClient          APIClient
-	SSHClient          SSHClient
-	GitClient          GitClient
-	DockerCLI          docker.Client
-	DocsClient         docs.Client
-	DocsTokenBackend   docstoken.Backend
-	AccessTokenBackend accesstoken.Backend
-	VersionsBackend    versions.Backend
-	TelemetryCollector *telemetry.Collector
-	Stdin              io.Reader
-	Stdout             io.Writer
-	StdoutIsTTY        bool
-	Stderr             io.Writer
-	StderrIsTTY        bool
+	APIClient            APIClient
+	SSHClient            SSHClient
+	GitClient            GitClient
+	DockerCLI            docker.Client
+	DocsClient           docs.Client
+	DocsTokenBackend     docstoken.Backend
+	AccessTokenBackend   accesstoken.Backend
+	VersionsBackend      versions.Backend
+	SkillVersionsBackend versions.Backend
+	TelemetryCollector   *telemetry.Collector
+	Stdin                io.Reader
+	Stdout               io.Writer
+	StdoutIsTTY          bool
+	Stderr               io.Writer
+	StderrIsTTY          bool
 }
 
 func (c Config) Validate() error {
