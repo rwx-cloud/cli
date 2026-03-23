@@ -20,7 +20,7 @@ base:
 
 tasks:
   - key: code
-    call: git/clone 2.0.6
+    call: git/clone 2.0.7
     with:
       preserve-git-dir: true
       repository: https://github.com/rwx-cloud/rwx.git
@@ -54,7 +54,7 @@ tasks:
 
   - key: go-deps
     use: [go, code]
-    call: golang/mod-download 1.0.1
+    call: golang/mod-download 1.0.2
     filter: [go.mod, go.sum]
     with:
       tool-cache: cli-go-deps
@@ -76,7 +76,7 @@ tasks:
       git lfs install --skip-repo
 
   - key: lsp-code
-    call: git/clone 2.0.6
+    call: git/clone 2.0.7
     with:
       repository: https://github.com/rwx-cloud/language-server.git
       ref: ${{ tasks.tool-versions.values.language-server-ref }}
@@ -151,7 +151,7 @@ tasks:
       ref: ${{ init.commit-sha }}
 
   - key: rwx-testing-code
-    call: git/clone 2.0.6
+    call: git/clone 2.0.7
     with:
       path: ./rwx-testing
       repository: https://github.com/rwx-cloud/rwx-testing.git
