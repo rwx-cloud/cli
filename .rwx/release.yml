@@ -84,7 +84,7 @@ tasks:
       printf "$aliasedVersion" > "$RWX_VALUES/aliased-version"
 
   - key: code
-    call: git/clone 2.0.6
+    call: git/clone 2.0.7
     after: verify-inputs
     with:
       preserve-git-dir: true
@@ -94,7 +94,7 @@ tasks:
 
   - key: go-deps
     use: [go, code]
-    call: golang/mod-download 1.0.1
+    call: golang/mod-download 1.0.2
     filter: [go.mod, go.sum]
     with:
       tool-cache: cli-go-deps
@@ -141,7 +141,7 @@ tasks:
       GH_TOKEN: ${{ github-apps.rwx-cloud-bot.token }}
 
   - key: lsp-code
-    call: git/clone 2.0.6
+    call: git/clone 2.0.7
     with:
       repository: https://github.com/rwx-cloud/language-server.git
       ref: ${{ tasks.tool-versions.values.language-server-ref }}
