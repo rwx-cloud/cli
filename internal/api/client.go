@@ -55,12 +55,38 @@ func NewClient(cfg Config) (Client, error) {
 		return http.DefaultClient.Do(req)
 	}
 
-	roundTripper := versions.NewRoundTripper(roundTripFunc(roundTrip), cfg.VersionsBackend)
+	roundTripper := versions.NewRoundTripper(roundTripFunc(roundTrip), cfg.VersionsBackend, cfg.SkillVersionsBackend)
 	return Client{roundTripper}, nil
 }
 
 func NewClientWithRoundTrip(rt func(*http.Request) (*http.Response, error)) Client {
 	return Client{roundTripFunc(rt)}
+}
+
+func (c Client) GetSkillLatestVersion() (string, error) {
+	req, err := http.NewRequest(http.MethodGet, "/api/skill/latest", nil)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to create new HTTP request")
+	}
+
+	resp, err := c.RoundTrip(req)
+	if err != nil {
+		return "", errors.Wrap(err, "HTTP request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", errors.New(fmt.Sprintf("Unable to call RWX API - %s", resp.Status))
+	}
+
+	var result struct {
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", errors.Wrap(err, "unable to parse API response")
+	}
+
+	return result.Version, nil
 }
 
 func (c Client) GetDebugConnectionInfo(debugKey string) (DebugConnectionInfo, error) {

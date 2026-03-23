@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Host               string
-	AccessToken        string
-	AccessTokenBackend accesstoken.Backend
-	VersionsBackend    versions.Backend
+	Host                 string
+	AccessToken          string
+	AccessTokenBackend   accesstoken.Backend
+	VersionsBackend      versions.Backend
+	SkillVersionsBackend versions.Backend
 }
 
 func (c Config) Validate() error {

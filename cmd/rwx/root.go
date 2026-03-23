@@ -52,12 +52,14 @@ var (
 			accessTokenBackend = accesstoken.NewFileBackend(fileBackend)
 			docsTokenBackend := docstoken.NewFileBackend(fileBackend)
 			versionsBackend := versions.NewFileBackend(fileBackend)
+			skillVersionsBackend := versions.NewSkillFileBackend(fileBackend)
 
 			c, err := api.NewClient(api.Config{
-				AccessToken:        AccessToken,
-				Host:               rwxHost,
-				AccessTokenBackend: accessTokenBackend,
-				VersionsBackend:    versionsBackend,
+				AccessToken:          AccessToken,
+				Host:                 rwxHost,
+				AccessTokenBackend:   accessTokenBackend,
+				VersionsBackend:      versionsBackend,
+				SkillVersionsBackend: skillVersionsBackend,
 			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize API client")
@@ -89,17 +91,18 @@ var (
 					Binary: "git",
 					Dir:    dir,
 				},
-				DockerCLI:          dockerCli,
-				DocsClient:         docs.Client{Host: docsHost, Scheme: docsScheme},
-				DocsTokenBackend:   docsTokenBackend,
-				AccessTokenBackend: accessTokenBackend,
-				VersionsBackend:    versionsBackend,
-				TelemetryCollector: collector,
-				Stdin:              os.Stdin,
-				Stdout:             os.Stdout,
-				StdoutIsTTY:        term.IsTerminal(int(os.Stdout.Fd())),
-				Stderr:             os.Stderr,
-				StderrIsTTY:        term.IsTerminal(int(os.Stderr.Fd())),
+				DockerCLI:            dockerCli,
+				DocsClient:           docs.Client{Host: docsHost, Scheme: docsScheme},
+				DocsTokenBackend:     docsTokenBackend,
+				AccessTokenBackend:   accessTokenBackend,
+				VersionsBackend:      versionsBackend,
+				SkillVersionsBackend: skillVersionsBackend,
+				TelemetryCollector:   collector,
+				Stdin:                os.Stdin,
+				Stdout:               os.Stdout,
+				StdoutIsTTY:          term.IsTerminal(int(os.Stdout.Fd())),
+				Stderr:               os.Stderr,
+				StderrIsTTY:          term.IsTerminal(int(os.Stderr.Fd())),
 			})
 			if err != nil {
 				return errors.Wrap(err, "unable to initialize CLI")
