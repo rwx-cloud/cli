@@ -271,6 +271,158 @@ tasks:
     run: echo a
 `, doc.String())
 	})
+
+	t.Run("inserts correctly when preceding sections contain comments", func(t *testing.T) {
+		contents := `on:
+  cli: # inline comment
+    init:
+      # block comment
+      # another block comment
+      ok: true
+
+tasks:
+  - key: hi
+    run: exit 0
+`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.InsertBefore("$.tasks", map[string]any{
+			"base": map[string]any{
+				"os":  "ubuntu 24.04",
+				"tag": 1.1,
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `on:
+  cli: # inline comment
+    init:
+      # block comment
+      # another block comment
+      ok: true
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+tasks:
+  - key: hi
+    run: exit 0
+`, doc.String())
+	})
+}
+
+func TestYamlDoc_ReplaceRootField(t *testing.T) {
+	t.Run("replaces a root field with multiple children", func(t *testing.T) {
+		contents := `on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+tasks:
+  - key: hi
+    run: exit 0
+`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.ReplaceRootField("base", yaml.MapSlice{
+			{Key: "image", Value: "ubuntu:24.04"},
+			{Key: "config", Value: "default"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `on:
+  github:
+    push:
+      init:
+        commit-sha: ${{ event.git.sha }}
+
+base:
+  image: ubuntu:24.04
+  config: default
+
+tasks:
+  - key: hi
+    run: exit 0
+`, doc.String())
+	})
+
+	t.Run("replaces correctly when preceding sections contain comments", func(t *testing.T) {
+		contents := `on:
+  cli: # first comment
+    init:
+      # second comment
+      # third comment
+      ok: true
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+
+tasks:
+  - key: hi
+    run: exit 0
+`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.ReplaceRootField("base", yaml.MapSlice{
+			{Key: "image", Value: "ubuntu:24.04"},
+			{Key: "config", Value: "default"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `on:
+  cli: # first comment
+    init:
+      # second comment
+      # third comment
+      ok: true
+
+base:
+  image: ubuntu:24.04
+  config: default
+
+tasks:
+  - key: hi
+    run: exit 0
+`, doc.String())
+	})
+
+	t.Run("replaces the last root field", func(t *testing.T) {
+		contents := `tasks:
+  - key: hi
+    run: exit 0
+
+base:
+  os: ubuntu 24.04
+  tag: 1.1
+`
+
+		doc, err := cli.ParseYAMLDoc(contents)
+		require.NoError(t, err)
+
+		err = doc.ReplaceRootField("base", yaml.MapSlice{
+			{Key: "image", Value: "ubuntu:24.04"},
+			{Key: "config", Value: "default"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, `tasks:
+  - key: hi
+    run: exit 0
+
+base:
+  image: ubuntu:24.04
+  config: default
+`, doc.String())
+	})
 }
 
 func TestYamlDoc_MergeAtPath(t *testing.T) {

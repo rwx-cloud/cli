@@ -184,14 +184,13 @@ func (doc *YAMLDoc) InsertBefore(beforeYamlPath string, value any) error {
 	keyToken := token.Prev.Prev
 	content := []byte(doc.astFile.String())
 
-	idx := keyToken.Position.Offset
-	for idx > 0 && content[idx-1] != '\n' {
-		idx--
-	}
+	// Use line numbers instead of Position.Offset, which is unreliable
+	// when the document contains comments.
+	lineStarts := lineStartOffsets(content)
+	idx := lineStarts[keyToken.Position.Line-1]
 
 	// Look backwards to find any preceding comment lines and insert before them.
 	// This preserves comment blocks by inserting before the entire block.
-	hasComments := false
 	for idx > 0 {
 		// Find the start of the previous line
 		lineStart := idx - 1
@@ -199,14 +198,10 @@ func (doc *YAMLDoc) InsertBefore(beforeYamlPath string, value any) error {
 			lineStart--
 		}
 
-		// Check if the previous line is a comment or empty
+		// Check if the previous line is a comment
 		lineContent := content[lineStart : idx-1]
 		trimmed := strings.TrimSpace(string(lineContent))
 		if strings.HasPrefix(trimmed, "#") {
-			idx = lineStart
-			hasComments = true
-		} else if trimmed == "" && hasComments {
-			// Only skip empty lines if we've found comments
 			idx = lineStart
 		} else {
 			break
@@ -304,10 +299,10 @@ func (doc *YAMLDoc) ReplaceRootField(fieldName string, value any) error {
 	keyToken := token.Prev.Prev
 	content := []byte(doc.astFile.String())
 
-	startIdx := keyToken.Position.Offset
-	for startIdx > 0 && content[startIdx-1] != '\n' {
-		startIdx--
-	}
+	// Use line numbers instead of Position.Offset, which is unreliable
+	// when the document contains comments.
+	lineStarts := lineStartOffsets(content)
+	startIdx := lineStarts[keyToken.Position.Line-1]
 
 	// Find the end of this field section (next root-level key or EOF)
 	endIdx := len(content)
@@ -316,14 +311,10 @@ func (doc *YAMLDoc) ReplaceRootField(fieldName string, value any) error {
 	if len(reparsedFile.Docs) > 0 && reparsedFile.Docs[0].Body != nil {
 		if mapNode, ok := reparsedFile.Docs[0].Body.(*ast.MappingNode); ok {
 			for _, entry := range mapNode.Values {
-				entryOffset := entry.Key.GetToken().Position.Offset
+				entryLine := entry.Key.GetToken().Position.Line
 				// Find the next key after our field
-				if entryOffset > keyToken.Position.Offset {
-					// Back up to start of line
-					nextStart := entryOffset
-					for nextStart > 0 && content[nextStart-1] != '\n' {
-						nextStart--
-					}
+				if entryLine > keyToken.Position.Line {
+					nextStart := lineStarts[entryLine-1]
 					// Also include any blank lines before the next field
 					for nextStart > startIdx && nextStart > 0 && content[nextStart-1] == '\n' {
 						checkIdx := nextStart - 1
@@ -441,6 +432,19 @@ func (doc *YAMLDoc) hasPath(yamlPath string) bool {
 
 func (doc *YAMLDoc) modified() {
 	doc.latest = nil
+}
+
+// lineStartOffsets returns a slice where index i holds the byte offset of the
+// start of line i+1 (1-based line numbers). This is used instead of
+// token.Position.Offset which is unreliable in the presence of YAML comments.
+func lineStartOffsets(content []byte) []int {
+	starts := []int{0} // line 1 starts at byte 0
+	for i, b := range content {
+		if b == '\n' && i+1 < len(content) {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
 }
 
 func (doc *YAMLDoc) reparseAst(contents string) error {
