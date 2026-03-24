@@ -19,6 +19,17 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
+// httpClient uses a transport with a reduced idle connection timeout to avoid
+// reusing connections that the load balancer has already closed (default ALB
+// idle timeout is 60s; Go's default IdleConnTimeout is 90s).
+var httpClient = newHTTPClient()
+
+func newHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.IdleConnTimeout = 50 * time.Second
+	return &http.Client{Transport: transport}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (rtf roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -52,7 +63,7 @@ func NewClient(cfg Config) (Client, error) {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		}
 
-		return http.DefaultClient.Do(req)
+		return httpClient.Do(req)
 	}
 
 	roundTripper := versions.NewRoundTripper(roundTripFunc(roundTrip), cfg.VersionsBackend, cfg.SkillVersionsBackend)
