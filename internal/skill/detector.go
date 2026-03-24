@@ -14,6 +14,7 @@ type Installation struct {
 	Path     string
 	Version  string
 	Detected bool
+	Source   string
 }
 
 type DetectResult struct {
@@ -43,15 +44,15 @@ func Detect() (*DetectResult, error) {
 
 	var installations []Installation
 
-	// Check global installation
+	// Check global agents installation
 	globalPath := filepath.Join(homeDir, ".agents", "skills", "rwx", "SKILL.md")
-	globalInst, err := checkSkillFile("global", globalPath)
+	globalInst, err := checkSkillFile("global", "agents", globalPath)
 	if err != nil {
 		return nil, err
 	}
 	installations = append(installations, globalInst)
 
-	// Check project installation (walk cwd up), skipping if it resolves
+	// Check project agents installation (walk cwd up), skipping if it resolves
 	// to the same file as the global installation.
 	skillSubdir := filepath.Join(".agents", "skills", "rwx", "SKILL.md")
 	if projectPath := findFileWalkingUp(cwd, skillSubdir); projectPath != "" {
@@ -64,13 +65,21 @@ func Detect() (*DetectResult, error) {
 			}
 		}
 		if !skip {
-			inst, err := checkSkillFile("project", projectPath)
+			inst, err := checkSkillFile("project", "agents", projectPath)
 			if err != nil {
 				return nil, err
 			}
 			installations = append(installations, inst)
 		}
 	}
+
+	// Check Claude Code marketplace installation
+	marketplacePath := filepath.Join(homeDir, ".claude", "plugins", "marketplaces", "rwx", "plugins", "rwx", "skills", "rwx", "SKILL.md")
+	marketplaceInst, err := checkSkillFile("global", "marketplace", marketplacePath)
+	if err != nil {
+		return nil, err
+	}
+	installations = append(installations, marketplaceInst)
 
 	anyFound := false
 	for _, inst := range installations {
@@ -87,10 +96,11 @@ func Detect() (*DetectResult, error) {
 }
 
 // checkSkillFile checks for a SKILL.md file and extracts the version from its frontmatter.
-func checkSkillFile(scope, path string) (Installation, error) {
+func checkSkillFile(scope, source, path string) (Installation, error) {
 	inst := Installation{
-		Scope: scope,
-		Path:  path,
+		Scope:  scope,
+		Path:   path,
+		Source: source,
 	}
 
 	exists, err := fs.Exists(path)

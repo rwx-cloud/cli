@@ -7,9 +7,11 @@ import (
 	"strings"
 	"sync/atomic"
 
+	semver "github.com/Masterminds/semver/v3"
 	"github.com/rwx-cloud/rwx/internal/api"
 	"github.com/rwx-cloud/rwx/internal/errors"
 	"github.com/rwx-cloud/rwx/internal/git"
+	"github.com/rwx-cloud/rwx/internal/skill"
 	"github.com/rwx-cloud/rwx/internal/versions"
 )
 
@@ -34,6 +36,7 @@ func (e *ExitCodeError) Is(target error) bool {
 }
 
 var hasOutputVersionMessage atomic.Bool
+var hasOutputSkillMessage atomic.Bool
 
 // Service holds the main business logic of the CLI.
 type Service struct {
@@ -47,6 +50,7 @@ func NewService(cfg Config) (Service, error) {
 
 	svc := Service{cfg}
 	svc.outputLatestVersionMessage()
+	svc.outputOutdatedSkillMessage()
 	return svc, nil
 }
 
@@ -75,6 +79,59 @@ func (s Service) outputLatestVersionMessage() {
 		fmt.Fprintln(w, "To upgrade, run: brew upgrade rwx-cloud/tap/rwx")
 	}
 
+	fmt.Fprintln(w)
+}
+
+func (s Service) outputOutdatedSkillMessage() {
+	if os.Getenv("RWX_HIDE_SKILL_HINT") != "" {
+		return
+	}
+
+	latestVersion := versions.GetSkillLatestVersion()
+	if latestVersion.Equal(versions.EmptyVersion) {
+		return
+	}
+
+	result, err := skill.Detect()
+	if err != nil || !result.AnyFound {
+		return
+	}
+
+	// Collect which sources are outdated and track the highest outdated version.
+	var highestOutdated *semver.Version
+	outdatedSources := make(map[string]bool)
+	for _, inst := range result.Installations {
+		if !skill.IsDetected(inst) || inst.Version == "" {
+			continue
+		}
+		v, err := semver.NewVersion(inst.Version)
+		if err != nil {
+			continue
+		}
+		if latestVersion.GreaterThan(v) {
+			outdatedSources[inst.Source] = true
+			if highestOutdated == nil || v.GreaterThan(highestOutdated) {
+				highestOutdated = v
+			}
+		}
+	}
+
+	if len(outdatedSources) == 0 {
+		return
+	}
+
+	if !hasOutputSkillMessage.CompareAndSwap(false, true) {
+		return
+	}
+
+	w := s.Stderr
+	fmt.Fprintf(w, "\nA new version of the RWX agent skill is available: v%s → v%s\n", highestOutdated, latestVersion)
+	if outdatedSources["agents"] {
+		fmt.Fprintln(w, "To upgrade: npx skills update rwx")
+	}
+	if outdatedSources["marketplace"] {
+		fmt.Fprintln(w, "To upgrade the Claude Code marketplace: claude plugin marketplace update rwx && claude plugin update rwx@rwx")
+	}
 	fmt.Fprintln(w)
 }
 
