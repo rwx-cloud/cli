@@ -102,6 +102,8 @@ func classifyError(err error) string {
 		return "lsp_error"
 	case errors.Is(err, internalerrors.ErrAmbiguousTaskKey):
 		return "ambiguous_task_key"
+	case errors.Is(err, internalerrors.ErrNetworkTransient):
+		return "network_transient_error"
 	default:
 		return "unknown"
 	}

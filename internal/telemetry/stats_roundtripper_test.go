@@ -119,7 +119,7 @@ func TestStatsRoundTripper_DrainsAfterRecordSummary(t *testing.T) {
 	require.Empty(t, events)
 }
 
-func TestStatsRoundTripper_SkipsOnTransportError(t *testing.T) {
+func TestStatsRoundTripper_RecordsTransportError(t *testing.T) {
 	// Use a server that's immediately closed to trigger transport error
 	server := newTestServer(http.StatusOK)
 	server.Close()
@@ -135,7 +135,14 @@ func TestStatsRoundTripper_SkipsOnTransportError(t *testing.T) {
 	srt.RecordSummary(collector)
 
 	events := collector.Drain()
-	require.Empty(t, events)
+	require.Len(t, events, 1)
+
+	calls := events[0].Props["calls"].([]AggregatedCall)
+	require.Len(t, calls, 1)
+	require.Equal(t, "/mint/api/runs", calls[0].Path)
+	require.Equal(t, http.MethodGet, calls[0].Method)
+	require.Equal(t, 1, calls[0].Count)
+	require.Equal(t, []int{0}, calls[0].StatusCodes)
 }
 
 func TestStatsRoundTripper_PreservesPathOrder(t *testing.T) {
