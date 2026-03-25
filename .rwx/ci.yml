@@ -159,14 +159,8 @@ tasks:
       github-token: ${{ github['rwx-cloud'].token }}
       preserve-git-dir: true
 
-  - key: jq
-    run: |
-      sudo apt-get update
-      sudo apt-get install jq
-      sudo apt-get clean
-
   - key: run-rwx-testing-tests
-    use: [rwx-testing-code, jq, rwx-cli]
+    use: [rwx-testing-code, rwx-cli]
     run: ./test/integration/rwx-testing-tests.sh
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
@@ -176,9 +170,30 @@ tasks:
       - test/integration/rwx-testing-tests.sh
       - rwx-testing/.rwx/trigger-integration-test.yml
 
-  - key: run-rwx-testing-sandbox
-    use: [rwx-testing-code, jq, rwx-cli]
-    run: ./test/integration/rwx-testing-sandbox.sh
+  - key: generate-sandbox-tests
+    use: code
+    run: |
+      for script in test/integration/sandbox-*.sh; do
+        key=$(basename "$script" .sh)
+        if [ "$key" = "sandbox-helpers" ]; then
+          continue
+        fi
+        printf '%s\n' \
+          "- key: ${key}" \
+          "  use: [rwx-testing-code, rwx-cli, git]" \
+          "  run: ./${script}" \
+          "  env:" \
+          "    RWX_ACCESS_TOKEN: ${RWX_ACCESS_TOKEN}" \
+          "    COMMIT_SHA: ${COMMIT_SHA}" \
+          "  filter:" \
+          "    - rwx" \
+          "    - ${script}" \
+          "    - test/integration/sandbox-helpers.sh" \
+          "    - rwx-testing" \
+          >> "$RWX_DYNAMIC_TASKS/sandbox-tests.yml"
+      done
     env:
       RWX_ACCESS_TOKEN: ${{ secrets.RWX_ACCESS_TOKEN }}
       COMMIT_SHA: ${{ init.commit-sha }}
+    filter:
+      - test/integration/sandbox-*.sh
