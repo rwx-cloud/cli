@@ -31,6 +31,7 @@ var sandboxStartCmd = &cobra.Command{
 		if len(args) > 0 {
 			configFile = args[0]
 		}
+		configFile = cli.AbsConfigFile(configFile)
 
 		useJson := useJsonOutput()
 
@@ -179,7 +180,7 @@ CONFIG FILE
 
 		// Args before -- are config file (optional)
 		if dashIndex > 0 {
-			configFile = args[0]
+			configFile = cli.AbsConfigFile(args[0])
 		}
 
 		// Args after -- are the command
@@ -342,6 +343,7 @@ var sandboxResetCmd = &cobra.Command{
 		if len(args) > 0 {
 			configFile = args[0]
 		}
+		configFile = cli.AbsConfigFile(configFile)
 
 		useJson := useJsonOutput()
 

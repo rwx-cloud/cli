@@ -28,13 +28,18 @@ func FindAndValidateRwxDirectoryPath(dir string) (string, error) {
 
 // FindDefaultSandboxConfigFile returns the default sandbox config file path by
 // locating the closest .rwx directory via the standard traversal logic. Falls
-// back to ".rwx/sandbox.yml" (relative to cwd) when no .rwx directory is found.
+// back to an absolute path of ".rwx/sandbox.yml" relative to cwd when no .rwx
+// directory is found.
 func FindDefaultSandboxConfigFile() string {
 	rwxDir, err := findRwxDirectoryPath("")
 	if err == nil && rwxDir != "" {
 		return filepath.Join(rwxDir, "sandbox.yml")
 	}
-	return ".rwx/sandbox.yml"
+	fallback, err := filepath.Abs(".rwx/sandbox.yml")
+	if err != nil {
+		return ".rwx/sandbox.yml"
+	}
+	return fallback
 }
 
 func RwxDirectoryEntries(dir string) ([]RwxDirectoryEntry, error) {

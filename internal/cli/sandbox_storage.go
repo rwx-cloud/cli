@@ -230,7 +230,24 @@ func SessionKey(cwd, branch, configFile string) string {
 	if branch == "" {
 		branch = "detached"
 	}
+	if configFile != "" && !filepath.IsAbs(configFile) {
+		panic(fmt.Sprintf("SessionKey called with relative configFile: %q", configFile))
+	}
 	return fmt.Sprintf("%s:%s:%s", cwd, branch, configFile)
+}
+
+// AbsConfigFile coerces a config file path to be absolute. If the path is
+// already absolute it is returned as-is; otherwise it is resolved relative to
+// the current working directory.
+func AbsConfigFile(configFile string) string {
+	if configFile == "" || filepath.IsAbs(configFile) {
+		return configFile
+	}
+	abs, err := filepath.Abs(configFile)
+	if err != nil {
+		return configFile
+	}
+	return abs
 }
 
 // IsDetachedBranch returns true if the branch string represents a detached HEAD.

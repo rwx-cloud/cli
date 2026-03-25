@@ -28,6 +28,11 @@ type testSetup struct {
 	originalWd string
 }
 
+// absConfig returns an absolute config file path rooted in the test's temp directory.
+func (s *testSetup) absConfig(relPath string) string {
+	return filepath.Join(s.tmp, relPath)
+}
+
 func setupTest(t *testing.T) *testSetup {
 	setup := &testSetup{}
 

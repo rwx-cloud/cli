@@ -132,14 +132,14 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 	t.Run("uses bulk API to determine active sandboxes", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-active",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "token-active",
 			},
-			"/tmp:main:.rwx/other.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/other.yml"): {
 				RunID:       "run-expired",
-				ConfigFile:  ".rwx/other.yml",
+				ConfigFile:  setup.absConfig(".rwx/other.yml"),
 				ScopedToken: "token-expired",
 			},
 		})
@@ -171,21 +171,21 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, storage.Sandboxes, 1)
-		_, exists := storage.Sandboxes["/tmp:main:.rwx/sandbox.yml"]
+		_, exists := storage.Sandboxes[setup.tmp+":main:"+setup.absConfig(".rwx/sandbox.yml")]
 		require.True(t, exists)
 	})
 
 	t.Run("merges remote-only runs into local storage", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-local",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "token-local",
 			},
 		})
 
-		remoteCliState := cli.EncodeCliState("/remote/project", "develop", ".rwx/sandbox.yml")
+		remoteCliState := cli.EncodeCliState("/remote/project", "develop", setup.absConfig(".rwx/sandbox.yml"))
 		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
 			return &api.ListSandboxRunsResult{
 				Runs: []api.SandboxRunSummary{
@@ -210,7 +210,7 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, storage.Sandboxes, 2)
-		session, found := storage.GetSession("/remote/project", "develop", ".rwx/sandbox.yml")
+		session, found := storage.GetSession("/remote/project", "develop", setup.absConfig(".rwx/sandbox.yml"))
 		require.True(t, found)
 		require.Equal(t, "run-remote", session.RunID)
 		require.Equal(t, "https://cloud.rwx.com/runs/run-remote", session.RunURL)
@@ -237,15 +237,15 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 	t.Run("does not overwrite existing local session with remote run", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-local",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "my-scoped-token",
 			},
 		})
 
 		// Remote has a run with cli_state pointing to the same key but different run ID
-		remoteCliState := cli.EncodeCliState("/tmp", "main", ".rwx/sandbox.yml")
+		remoteCliState := cli.EncodeCliState(setup.tmp, "main", setup.absConfig(".rwx/sandbox.yml"))
 		setup.mockAPI.MockListSandboxRuns = func() (*api.ListSandboxRunsResult, error) {
 			return &api.ListSandboxRunsResult{
 				Runs: []api.SandboxRunSummary{
@@ -265,7 +265,7 @@ func TestService_ListSandboxes_BulkAPI(t *testing.T) {
 		// Verify the scoped token was preserved
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		session, found := storage.GetSession("/tmp", "main", ".rwx/sandbox.yml")
+		session, found := storage.GetSession(setup.tmp, "main", setup.absConfig(".rwx/sandbox.yml"))
 		require.True(t, found)
 		require.Equal(t, "run-local", session.RunID)
 		require.Equal(t, "my-scoped-token", session.ScopedToken)
@@ -276,14 +276,14 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 	t.Run("removes expired sandboxes from storage and results", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-active",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "token-active",
 			},
-			"/tmp:main:.rwx/other.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/other.yml"): {
 				RunID:       "run-expired",
-				ConfigFile:  ".rwx/other.yml",
+				ConfigFile:  setup.absConfig(".rwx/other.yml"),
 				ScopedToken: "token-expired",
 			},
 		})
@@ -318,26 +318,26 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
 		require.Len(t, storage.Sandboxes, 1)
-		_, exists := storage.Sandboxes["/tmp:main:.rwx/sandbox.yml"]
+		_, exists := storage.Sandboxes[setup.tmp+":main:"+setup.absConfig(".rwx/sandbox.yml")]
 		require.True(t, exists)
 	})
 
 	t.Run("removes all local sandboxes not in API response when confirmed expired", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/active.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/active.yml"): {
 				RunID:       "run-active",
-				ConfigFile:  ".rwx/active.yml",
+				ConfigFile:  setup.absConfig(".rwx/active.yml"),
 				ScopedToken: "token-active",
 			},
-			"/tmp:main:.rwx/notfound.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/notfound.yml"): {
 				RunID:       "run-notfound",
-				ConfigFile:  ".rwx/notfound.yml",
+				ConfigFile:  setup.absConfig(".rwx/notfound.yml"),
 				ScopedToken: "token-notfound",
 			},
-			"/tmp:main:.rwx/gone.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/gone.yml"): {
 				RunID:       "run-gone",
-				ConfigFile:  ".rwx/gone.yml",
+				ConfigFile:  setup.absConfig(".rwx/gone.yml"),
 				ScopedToken: "token-gone",
 			},
 		})
@@ -378,9 +378,9 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 	t.Run("keeps initializing sandbox not yet in bulk API response", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-initializing",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "token-init",
 			},
 		})
@@ -413,9 +413,9 @@ func TestService_ListSandboxes_PrunesExpired(t *testing.T) {
 	t.Run("prunes sandbox when fallback connection info returns an error", func(t *testing.T) {
 		setup := setupTest(t)
 		seedSandboxStorageMulti(t, setup.tmp, map[string]cli.SandboxSession{
-			"/tmp:main:.rwx/sandbox.yml": {
+			setup.tmp + ":main:" + setup.absConfig(".rwx/sandbox.yml"): {
 				RunID:       "run-cancelled",
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  setup.absConfig(".rwx/sandbox.yml"),
 				ScopedToken: "token-cancel",
 			},
 		})
@@ -501,7 +501,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -557,7 +557,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"false"},
 			RunID:      runID,
 			Json:       true,
@@ -599,7 +599,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"bash", "-c", "cat README.md"},
 			RunID:      runID,
 			Json:       true,
@@ -623,7 +623,7 @@ func TestService_ExecSandbox(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -677,7 +677,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -727,7 +727,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -780,7 +780,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		// Pull mocks (no changes on sandbox)
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -833,7 +833,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -900,7 +900,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		// Pull mocks (no changes on sandbox)
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       false, // Enable warning output
@@ -950,7 +950,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1001,7 +1001,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1104,7 +1104,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1152,7 +1152,7 @@ func TestService_ExecSandbox_Sync(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1213,7 +1213,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1266,7 +1266,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"make", "test"},
 			RunID:      runID,
 			Json:       true,
@@ -1332,7 +1332,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1407,7 +1407,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1452,7 +1452,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1505,7 +1505,7 @@ func TestService_ExecSandbox_Pull(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1570,7 +1570,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1637,7 +1637,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1702,7 +1702,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1758,7 +1758,7 @@ func TestService_ExecSandbox_PullPatchFailureRecovery(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -1822,7 +1822,7 @@ func TestService_StartSandbox(t *testing.T) {
 		}
 
 		_, err = setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		})
 
@@ -1875,7 +1875,7 @@ func TestService_StartSandbox(t *testing.T) {
 		}
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile:     ".rwx/sandbox.yml",
+			ConfigFile:     setup.absConfig(".rwx/sandbox.yml"),
 			Json:           true,
 			InitParameters: map[string]string{"foo": "bar"},
 		})
@@ -1926,7 +1926,7 @@ func TestService_StartSandbox_StorageLock(t *testing.T) {
 		require.NoError(t, err)
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfigWithLock(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		}, lock))
 
@@ -1940,7 +1940,7 @@ func TestService_StartSandbox_StorageLock(t *testing.T) {
 		cwd, cwdErr := os.Getwd()
 		require.NoError(t, cwdErr)
 		// The temp dir is not a git repo, so the branch resolves to "detached"
-		session, found := storage.GetSession(cwd, "detached", ".rwx/sandbox.yml")
+		session, found := storage.GetSession(cwd, "detached", setup.absConfig(".rwx/sandbox.yml"))
 		require.True(t, found)
 		require.Equal(t, "run-lock-test", session.RunID)
 
@@ -1979,7 +1979,7 @@ func TestService_StartSandbox_StorageLock(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = setup.service.StartSandbox(cli.StartSandboxConfigWithLock(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		}, lock))
 
@@ -2115,7 +2115,7 @@ func TestService_ExecSandbox_RecoverFromAPI(t *testing.T) {
 		cwd := setup.tmp
 		// GetCurrentGitBranch uses a real git client, so in a non-repo temp dir it returns "detached"
 		branch := "detached"
-		configFile := ".rwx/sandbox.yml"
+		configFile := setup.absConfig(".rwx/sandbox.yml")
 
 		// Encode cli_state matching cwd+branch+configFile
 		encodedState := cli.EncodeCliState(cwd, branch, configFile)
@@ -2481,7 +2481,7 @@ func seedSandboxStorage(t *testing.T, tmpHome, runID, scopedToken string) {
 		Sandboxes: map[string]cli.SandboxSession{
 			"test-key": {
 				RunID:       runID,
-				ConfigFile:  ".rwx/sandbox.yml",
+				ConfigFile:  filepath.Join(tmpHome, ".rwx", "sandbox.yml"),
 				ScopedToken: scopedToken,
 			},
 		},
@@ -2521,7 +2521,7 @@ func TestService_ExecSandbox_RunURL(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2550,7 +2550,7 @@ func TestService_StartSandbox_RunURL(t *testing.T) {
 		}
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			RunID:      runID,
 			Json:       true,
 		})
@@ -2600,7 +2600,7 @@ func TestService_StartSandbox_RunURL(t *testing.T) {
 		}
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		})
 
@@ -2645,7 +2645,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2697,7 +2697,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2739,7 +2739,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2786,7 +2786,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2864,7 +2864,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -2913,7 +2913,7 @@ func TestService_ExecSandbox_Lock(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"false"},
 			RunID:      runID,
 			Json:       true,
@@ -2944,8 +2944,8 @@ func TestService_ExecSandbox_DefinitionDrift(t *testing.T) {
 	t.Run("warns when config file has changed since sandbox was started", func(t *testing.T) {
 		setup := setupTest(t)
 		runID := "run-drift"
-		configFile := ".rwx/sandbox.yml"
-		configPath := filepath.Join(setup.tmp, configFile)
+		configFile := setup.absConfig(".rwx/sandbox.yml")
+		configPath := configFile
 
 		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: original\n"), 0o644))
 		originalHash := cli.HashConfigFile(configPath)
@@ -2979,8 +2979,8 @@ func TestService_ExecSandbox_DefinitionDrift(t *testing.T) {
 	t.Run("does not warn when config file has not changed", func(t *testing.T) {
 		setup := setupTest(t)
 		runID := "run-no-drift"
-		configFile := ".rwx/sandbox.yml"
-		configPath := filepath.Join(setup.tmp, configFile)
+		configFile := setup.absConfig(".rwx/sandbox.yml")
+		configPath := configFile
 
 		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: stable\n"), 0o644))
 		stableHash := cli.HashConfigFile(configPath)
@@ -3009,8 +3009,8 @@ func TestService_ExecSandbox_DefinitionDrift(t *testing.T) {
 	t.Run("does not warn when no stored hash exists", func(t *testing.T) {
 		setup := setupTest(t)
 		runID := "run-no-hash"
-		configFile := ".rwx/sandbox.yml"
-		configPath := filepath.Join(setup.tmp, configFile)
+		configFile := setup.absConfig(".rwx/sandbox.yml")
+		configPath := configFile
 
 		require.NoError(t, os.WriteFile(configPath, []byte("tasks:\n  - key: test\n"), 0o644))
 
