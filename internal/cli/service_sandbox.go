@@ -94,7 +94,6 @@ type SandboxInfo struct {
 	RunID      string
 	Status     string
 	ConfigFile string
-	CWD        string
 	Branch     string
 }
 
@@ -154,10 +153,10 @@ func (s Service) CheckExistingSandbox(configFile string) (*CheckExistingSandboxR
 		return &CheckExistingSandboxResult{Exists: false}, nil
 	}
 
-	session, found := storage.GetSession(cwd, branch, configFile)
+	session, found := storage.GetSession(branch, configFile)
 	if !found && IsDetachedBranch(branch) {
 		gitClient := &git.Client{Binary: "git", Dir: cwd}
-		session, found = storage.GetSessionByAncestry(cwd, branch, configFile, gitClient)
+		session, found = storage.GetSessionByAncestry(branch, configFile, gitClient)
 		if found {
 			_ = storage.Save()
 		}
@@ -259,7 +258,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 					if err != nil {
 						fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 					} else {
-						storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+						storage.SetSession(branch, cfg.ConfigFile, SandboxSession{
 							RunID:       cfg.RunID,
 							ConfigFile:  cfg.ConfigFile,
 							ScopedToken: scopedToken,
@@ -310,7 +309,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		Title:          title,
 		InitParameters: cfg.InitParameters,
 		Patchable:      false,
-		CliState:       EncodeCliState(cwd, branch, cfg.ConfigFile),
+		CliState:       EncodeCliState(branch, cfg.ConfigFile),
 	})
 
 	if err != nil {
@@ -344,7 +343,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 	} else {
-		storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+		storage.SetSession(branch, cfg.ConfigFile, SandboxSession{
 			RunID:      runResult.RunID,
 			ConfigFile: cfg.ConfigFile,
 			RunURL:     runResult.RunURL,
@@ -382,7 +381,7 @@ func (s Service) StartSandbox(cfg StartSandboxConfig) (*StartSandboxResult, erro
 		if err != nil {
 			fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 		} else {
-			storage.SetSession(cwd, branch, cfg.ConfigFile, SandboxSession{
+			storage.SetSession(branch, cfg.ConfigFile, SandboxSession{
 				RunID:       runResult.RunID,
 				ConfigFile:  cfg.ConfigFile,
 				ScopedToken: scopedToken,
@@ -476,10 +475,10 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 
 		if cfg.ConfigFile != "" {
 			// Config file provided - look up specific session
-			session, found = storage.GetSession(cwd, branch, cfg.ConfigFile)
+			session, found = storage.GetSession(branch, cfg.ConfigFile)
 			if !found && IsDetachedBranch(branch) {
 				gitClient := &git.Client{Binary: "git", Dir: cwd}
-				session, found = storage.GetSessionByAncestry(cwd, branch, cfg.ConfigFile, gitClient)
+				session, found = storage.GetSessionByAncestry(branch, cfg.ConfigFile, gitClient)
 				if found {
 					_ = storage.Save()
 				}
@@ -488,11 +487,11 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				// Check if session is still valid (use scoped token if available)
 				connInfo, err := s.APIClient.GetSandboxConnectionInfo(session.RunID, session.ScopedToken)
 				if err != nil {
-					storage.DeleteSession(cwd, branch, cfg.ConfigFile)
+					storage.DeleteSession(branch, cfg.ConfigFile)
 					_ = storage.Save()
 					found = false
 				} else if connInfo.Polling.Completed {
-					storage.DeleteSession(cwd, branch, cfg.ConfigFile)
+					storage.DeleteSession(branch, cfg.ConfigFile)
 					_ = storage.Save()
 					found = false
 				} else {
@@ -504,11 +503,11 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				}
 			}
 		} else {
-			// No config file - find any session for cwd+branch
-			sessions := storage.GetSessionsForCwdBranch(cwd, branch)
+			// No config file - find any session for this branch
+			sessions := storage.GetSessionsForBranch(branch)
 			if len(sessions) == 0 && IsDetachedBranch(branch) {
 				gitClient := &git.Client{Binary: "git", Dir: cwd}
-				sessions = storage.GetSessionsForCwdBranchByAncestry(cwd, branch, gitClient)
+				sessions = storage.GetSessionsForBranchByAncestry(branch, gitClient)
 				if len(sessions) > 0 {
 					_ = storage.Save()
 				}
@@ -522,7 +521,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 					activeSessions = append(activeSessions, sess)
 				} else {
 					// Clean up expired session
-					storage.DeleteSession(cwd, branch, sess.ConfigFile)
+					storage.DeleteSession(branch, sess.ConfigFile)
 				}
 			}
 			_ = storage.Save()
@@ -536,7 +535,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 				found = true
 			} else if len(activeSessions) > 1 {
 				UnlockSandboxStorage(lockFile)
-				return nil, fmt.Errorf("Multiple active sandboxes found for %s:%s.\nSpecify a config file to select one, or use --id to specify a run ID.", cwd, branch)
+				return nil, fmt.Errorf("Multiple active sandboxes found for branch %s.\nSpecify a config file to select one, or use --id to specify a run ID.", branch)
 			}
 		}
 
@@ -566,7 +565,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 							branchMatch = gitClient.IsAncestor(storedSHA, "HEAD")
 						}
 					}
-					if state.CWD == cwd && branchMatch && state.ConfigFile == cfgFile {
+					if branchMatch && state.ConfigFile == cfgFile {
 						// Verify the remote sandbox is still alive before reusing
 						connInfo, connErr := s.APIClient.GetSandboxConnectionInfo(run.ID, "")
 						if connErr != nil || connInfo.Polling.Completed {
@@ -588,7 +587,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 						}
 
 						// Store locally so future execs find it without an API call
-						storage.SetSession(cwd, branch, cfgFile, SandboxSession{
+						storage.SetSession(branch, cfgFile, SandboxSession{
 							RunID:       run.ID,
 							ConfigFile:  cfgFile,
 							ScopedToken: scopedToken,
@@ -626,7 +625,7 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 			// Load the newly created session to get the scoped token
 			storage, err = LoadSandboxStorage()
 			if err == nil {
-				if newSession, ok := storage.GetSession(cwd, branch, cfgFile); ok {
+				if newSession, ok := storage.GetSession(branch, cfgFile); ok {
 					scopedToken = newSession.ScopedToken
 				}
 			}
@@ -778,10 +777,10 @@ func (s Service) ExecSandbox(cfg ExecSandboxConfig) (*ExecSandboxResult, error) 
 	execNow := time.Now().UTC()
 	if lockFile, lockErr := s.lockSandboxStorageWithInfo(cfg.Json); lockErr == nil {
 		if storage, loadErr := LoadSandboxStorage(); loadErr == nil {
-			if session, ok := storage.GetSession(cwd, branch, configFile); ok {
+			if session, ok := storage.GetSession(branch, configFile); ok {
 				session.LastExecAt = &execNow
 				session.ExecCount++
-				storage.SetSession(cwd, branch, configFile, *session)
+				storage.SetSession(branch, configFile, *session)
 				_ = storage.Save()
 			}
 		}
@@ -835,10 +834,10 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 			continue
 		}
 		// Only create a local session if none exists for this key
-		if _, exists := storage.GetSession(state.CWD, state.Branch, state.ConfigFile); exists {
+		if _, exists := storage.GetSession(state.Branch, state.ConfigFile); exists {
 			continue
 		}
-		storage.SetSession(state.CWD, state.Branch, state.ConfigFile, SandboxSession{
+		storage.SetSession(state.Branch, state.ConfigFile, SandboxSession{
 			RunID:      run.ID,
 			ConfigFile: state.ConfigFile,
 			RunURL:     run.RunURL,
@@ -851,14 +850,13 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 	var expiredKeys []string
 
 	for key, session := range storage.AllSessions() {
-		cwd, branch, _ := ParseSessionKey(key)
+		branch, _ := ParseSessionKey(key)
 
 		if _, active := activeRuns[session.RunID]; active {
 			sandboxes = append(sandboxes, SandboxInfo{
 				RunID:      session.RunID,
 				Status:     "active",
 				ConfigFile: session.ConfigFile,
-				CWD:        cwd,
 				Branch:     branch,
 			})
 		} else {
@@ -878,7 +876,6 @@ func (s Service) ListSandboxes(cfg ListSandboxesConfig) (*ListSandboxesResult, e
 					RunID:      session.RunID,
 					Status:     status,
 					ConfigFile: session.ConfigFile,
-					CWD:        cwd,
 					Branch:     branch,
 				})
 			}
@@ -921,13 +918,9 @@ func (s Service) printSandboxList(sandboxes []SandboxInfo) {
 	if len(sandboxes) == 0 {
 		fmt.Fprintln(s.Stdout, "No sandbox sessions found.")
 	} else {
-		fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", "RUN", "STATUS", "CONFIG", "CWD", "BRANCH")
+		fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %s\n", "RUN", "STATUS", "CONFIG", "BRANCH")
 		for _, sb := range sandboxes {
-			cwdDisplay := sb.CWD
-			if len(cwdDisplay) > 40 {
-				cwdDisplay = "..." + cwdDisplay[len(cwdDisplay)-37:]
-			}
-			fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %-40s %s\n", sb.RunID, sb.Status, sb.ConfigFile, cwdDisplay, sb.Branch)
+			fmt.Fprintf(s.Stdout, "%-40s %-10s %-25s %s\n", sb.RunID, sb.Status, sb.ConfigFile, sb.Branch)
 		}
 	}
 }
@@ -967,20 +960,20 @@ func (s Service) StopSandbox(cfg StopSandboxConfig) (*StopSandboxResult, error) 
 		}
 		branch := GetCurrentGitBranch(cwd)
 
-		sessions := storage.GetSessionsForCwdBranch(cwd, branch)
+		sessions := storage.GetSessionsForBranch(branch)
 		if len(sessions) == 0 && IsDetachedBranch(branch) {
 			gitClient := &git.Client{Binary: "git", Dir: cwd}
-			sessions = storage.GetSessionsForCwdBranchByAncestry(cwd, branch, gitClient)
+			sessions = storage.GetSessionsForBranchByAncestry(branch, gitClient)
 			if len(sessions) > 0 {
 				_ = storage.Save()
 			}
 		}
 		if len(sessions) == 0 {
-			return nil, fmt.Errorf("No sandbox found for %s:%s.\nUse 'rwx sandbox list' to see available sandboxes, or use --id to specify a run ID.", cwd, branch)
+			return nil, fmt.Errorf("No sandbox found for branch %s.\nUse 'rwx sandbox list' to see available sandboxes, or use --id to specify a run ID.", branch)
 		}
 		for _, session := range sessions {
 			toStop = append(toStop, session)
-			keys = append(keys, SessionKey(cwd, branch, session.ConfigFile))
+			keys = append(keys, SessionKey(branch, session.ConfigFile))
 		}
 	}
 
@@ -1059,10 +1052,10 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 	if err != nil {
 		fmt.Fprintf(s.Stderr, "Warning: Unable to load sandbox sessions: %v\n", err)
 	} else {
-		session, found := storage.GetSession(cwd, branch, cfg.ConfigFile)
+		session, found := storage.GetSession(branch, cfg.ConfigFile)
 		if !found && IsDetachedBranch(branch) {
 			gitClient := &git.Client{Binary: "git", Dir: cwd}
-			session, found = storage.GetSessionByAncestry(cwd, branch, cfg.ConfigFile, gitClient)
+			session, found = storage.GetSessionByAncestry(branch, cfg.ConfigFile, gitClient)
 		}
 		if found {
 			oldRunID = session.RunID
@@ -1077,7 +1070,7 @@ func (s Service) ResetSandbox(cfg ResetSandboxConfig) (*ResetSandboxResult, erro
 			}
 
 			// Remove old session
-			storage.DeleteSession(cwd, branch, cfg.ConfigFile)
+			storage.DeleteSession(branch, cfg.ConfigFile)
 			if err := storage.Save(); err != nil {
 				fmt.Fprintf(s.Stderr, "Warning: Unable to save sandbox sessions: %v\n", err)
 			}

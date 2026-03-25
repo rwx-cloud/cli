@@ -545,7 +545,7 @@ func TestTelemetry_SessionCreatedAt(t *testing.T) {
 		branch := cli.GetCurrentGitBranch(setup.tmp)
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		session, ok := storage.GetSession(setup.tmp, branch, setup.absConfig(".rwx/sandbox.yml"))
+		session, ok := storage.GetSession(branch, setup.absConfig(".rwx/sandbox.yml"))
 		require.True(t, ok)
 		require.NotNil(t, session.CreatedAt)
 		require.True(t, session.CreatedAt.After(before))
@@ -882,7 +882,7 @@ func TestTelemetry_SandboxStop(t *testing.T) {
 
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		storage.SetSession(cwd, branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
 			RunID:      "run-stop-123",
 			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			CreatedAt:  &createdAt,
@@ -969,11 +969,11 @@ func TestTelemetry_SandboxList(t *testing.T) {
 		// Seed one active and one expired session
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		storage.SetSession(cwd, branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
 			RunID:      "run-list-active",
 			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 		})
-		storage.SetSession(cwd, branch, setup.absConfig(".rwx/other.yml"), cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/other.yml"), cli.SandboxSession{
 			RunID:      "run-list-expired",
 			ConfigFile: setup.absConfig(".rwx/other.yml"),
 		})
