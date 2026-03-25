@@ -202,15 +202,20 @@ func (s Service) ResolveRunIDFromGitContext(overrides ...ResolveRunIDConfig) (st
 		RepositoryName: repositoryName,
 		DefinitionPath: cfg.DefinitionPath,
 	})
+	notFoundMsg := fmt.Sprintf("no run found for %s repository on branch %s", repositoryName, branchName)
+	if cfg.DefinitionPath != "" {
+		notFoundMsg += fmt.Sprintf(" with definition %s", cfg.DefinitionPath)
+	}
+
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
-			return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+			return "", fmt.Errorf("%s", notFoundMsg)
 		}
 		return "", errors.Wrap(err, "unable to resolve run from git context")
 	}
 
 	if result.RunID == "" {
-		return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+		return "", fmt.Errorf("%s", notFoundMsg)
 	}
 
 	return result.RunID, nil
