@@ -11,8 +11,11 @@ import (
 )
 
 var (
-	ResultsWait     bool
-	ResultsFailFast bool
+	ResultsWait       bool
+	ResultsFailFast   bool
+	ResultsBranch     string
+	ResultsRepo       string
+	ResultsDefinition string
 
 	resultsCmd = &cobra.Command{
 		GroupID: "outputs",
@@ -31,7 +34,11 @@ var (
 				runID = args[0]
 			} else {
 				var err error
-				runID, err = service.ResolveRunIDFromGitContext()
+				runID, err = service.ResolveRunIDFromGitContext(cli.ResolveRunIDConfig{
+					BranchName:     ResultsBranch,
+					RepositoryName: ResultsRepo,
+					DefinitionPath: ResultsDefinition,
+				})
 				if err != nil {
 					return err
 				}
@@ -98,4 +105,7 @@ var (
 func init() {
 	resultsCmd.Flags().BoolVar(&ResultsWait, "wait", false, "poll for the run to complete and report the result status")
 	resultsCmd.Flags().BoolVar(&ResultsFailFast, "fail-fast", false, "stop waiting when failures are available (only has an effect when used with --wait)")
+	resultsCmd.Flags().StringVar(&ResultsBranch, "branch", "", "get results for a specific branch instead of the current git branch")
+	resultsCmd.Flags().StringVar(&ResultsRepo, "repo", "", "get results for a specific repository instead of the current git repository")
+	resultsCmd.Flags().StringVar(&ResultsDefinition, "definition", "", "get results for a specific definition path")
 }
