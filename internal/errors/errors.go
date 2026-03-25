@@ -69,6 +69,7 @@ var (
 	ErrTimeout          = errors.New("timeout")
 	ErrLSP              = errors.New("lsp error")
 	ErrAmbiguousTaskKey = errors.New("ambiguous task key")
+	ErrNetworkTransient = errors.New("network transient error")
 
 	// WrapSentinel wraps an error so that errors.Is returns true for the sentinel.
 	WrapSentinel = wrapSentinel

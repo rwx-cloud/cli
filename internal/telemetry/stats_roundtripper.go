@@ -40,6 +40,15 @@ func (s *StatsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	durationMS := time.Since(start).Milliseconds()
 
 	if err != nil {
+		cs := CallStats{
+			Path:       path,
+			Method:     req.Method,
+			StatusCode: 0,
+			DurationMS: durationMS,
+		}
+		s.mu.Lock()
+		s.calls = append(s.calls, cs)
+		s.mu.Unlock()
 		return resp, err
 	}
 

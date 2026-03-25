@@ -14,6 +14,7 @@ import (
 	"github.com/rwx-cloud/rwx/internal/docstoken"
 	"github.com/rwx-cloud/rwx/internal/errors"
 	"github.com/rwx-cloud/rwx/internal/git"
+	"github.com/rwx-cloud/rwx/internal/retry"
 	"github.com/rwx-cloud/rwx/internal/ssh"
 	"github.com/rwx-cloud/rwx/internal/telemetry"
 	"github.com/rwx-cloud/rwx/internal/versions"
@@ -66,7 +67,8 @@ var (
 			}
 
 			collector := telemetry.NewCollector()
-			statsRT := telemetry.NewStatsRoundTripper(c)
+			retryRT := retry.NewRoundTripper(c)
+			statsRT := telemetry.NewStatsRoundTripper(retryRT)
 			sender := telemetry.NewSender(collector, statsRT)
 			telem = telemetry.New(collector, sender, statsRT)
 
