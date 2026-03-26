@@ -17,13 +17,12 @@ import (
 )
 
 type CliState struct {
-	CWD        string `json:"cwd"`
 	Branch     string `json:"branch"`
 	ConfigFile string `json:"configFile"`
 }
 
-func EncodeCliState(cwd, branch, configFile string) string {
-	state := CliState{CWD: cwd, Branch: branch, ConfigFile: configFile}
+func EncodeCliState(branch, configFile string) string {
+	state := CliState{Branch: branch, ConfigFile: configFile}
 	data, _ := json.Marshal(state)
 	return base64.StdEncoding.EncodeToString(data)
 }
@@ -62,7 +61,14 @@ func HashConfigFile(path string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// sandboxStorageVersion is bumped when the on-disk format changes and a
+// migration is needed. Version 0 (or absent) is the legacy format that
+// included cwd in session keys; version 1 uses branch:configFile keys with
+// absolute config paths.
+const sandboxStorageVersion = 1
+
 type SandboxStorage struct {
+	Version   int                       `json:"version,omitempty"`
 	Sandboxes map[string]SandboxSession `json:"sandboxes"`
 }
 
@@ -188,6 +194,11 @@ func LoadSandboxStorage() (*SandboxStorage, error) {
 		storage.Sandboxes = make(map[string]SandboxSession)
 	}
 
+	if storage.Version < sandboxStorageVersion {
+		storage.Sandboxes = migrateOldSessionKeys(storage.Sandboxes)
+		storage.Version = sandboxStorageVersion
+	}
+
 	return storage, nil
 }
 
@@ -226,11 +237,28 @@ func ensureSandboxesDirGitignore(dir string) {
 	}
 }
 
-func SessionKey(cwd, branch, configFile string) string {
+func SessionKey(branch, configFile string) string {
 	if branch == "" {
 		branch = "detached"
 	}
-	return fmt.Sprintf("%s:%s:%s", cwd, branch, configFile)
+	if configFile != "" && !filepath.IsAbs(configFile) {
+		panic(fmt.Sprintf("SessionKey called with relative configFile: %q", configFile))
+	}
+	return fmt.Sprintf("%s:%s", branch, configFile)
+}
+
+// AbsConfigFile coerces a config file path to be absolute. If the path is
+// already absolute it is returned as-is; otherwise it is resolved relative to
+// the current working directory.
+func AbsConfigFile(configFile string) string {
+	if configFile == "" || filepath.IsAbs(configFile) {
+		return configFile
+	}
+	abs, err := filepath.Abs(configFile)
+	if err != nil {
+		return configFile
+	}
+	return abs
 }
 
 // IsDetachedBranch returns true if the branch string represents a detached HEAD.
@@ -247,8 +275,8 @@ func DetachedShortSHA(branch string) string {
 	return ""
 }
 
-func (s *SandboxStorage) GetSession(cwd, branch, configFile string) (*SandboxSession, bool) {
-	key := SessionKey(cwd, branch, configFile)
+func (s *SandboxStorage) GetSession(branch, configFile string) (*SandboxSession, bool) {
+	key := SessionKey(branch, configFile)
 	session, found := s.Sandboxes[key]
 	if !found {
 		return nil, false
@@ -256,12 +284,12 @@ func (s *SandboxStorage) GetSession(cwd, branch, configFile string) (*SandboxSes
 	return &session, true
 }
 
-// GetSessionsForCwdBranch returns all sessions matching cwd and branch (any config file)
-func (s *SandboxStorage) GetSessionsForCwdBranch(cwd, branch string) []SandboxSession {
+// GetSessionsForBranch returns all sessions matching branch (any config file)
+func (s *SandboxStorage) GetSessionsForBranch(branch string) []SandboxSession {
 	if branch == "" {
 		branch = "detached"
 	}
-	prefix := cwd + ":" + branch + ":"
+	prefix := branch + ":"
 	var sessions []SandboxSession
 	for key, session := range s.Sandboxes {
 		if strings.HasPrefix(key, prefix) {
@@ -271,13 +299,13 @@ func (s *SandboxStorage) GetSessionsForCwdBranch(cwd, branch string) []SandboxSe
 	return sessions
 }
 
-func (s *SandboxStorage) SetSession(cwd, branch, configFile string, session SandboxSession) {
-	key := SessionKey(cwd, branch, configFile)
+func (s *SandboxStorage) SetSession(branch, configFile string, session SandboxSession) {
+	key := SessionKey(branch, configFile)
 	s.Sandboxes[key] = session
 }
 
-func (s *SandboxStorage) DeleteSession(cwd, branch, configFile string) {
-	key := SessionKey(cwd, branch, configFile)
+func (s *SandboxStorage) DeleteSession(branch, configFile string) {
+	key := SessionKey(branch, configFile)
 	delete(s.Sandboxes, key)
 }
 
@@ -329,14 +357,14 @@ type AncestryChecker interface {
 // detached SHA is an ancestor of HEAD, the session is returned and re-keyed to
 // the current branch so subsequent lookups hit the fast path.
 // The caller must call Save() to persist the re-keyed session.
-func (s *SandboxStorage) GetSessionByAncestry(cwd, branch, configFile string, checker AncestryChecker) (*SandboxSession, bool) {
+func (s *SandboxStorage) GetSessionByAncestry(branch, configFile string, checker AncestryChecker) (*SandboxSession, bool) {
 	if !IsDetachedBranch(branch) || DetachedShortSHA(branch) == "" {
 		return nil, false
 	}
 
 	for key, session := range s.Sandboxes {
-		storedCwd, storedBranch, storedConfig := ParseSessionKey(key)
-		if storedCwd != cwd || storedConfig != configFile {
+		storedBranch, storedConfig := ParseSessionKey(key)
+		if storedConfig != configFile {
 			continue
 		}
 		if !IsDetachedBranch(storedBranch) {
@@ -348,7 +376,7 @@ func (s *SandboxStorage) GetSessionByAncestry(cwd, branch, configFile string, ch
 		}
 		if checker.IsAncestor(storedSHA, "HEAD") {
 			delete(s.Sandboxes, key)
-			newKey := SessionKey(cwd, branch, configFile)
+			newKey := SessionKey(branch, configFile)
 			s.Sandboxes[newKey] = session
 			return &session, true
 		}
@@ -356,10 +384,10 @@ func (s *SandboxStorage) GetSessionByAncestry(cwd, branch, configFile string, ch
 	return nil, false
 }
 
-// GetSessionsForCwdBranchByAncestry returns sessions where the stored detached
+// GetSessionsForBranchByAncestry returns sessions where the stored detached
 // SHA is an ancestor of HEAD. Matching sessions are re-keyed to the current branch.
 // The caller must call Save() to persist key changes.
-func (s *SandboxStorage) GetSessionsForCwdBranchByAncestry(cwd, branch string, checker AncestryChecker) []SandboxSession {
+func (s *SandboxStorage) GetSessionsForBranchByAncestry(branch string, checker AncestryChecker) []SandboxSession {
 	if !IsDetachedBranch(branch) || DetachedShortSHA(branch) == "" {
 		return nil
 	}
@@ -372,10 +400,7 @@ func (s *SandboxStorage) GetSessionsForCwdBranchByAncestry(cwd, branch string, c
 	var toRekey []rekey
 
 	for key, session := range s.Sandboxes {
-		storedCwd, storedBranch, storedConfig := ParseSessionKey(key)
-		if storedCwd != cwd {
-			continue
-		}
+		storedBranch, storedConfig := ParseSessionKey(key)
 		if !IsDetachedBranch(storedBranch) {
 			continue
 		}
@@ -391,7 +416,7 @@ func (s *SandboxStorage) GetSessionsForCwdBranchByAncestry(cwd, branch string, c
 	var sessions []SandboxSession
 	for _, r := range toRekey {
 		delete(s.Sandboxes, r.oldKey)
-		newKey := SessionKey(cwd, branch, r.config)
+		newKey := SessionKey(branch, r.config)
 		s.Sandboxes[newKey] = r.session
 		sessions = append(sessions, r.session)
 	}
@@ -399,19 +424,58 @@ func (s *SandboxStorage) GetSessionsForCwdBranchByAncestry(cwd, branch string, c
 	return sessions
 }
 
-func ParseSessionKey(key string) (cwd, branch, configFile string) {
-	// Key format: cwd:branch:configFile
-	// Find last two colons
+func ParseSessionKey(key string) (branch, configFile string) {
+	// Key format: branch:configFile
+	// ConfigFile is typically an absolute path starting with "/",
+	// so split on the first ":/" for reliable parsing.
+	if idx := strings.Index(key, ":/"); idx != -1 {
+		return key[:idx], key[idx+1:]
+	}
+	// Fallback for relative config files or malformed keys
 	lastColon := strings.LastIndex(key, ":")
 	if lastColon == -1 {
-		return key, "", ""
+		return key, ""
 	}
-	configFile = key[lastColon+1:]
+	return key[:lastColon], key[lastColon+1:]
+}
+
+// migrateOldSessionKeys converts old-format keys (cwd:branch:configFile)
+// to the new format (branch:configFile). Old keys are detected by checking
+// whether the legacy 3-part parse yields a cwd starting with "/" and a
+// configFile ending with ".yml" or ".yaml".
+func migrateOldSessionKeys(sandboxes map[string]SandboxSession) map[string]SandboxSession {
+	migrated := make(map[string]SandboxSession, len(sandboxes))
+	for key, session := range sandboxes {
+		newKey := migrateSessionKey(key)
+		migrated[newKey] = session
+	}
+	return migrated
+}
+
+func migrateSessionKey(key string) string {
+	// Try to parse as old 3-part format: cwd:branch:configFile
+	// Old keys had an absolute cwd path as the first component.
+	lastColon := strings.LastIndex(key, ":")
+	if lastColon == -1 {
+		return key
+	}
+	configFile := key[lastColon+1:]
 	rest := key[:lastColon]
 
 	secondLastColon := strings.LastIndex(rest, ":")
 	if secondLastColon == -1 {
-		return rest, "", configFile
+		return key
 	}
-	return rest[:secondLastColon], rest[secondLastColon+1:], configFile
+	cwd := rest[:secondLastColon]
+	branch := rest[secondLastColon+1:]
+
+	isYAML := strings.HasSuffix(configFile, ".yml") || strings.HasSuffix(configFile, ".yaml")
+	if strings.HasPrefix(cwd, "/") && isYAML {
+		// If the old config was relative, resolve it against the old cwd
+		if !filepath.IsAbs(configFile) {
+			configFile = filepath.Join(cwd, configFile)
+		}
+		return SessionKey(branch, configFile)
+	}
+	return key
 }

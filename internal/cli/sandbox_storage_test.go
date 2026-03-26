@@ -10,81 +10,68 @@ import (
 )
 
 func TestSessionKey(t *testing.T) {
-	t.Run("creates key from cwd, branch, and config file", func(t *testing.T) {
-		key := cli.SessionKey("/home/user/project", "main", ".rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project:main:.rwx/sandbox.yml", key)
+	t.Run("creates key from branch and config file", func(t *testing.T) {
+		key := cli.SessionKey("main", "/home/user/project/.rwx/sandbox.yml")
+		require.Equal(t, "main:/home/user/project/.rwx/sandbox.yml", key)
 	})
 
 	t.Run("uses 'detached' when branch is empty", func(t *testing.T) {
-		key := cli.SessionKey("/home/user/project", "", ".rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project:detached:.rwx/sandbox.yml", key)
+		key := cli.SessionKey("", "/home/user/project/.rwx/sandbox.yml")
+		require.Equal(t, "detached:/home/user/project/.rwx/sandbox.yml", key)
 	})
 
 	t.Run("preserves detached@sha format as-is", func(t *testing.T) {
-		key := cli.SessionKey("/home/user/project", "detached@abc1234", ".rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project:detached@abc1234:.rwx/sandbox.yml", key)
-	})
-
-	t.Run("handles paths with colons", func(t *testing.T) {
-		key := cli.SessionKey("/home/user/project:with:colons", "feature/test", "config.yml")
-		require.Equal(t, "/home/user/project:with:colons:feature/test:config.yml", key)
+		key := cli.SessionKey("detached@abc1234", "/home/user/project/.rwx/sandbox.yml")
+		require.Equal(t, "detached@abc1234:/home/user/project/.rwx/sandbox.yml", key)
 	})
 }
 
 func TestParseSessionKey(t *testing.T) {
-	t.Run("parses standard key", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:main:.rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project", cwd)
+	t.Run("parses standard key with absolute config path", func(t *testing.T) {
+		branch, configFile := cli.ParseSessionKey("main:/home/user/project/.rwx/sandbox.yml")
 		require.Equal(t, "main", branch)
-		require.Equal(t, ".rwx/sandbox.yml", configFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", configFile)
 	})
 
 	t.Run("parses key with detached branch", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:detached:.rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project", cwd)
+		branch, configFile := cli.ParseSessionKey("detached:/home/user/project/.rwx/sandbox.yml")
 		require.Equal(t, "detached", branch)
-		require.Equal(t, ".rwx/sandbox.yml", configFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", configFile)
 	})
 
 	t.Run("parses key with detached@sha branch", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:detached@abc1234:.rwx/sandbox.yml")
-		require.Equal(t, "/home/user/project", cwd)
+		branch, configFile := cli.ParseSessionKey("detached@abc1234:/home/user/project/.rwx/sandbox.yml")
 		require.Equal(t, "detached@abc1234", branch)
-		require.Equal(t, ".rwx/sandbox.yml", configFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", configFile)
 	})
 
-	t.Run("handles paths with colons in cwd", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("/home/user/project:with:colons:main:config.yml")
-		require.Equal(t, "/home/user/project:with:colons", cwd)
-		require.Equal(t, "main", branch)
-		require.Equal(t, "config.yml", configFile)
+	t.Run("parses key with feature branch containing slashes", func(t *testing.T) {
+		branch, configFile := cli.ParseSessionKey("feature/test:/home/user/project/.rwx/sandbox.yml")
+		require.Equal(t, "feature/test", branch)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", configFile)
 	})
 
 	t.Run("round-trips with SessionKey", func(t *testing.T) {
-		originalCwd := "/home/user/my-project"
 		originalBranch := "feature/new-feature"
-		originalConfig := ".rwx/sandbox.yml"
+		originalConfig := "/home/user/project/.rwx/sandbox.yml"
 
-		key := cli.SessionKey(originalCwd, originalBranch, originalConfig)
-		cwd, branch, configFile := cli.ParseSessionKey(key)
+		key := cli.SessionKey(originalBranch, originalConfig)
+		branch, configFile := cli.ParseSessionKey(key)
 
-		require.Equal(t, originalCwd, cwd)
 		require.Equal(t, originalBranch, branch)
 		require.Equal(t, originalConfig, configFile)
 	})
 
 	t.Run("handles key with no colons", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("invalid")
-		require.Equal(t, "invalid", cwd)
-		require.Equal(t, "", branch)
+		branch, configFile := cli.ParseSessionKey("invalid")
+		require.Equal(t, "invalid", branch)
 		require.Equal(t, "", configFile)
 	})
 
-	t.Run("handles key with single colon", func(t *testing.T) {
-		cwd, branch, configFile := cli.ParseSessionKey("path:config")
-		require.Equal(t, "path", cwd)
-		require.Equal(t, "", branch)
-		require.Equal(t, "config", configFile)
+	t.Run("handles relative config file fallback", func(t *testing.T) {
+		branch, configFile := cli.ParseSessionKey("main:.rwx/sandbox.yml")
+		require.Equal(t, "main", branch)
+		require.Equal(t, ".rwx/sandbox.yml", configFile)
 	})
 }
 
@@ -96,15 +83,15 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 
 		session := cli.SandboxSession{
 			RunID:      "run-123",
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: "/home/user/project/.rwx/sandbox.yml",
 		}
 
-		storage.SetSession("/home/user/project", "main", ".rwx/sandbox.yml", session)
+		storage.SetSession("main", "/home/user/project/.rwx/sandbox.yml", session)
 
-		retrieved, found := storage.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		retrieved, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.True(t, found)
 		require.Equal(t, "run-123", retrieved.RunID)
-		require.Equal(t, ".rwx/sandbox.yml", retrieved.ConfigFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", retrieved.ConfigFile)
 	})
 
 	t.Run("SetSession and GetSession with ScopedToken", func(t *testing.T) {
@@ -114,16 +101,16 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 
 		session := cli.SandboxSession{
 			RunID:       "run-123",
-			ConfigFile:  ".rwx/sandbox.yml",
+			ConfigFile:  "/home/user/project/.rwx/sandbox.yml",
 			ScopedToken: "scoped-token-abc",
 		}
 
-		storage.SetSession("/home/user/project", "main", ".rwx/sandbox.yml", session)
+		storage.SetSession("main", "/home/user/project/.rwx/sandbox.yml", session)
 
-		retrieved, found := storage.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		retrieved, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.True(t, found)
 		require.Equal(t, "run-123", retrieved.RunID)
-		require.Equal(t, ".rwx/sandbox.yml", retrieved.ConfigFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", retrieved.ConfigFile)
 		require.Equal(t, "scoped-token-abc", retrieved.ScopedToken)
 	})
 
@@ -132,7 +119,7 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		_, found := storage.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		_, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.False(t, found)
 	})
 
@@ -141,12 +128,12 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		session := cli.SandboxSession{RunID: "run-123", ConfigFile: ".rwx/sandbox.yml"}
-		storage.SetSession("/home/user/project", "main", ".rwx/sandbox.yml", session)
+		session := cli.SandboxSession{RunID: "run-123", ConfigFile: "/home/user/project/.rwx/sandbox.yml"}
+		storage.SetSession("main", "/home/user/project/.rwx/sandbox.yml", session)
 
-		storage.DeleteSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		storage.DeleteSession("main", "/home/user/project/.rwx/sandbox.yml")
 
-		_, found := storage.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		_, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.False(t, found)
 	})
 
@@ -156,23 +143,22 @@ func TestSandboxStorage_SessionOperations(t *testing.T) {
 		}
 
 		// Should not panic
-		storage.DeleteSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		storage.DeleteSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.Empty(t, storage.Sandboxes)
 	})
 }
 
-func TestSandboxStorage_GetSessionsForCwdBranch(t *testing.T) {
-	t.Run("returns all sessions matching cwd and branch", func(t *testing.T) {
+func TestSandboxStorage_GetSessionsForBranch(t *testing.T) {
+	t.Run("returns all sessions matching branch", func(t *testing.T) {
 		storage := &cli.SandboxStorage{
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "main", "config1.yml", cli.SandboxSession{RunID: "run-1"})
-		storage.SetSession("/home/user/project", "main", "config2.yml", cli.SandboxSession{RunID: "run-2"})
-		storage.SetSession("/home/user/project", "develop", "config1.yml", cli.SandboxSession{RunID: "run-3"})
-		storage.SetSession("/home/user/other", "main", "config1.yml", cli.SandboxSession{RunID: "run-4"})
+		storage.SetSession("main", "/project/.rwx/config1.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("main", "/project/.rwx/config2.yml", cli.SandboxSession{RunID: "run-2"})
+		storage.SetSession("develop", "/project/.rwx/config1.yml", cli.SandboxSession{RunID: "run-3"})
 
-		sessions := storage.GetSessionsForCwdBranch("/home/user/project", "main")
+		sessions := storage.GetSessionsForBranch("main")
 		require.Len(t, sessions, 2)
 
 		runIDs := make([]string, len(sessions))
@@ -187,9 +173,9 @@ func TestSandboxStorage_GetSessionsForCwdBranch(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "main", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("main", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
-		sessions := storage.GetSessionsForCwdBranch("/home/user/project", "develop")
+		sessions := storage.GetSessionsForBranch("develop")
 		require.Empty(t, sessions)
 	})
 
@@ -198,9 +184,9 @@ func TestSandboxStorage_GetSessionsForCwdBranch(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
-		sessions := storage.GetSessionsForCwdBranch("/home/user/project", "")
+		sessions := storage.GetSessionsForBranch("")
 		require.Len(t, sessions, 1)
 		require.Equal(t, "run-1", sessions[0].RunID)
 	})
@@ -212,15 +198,15 @@ func TestSandboxStorage_FindByRunID(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "main", "config.yml", cli.SandboxSession{
+		storage.SetSession("main", "/project/.rwx/config.yml", cli.SandboxSession{
 			RunID:      "run-123",
-			ConfigFile: "config.yml",
+			ConfigFile: "/project/.rwx/config.yml",
 		})
 
 		session, key, found := storage.FindByRunID("run-123")
 		require.True(t, found)
 		require.Equal(t, "run-123", session.RunID)
-		require.Equal(t, "/home/user/project:main:config.yml", key)
+		require.Equal(t, "main:/project/.rwx/config.yml", key)
 	})
 
 	t.Run("returns false when run ID not found", func(t *testing.T) {
@@ -228,7 +214,7 @@ func TestSandboxStorage_FindByRunID(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "main", "config.yml", cli.SandboxSession{RunID: "run-123"})
+		storage.SetSession("main", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-123"})
 
 		_, _, found := storage.FindByRunID("run-456")
 		require.False(t, found)
@@ -241,12 +227,12 @@ func TestSandboxStorage_DeleteSessionByRunID(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/home/user/project", "main", "config.yml", cli.SandboxSession{RunID: "run-123"})
+		storage.SetSession("main", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-123"})
 
 		deleted := storage.DeleteSessionByRunID("run-123")
 		require.True(t, deleted)
 
-		_, found := storage.GetSession("/home/user/project", "main", "config.yml")
+		_, found := storage.GetSession("main", "/project/.rwx/config.yml")
 		require.False(t, found)
 	})
 
@@ -266,8 +252,8 @@ func TestSandboxStorage_AllSessions(t *testing.T) {
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/project1", "main", "config.yml", cli.SandboxSession{RunID: "run-1"})
-		storage.SetSession("/project2", "develop", "config.yml", cli.SandboxSession{RunID: "run-2"})
+		storage.SetSession("main", "/project1/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("develop", "/project2/.rwx/config.yml", cli.SandboxSession{RunID: "run-2"})
 
 		all := storage.AllSessions()
 		require.Len(t, all, 2)
@@ -320,9 +306,9 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		storage := &cli.SandboxStorage{
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
-		storage.SetSession("/home/user/project", "main", ".rwx/sandbox.yml", cli.SandboxSession{
+		storage.SetSession("main", "/home/user/project/.rwx/sandbox.yml", cli.SandboxSession{
 			RunID:      "run-123",
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: "/home/user/project/.rwx/sandbox.yml",
 		})
 
 		err := storage.Save()
@@ -336,7 +322,7 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, loaded.Sandboxes, 1)
 
-		session, found := loaded.GetSession("/home/user/project", "main", ".rwx/sandbox.yml")
+		session, found := loaded.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
 		require.True(t, found)
 		require.Equal(t, "run-123", session.RunID)
 	})
@@ -397,34 +383,79 @@ func TestSandboxStorage_LoadAndSave(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to parse")
 	})
+
+	t.Run("migrates old-format keys on load", func(t *testing.T) {
+		tmpDir := setupTestStorageDir(t)
+
+		sandboxesDir := filepath.Join(tmpDir, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(sandboxesDir, 0o755))
+		storagePath := filepath.Join(sandboxesDir, "sandboxes.json")
+		// Old format: cwd:branch:configFile (no version field)
+		oldJSON := `{"sandboxes":{"/home/user/project:main:/home/user/project/.rwx/sandbox.yml":{"runId":"run-old","configFile":"/home/user/project/.rwx/sandbox.yml"}}}`
+		require.NoError(t, os.WriteFile(storagePath, []byte(oldJSON), 0o644))
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+
+		// Should be accessible via new-format key
+		session, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-old", session.RunID)
+	})
+
+	t.Run("skips migration when version is current", func(t *testing.T) {
+		tmpDir := setupTestStorageDir(t)
+
+		sandboxesDir := filepath.Join(tmpDir, ".rwx", "sandboxes")
+		require.NoError(t, os.MkdirAll(sandboxesDir, 0o755))
+		storagePath := filepath.Join(sandboxesDir, "sandboxes.json")
+		// Current version with a key that looks like it could be old-format but shouldn't be migrated
+		currentJSON := `{"version":1,"sandboxes":{"main:/home/user/project/.rwx/sandbox.yml":{"runId":"run-current","configFile":"/home/user/project/.rwx/sandbox.yml"}}}`
+		require.NoError(t, os.WriteFile(storagePath, []byte(currentJSON), 0o644))
+
+		storage, err := cli.LoadSandboxStorage()
+		require.NoError(t, err)
+		require.Len(t, storage.Sandboxes, 1)
+
+		session, found := storage.GetSession("main", "/home/user/project/.rwx/sandbox.yml")
+		require.True(t, found)
+		require.Equal(t, "run-current", session.RunID)
+	})
 }
 
 func TestEncodeDecodeCliState(t *testing.T) {
 	t.Run("round-trips correctly", func(t *testing.T) {
-		encoded := cli.EncodeCliState("/home/user/project", "main", ".rwx/sandbox.yml")
+		encoded := cli.EncodeCliState("main", "/home/user/project/.rwx/sandbox.yml")
 		state, err := cli.DecodeCliState(encoded)
 		require.NoError(t, err)
-		require.Equal(t, "/home/user/project", state.CWD)
 		require.Equal(t, "main", state.Branch)
-		require.Equal(t, ".rwx/sandbox.yml", state.ConfigFile)
+		require.Equal(t, "/home/user/project/.rwx/sandbox.yml", state.ConfigFile)
 	})
 
 	t.Run("handles empty fields", func(t *testing.T) {
-		encoded := cli.EncodeCliState("", "", "")
+		encoded := cli.EncodeCliState("", "")
 		state, err := cli.DecodeCliState(encoded)
 		require.NoError(t, err)
-		require.Equal(t, "", state.CWD)
 		require.Equal(t, "", state.Branch)
 		require.Equal(t, "", state.ConfigFile)
 	})
 
 	t.Run("handles special characters", func(t *testing.T) {
-		encoded := cli.EncodeCliState("/path/with spaces/and:colons", "feature/test-branch", "config.yml")
+		encoded := cli.EncodeCliState("feature/test-branch", "/path/with spaces/config.yml")
 		state, err := cli.DecodeCliState(encoded)
 		require.NoError(t, err)
-		require.Equal(t, "/path/with spaces/and:colons", state.CWD)
 		require.Equal(t, "feature/test-branch", state.Branch)
-		require.Equal(t, "config.yml", state.ConfigFile)
+		require.Equal(t, "/path/with spaces/config.yml", state.ConfigFile)
+	})
+
+	t.Run("decodes old format with cwd gracefully", func(t *testing.T) {
+		// Old CliState payloads include "cwd" — the field is silently ignored
+		encoded := cli.EncodeCliState("main", "/project/.rwx/sandbox.yml")
+		state, err := cli.DecodeCliState(encoded)
+		require.NoError(t, err)
+		require.Equal(t, "main", state.Branch)
+		require.Equal(t, "/project/.rwx/sandbox.yml", state.ConfigFile)
 	})
 
 	t.Run("returns error for invalid base64", func(t *testing.T) {
@@ -543,160 +574,150 @@ func (m *mockAncestryChecker) IsAncestor(candidateSHA, headRef string) bool {
 func TestGetSessionByAncestry(t *testing.T) {
 	t.Run("returns nil when branch is not detached", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		session, found := storage.GetSessionByAncestry("/project", "main", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("main", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 	})
 
 	t.Run("returns nil when branch is bare detached without SHA", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		session, found := storage.GetSessionByAncestry("/project", "detached", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 	})
 
 	t.Run("finds session when stored SHA is ancestor of HEAD", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1", ConfigFile: "config.yml"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1", ConfigFile: "/project/.rwx/config.yml"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached@def5678", "/project/.rwx/config.yml", checker)
 		require.True(t, found)
 		require.Equal(t, "run-1", session.RunID)
 
 		// Verify key was updated
-		_, oldFound := storage.GetSession("/project", "detached@abc1234", "config.yml")
+		_, oldFound := storage.GetSession("detached@abc1234", "/project/.rwx/config.yml")
 		require.False(t, oldFound)
-		newSession, newFound := storage.GetSession("/project", "detached@def5678", "config.yml")
+		newSession, newFound := storage.GetSession("detached@def5678", "/project/.rwx/config.yml")
 		require.True(t, newFound)
 		require.Equal(t, "run-1", newSession.RunID)
 	})
 
 	t.Run("does not match when stored SHA is not an ancestor", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached@def5678", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 
 		// Verify original key is untouched
-		_, stillThere := storage.GetSession("/project", "detached@abc1234", "config.yml")
+		_, stillThere := storage.GetSession("detached@abc1234", "/project/.rwx/config.yml")
 		require.True(t, stillThere)
-	})
-
-	t.Run("does not match sessions with different cwd", func(t *testing.T) {
-		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/other-project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
-
-		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
-		require.False(t, found)
-		require.Nil(t, session)
 	})
 
 	t.Run("does not match sessions with different config file", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "other.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/other.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached@def5678", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 	})
 
 	t.Run("does not match sessions stored under a named branch", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "main", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("main", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached@def5678", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 	})
 
 	t.Run("does not match bare detached stored sessions", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
-		session, found := storage.GetSessionByAncestry("/project", "detached@def5678", "config.yml", checker)
+		session, found := storage.GetSessionByAncestry("detached@def5678", "/project/.rwx/config.yml", checker)
 		require.False(t, found)
 		require.Nil(t, session)
 	})
 }
 
-func TestGetSessionsForCwdBranchByAncestry(t *testing.T) {
+func TestGetSessionsForBranchByAncestry(t *testing.T) {
 	t.Run("returns nil when branch is not detached", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "main", checker)
+		sessions := storage.GetSessionsForBranchByAncestry("main", checker)
 		require.Nil(t, sessions)
 	})
 
 	t.Run("returns matching sessions across multiple configs", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config1.yml", cli.SandboxSession{RunID: "run-1"})
-		storage.SetSession("/project", "detached@abc1234", "config2.yml", cli.SandboxSession{RunID: "run-2"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config1.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config2.yml", cli.SandboxSession{RunID: "run-2"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		sessions := storage.GetSessionsForBranchByAncestry("detached@def5678", checker)
 		require.Len(t, sessions, 2)
 
 		runIDs := []string{sessions[0].RunID, sessions[1].RunID}
 		require.ElementsMatch(t, []string{"run-1", "run-2"}, runIDs)
 
 		// Verify keys were updated
-		_, oldFound := storage.GetSession("/project", "detached@abc1234", "config1.yml")
+		_, oldFound := storage.GetSession("detached@abc1234", "/project/.rwx/config1.yml")
 		require.False(t, oldFound)
-		_, newFound := storage.GetSession("/project", "detached@def5678", "config1.yml")
+		_, newFound := storage.GetSession("detached@def5678", "/project/.rwx/config1.yml")
 		require.True(t, newFound)
 	})
 
 	t.Run("does not return non-ancestor detached sessions", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
-		storage.SetSession("/project", "detached@unrelated", "config.yml", cli.SandboxSession{RunID: "run-2"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@unrelated", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-2"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{"abc1234->HEAD": true}}
-		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		sessions := storage.GetSessionsForBranchByAncestry("detached@def5678", checker)
 		require.Len(t, sessions, 1)
 		require.Equal(t, "run-1", sessions[0].RunID)
 	})
 
 	t.Run("returns empty when no matches", func(t *testing.T) {
 		storage := &cli.SandboxStorage{Sandboxes: make(map[string]cli.SandboxSession)}
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
 
 		checker := &mockAncestryChecker{ancestors: map[string]bool{}}
-		sessions := storage.GetSessionsForCwdBranchByAncestry("/project", "detached@def5678", checker)
+		sessions := storage.GetSessionsForBranchByAncestry("detached@def5678", checker)
 		require.Empty(t, sessions)
 	})
 }
 
-func TestGetSessionsForCwdBranch_DetachedSHA(t *testing.T) {
+func TestGetSessionsForBranch_DetachedSHA(t *testing.T) {
 	t.Run("different detached SHAs get separate sessions", func(t *testing.T) {
 		storage := &cli.SandboxStorage{
 			Sandboxes: make(map[string]cli.SandboxSession),
 		}
 
-		storage.SetSession("/project", "detached@abc1234", "config.yml", cli.SandboxSession{RunID: "run-1"})
-		storage.SetSession("/project", "detached@def5678", "config.yml", cli.SandboxSession{RunID: "run-2"})
+		storage.SetSession("detached@abc1234", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-1"})
+		storage.SetSession("detached@def5678", "/project/.rwx/config.yml", cli.SandboxSession{RunID: "run-2"})
 
-		sessions1 := storage.GetSessionsForCwdBranch("/project", "detached@abc1234")
+		sessions1 := storage.GetSessionsForBranch("detached@abc1234")
 		require.Len(t, sessions1, 1)
 		require.Equal(t, "run-1", sessions1[0].RunID)
 
-		sessions2 := storage.GetSessionsForCwdBranch("/project", "detached@def5678")
+		sessions2 := storage.GetSessionsForBranch("detached@def5678")
 		require.Len(t, sessions2, 1)
 		require.Equal(t, "run-2", sessions2[0].RunID)
 	})

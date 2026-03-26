@@ -463,7 +463,7 @@ func TestTelemetry_SandboxStart(t *testing.T) {
 		}
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		})
 
@@ -493,7 +493,7 @@ func TestTelemetry_SandboxStart(t *testing.T) {
 		}
 
 		result, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			RunID:      runID,
 			Json:       true,
 		})
@@ -536,7 +536,7 @@ func TestTelemetry_SessionCreatedAt(t *testing.T) {
 		}
 
 		_, err := setup.service.StartSandbox(cli.StartSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		})
 		require.NoError(t, err)
@@ -545,7 +545,7 @@ func TestTelemetry_SessionCreatedAt(t *testing.T) {
 		branch := cli.GetCurrentGitBranch(setup.tmp)
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		session, ok := storage.GetSession(setup.tmp, branch, ".rwx/sandbox.yml")
+		session, ok := storage.GetSession(branch, setup.absConfig(".rwx/sandbox.yml"))
 		require.True(t, ok)
 		require.NotNil(t, session.CreatedAt)
 		require.True(t, session.CreatedAt.After(before))
@@ -581,7 +581,7 @@ func TestTelemetry_SSHConnect(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo", "hello"},
 			RunID:      runID,
 			Json:       true,
@@ -622,7 +622,7 @@ func TestTelemetry_SSHConnect(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo"},
 			RunID:      runID,
 			Json:       true,
@@ -704,7 +704,7 @@ func TestTelemetry_SandboxExec(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"make", "test"},
 			RunID:      "run-exec-123",
 			Json:       true,
@@ -760,7 +760,7 @@ func TestTelemetry_SandboxExecNonZeroExitCode(t *testing.T) {
 		}
 
 		result, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"false"},
 			RunID:      "run-exec-fail",
 			Json:       true,
@@ -810,7 +810,7 @@ func TestTelemetry_SandboxSyncPush(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo"},
 			RunID:      "run-sync-push",
 			Json:       true,
@@ -854,7 +854,7 @@ func TestTelemetry_SandboxSyncPull(t *testing.T) {
 		}
 
 		_, err := setup.service.ExecSandbox(cli.ExecSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Command:    []string{"echo"},
 			RunID:      "run-sync-pull",
 			Json:       true,
@@ -882,9 +882,9 @@ func TestTelemetry_SandboxStop(t *testing.T) {
 
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		storage.SetSession(cwd, branch, ".rwx/sandbox.yml", cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
 			RunID:      "run-stop-123",
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			CreatedAt:  &createdAt,
 			ExecCount:  5,
 		})
@@ -946,7 +946,7 @@ func TestTelemetry_SandboxReset(t *testing.T) {
 		}
 
 		result, err := setup.service.ResetSandbox(cli.ResetSandboxConfig{
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 			Json:       true,
 		})
 
@@ -969,13 +969,13 @@ func TestTelemetry_SandboxList(t *testing.T) {
 		// Seed one active and one expired session
 		storage, err := cli.LoadSandboxStorage()
 		require.NoError(t, err)
-		storage.SetSession(cwd, branch, ".rwx/sandbox.yml", cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/sandbox.yml"), cli.SandboxSession{
 			RunID:      "run-list-active",
-			ConfigFile: ".rwx/sandbox.yml",
+			ConfigFile: setup.absConfig(".rwx/sandbox.yml"),
 		})
-		storage.SetSession(cwd, branch, ".rwx/other.yml", cli.SandboxSession{
+		storage.SetSession(branch, setup.absConfig(".rwx/other.yml"), cli.SandboxSession{
 			RunID:      "run-list-expired",
-			ConfigFile: ".rwx/other.yml",
+			ConfigFile: setup.absConfig(".rwx/other.yml"),
 		})
 		require.NoError(t, storage.Save())
 
