@@ -984,6 +984,9 @@ func (c Client) RunStatus(cfg RunStatusConfig) (RunStatusResult, error) {
 		params.Set("fail_fast", failFast)
 		params.Set("branch_name", cfg.BranchName)
 		params.Set("repository_name", cfg.RepositoryName)
+		if cfg.DefinitionPath != "" {
+			params.Set("definition_path", cfg.DefinitionPath)
+		}
 		endpoint = "/mint/api/runs/latest?" + params.Encode()
 	}
 	result := RunStatusResult{}

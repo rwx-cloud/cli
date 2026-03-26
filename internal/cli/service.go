@@ -169,11 +169,29 @@ func (s Service) confirmDestruction(prompt string, yes bool) error {
 	return nil
 }
 
+type ResolveRunIDConfig struct {
+	BranchName     string
+	RepositoryName string
+	DefinitionPath string
+}
+
 // ResolveRunIDFromGitContext resolves the latest run ID by looking up the
-// current git branch and repository name via the API.
-func (s Service) ResolveRunIDFromGitContext() (string, error) {
+// current git branch and repository name via the API. Fields set on the
+// optional config override values that would otherwise be inferred from git.
+func (s Service) ResolveRunIDFromGitContext(overrides ...ResolveRunIDConfig) (string, error) {
+	var cfg ResolveRunIDConfig
+	if len(overrides) > 0 {
+		cfg = overrides[0]
+	}
+
 	branchName := s.GitClient.GetBranch()
+	if cfg.BranchName != "" {
+		branchName = cfg.BranchName
+	}
 	repositoryName := git.RepoNameFromOriginUrl(s.GitClient.GetOriginUrl())
+	if cfg.RepositoryName != "" {
+		repositoryName = cfg.RepositoryName
+	}
 
 	if branchName == "" || repositoryName == "" {
 		return "", errors.New("unable to determine the current branch and repository from git; please provide a run ID")
@@ -182,16 +200,22 @@ func (s Service) ResolveRunIDFromGitContext() (string, error) {
 	result, err := s.APIClient.RunStatus(api.RunStatusConfig{
 		BranchName:     branchName,
 		RepositoryName: repositoryName,
+		DefinitionPath: cfg.DefinitionPath,
 	})
+	notFoundMsg := fmt.Sprintf("no run found for %s repository on branch %s", repositoryName, branchName)
+	if cfg.DefinitionPath != "" {
+		notFoundMsg += fmt.Sprintf(" with definition %s", cfg.DefinitionPath)
+	}
+
 	if err != nil {
 		if errors.Is(err, api.ErrNotFound) {
-			return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+			return "", fmt.Errorf("%s", notFoundMsg)
 		}
 		return "", errors.Wrap(err, "unable to resolve run from git context")
 	}
 
 	if result.RunID == "" {
-		return "", fmt.Errorf("no run found for %s repository on branch %s", repositoryName, branchName)
+		return "", fmt.Errorf("%s", notFoundMsg)
 	}
 
 	return result.RunID, nil
