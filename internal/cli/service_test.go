@@ -134,9 +134,9 @@ func TestOutputOutdatedSkillMessage(t *testing.T) {
 		require.Empty(t, s.mockStderr.String())
 	})
 
-	t.Run("prints upgrade instructions for all outdated sources", func(t *testing.T) {
+	t.Run("prints upgrade instructions including installations with no version", func(t *testing.T) {
 		s := setupSkillTest(t)
-		seedSkillFile(t, s.tmp, "1.0.0")
+		seedSkillFile(t, s.tmp, "")
 		seedMarketplaceSkillFile(t, s.tmp, "1.1.0")
 		_ = versions.SetSkillLatestVersion("2.0.0")
 

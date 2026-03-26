@@ -101,7 +101,12 @@ func (s Service) outputOutdatedSkillMessage() {
 	var highestOutdated *semver.Version
 	outdatedSources := make(map[string]bool)
 	for _, inst := range result.Installations {
-		if !skill.IsDetected(inst) || inst.Version == "" {
+		if !skill.IsDetected(inst) {
+			continue
+		}
+		if inst.Version == "" {
+			// Installations with no version in frontmatter are always considered outdated.
+			outdatedSources[inst.Source] = true
 			continue
 		}
 		v, err := semver.NewVersion(inst.Version)
@@ -125,7 +130,11 @@ func (s Service) outputOutdatedSkillMessage() {
 	}
 
 	w := s.Stderr
-	fmt.Fprintf(w, "\nA new version of the RWX agent skill is available: v%s → v%s\n", highestOutdated, latestVersion)
+	if highestOutdated != nil {
+		fmt.Fprintf(w, "\nA new version of the RWX agent skill is available: v%s → v%s\n", highestOutdated, latestVersion)
+	} else {
+		fmt.Fprintf(w, "\nA new version of the RWX agent skill is available: v%s\n", latestVersion)
+	}
 	if outdatedSources["agents"] {
 		fmt.Fprintln(w, "To upgrade: npx skills update rwx")
 	}
